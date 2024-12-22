@@ -14,6 +14,8 @@ module;
 #include "tools.h"
 export module NeuralNetwork;
 
+// @TODO
+constexpr double speed = 0.001;
 
 template <std::size_t... N>
 struct NeuralNetworkHelper;
@@ -53,6 +55,7 @@ NAMESPACE_BEGIN(nl)
 template <std::size_t... N>
 class NeuralNetwork {
     typename NeuralNetworkHelper<N ...>::type weights_;
+    typename NeuralNetworkHelper<N ...>::type tmp_value_;
     std::tuple<std::array<double, N> ...> inputs_;
     std::tuple<std::array<double, N> ...> outputs_;
     std::size_t layout_count_ = sizeof ... (N);
@@ -66,7 +69,7 @@ public:
 
     template <size_t index = 0>
     void forward() {
-        if constexpr (index < std::tuple_size_v<typename NeuralNetworkHelper<N ...>::type>) {
+        if constexpr (index < sizeof ...(N) - 1) {
             auto &weight = std::get<index>(weights_);
             auto &input = std::get<index + 1>(inputs_);
             auto &output = std::get<index>(outputs_);
@@ -83,6 +86,29 @@ public:
             }
 
             forward<index + 1>();
+        }
+    }
+
+    template <size_t index = sizeof ... (N) - 1>
+    void backward() {
+        if constexpr (index == sizeof...(N) - 1) {
+            auto &tmp_value = std::get<index - 1>(tmp_value_);
+            auto &output = std::get<index - 1>(outputs_);
+            for (int i = 0;i < tmp_value.size(); ++i) {
+                for (int j = 0;j < tmp_value[i].size(); ++j) {
+                    tmp_value[i][j] = output[i] /* @TODO x 损失函数对 I[j] 求导, 需要知道损失函数 */;
+                }
+
+            }
+
+
+
+            backward<index - 1>();
+        }
+        else if constexpr (index > 0) {
+
+
+            backward<index - 1>();
         }
     }
 
