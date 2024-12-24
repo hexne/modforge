@@ -14,7 +14,7 @@ module;
 #include "tools.h"
 export module Time;
 
-time_t GetNowTime() {
+time_t GetNowTimeCount() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
@@ -139,7 +139,7 @@ class Timer {
 
     void run() {
         while (!is_finish()) {
-            const auto cur_time = GetNowTime();
+            const auto cur_time = GetNowTimeCount();
             for (auto it = tasks_.begin(); it != tasks_.end(); ) {
                 if (it->end_time < cur_time) {
                     std::lock_guard lock(tasks_mutex_);
@@ -168,7 +168,7 @@ public:
     void add_task(CallbackFunc func, const time_t time, const bool is_repeat_task = false) {
         std::lock_guard lock(tasks_mutex_);
         tasks_.insert(
-            { std::move(func) , GetNowTime() + time, is_repeat_task, time }
+            { std::move(func) , GetNowTimeCount() + time, is_repeat_task, time }
         );
     }
 
@@ -185,6 +185,25 @@ public:
                 });
         }
         return tasks_.size();
+    }
+
+};
+
+class CountTime {
+    Time time_begin_;
+    Time time_end_;
+public:
+
+    void start_count() {
+        time_begin_ = Time();
+    }
+    void end_count() {
+        time_end_ = Time();
+    }
+
+    template <typename T = std::chrono::milliseconds>
+    int count() const {
+        return (time_end_ - time_begin_).count<T>();
     }
 
 };
