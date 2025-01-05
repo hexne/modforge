@@ -26,39 +26,35 @@ NAMESPACE_BEGIN(nl)
 
 class BigNumber {
     bool sign = true;
-    std::string number = "";
+    std::string number;
 
     // 大于
     bool AbsGt(const BigNumber& big_int) const {
         if (number.size() > big_int.number.size()) {
             return true;
         }
-        else if (number.size() == big_int.number.size()) {
+        if (number.size() == big_int.number.size()) {
             for (int i = number.size()-1; i >= 0; --i) {
                 if (number[i] != big_int.number[i])
                     return number[i] > big_int.number[i];
             }
             return false;
         }
-        else {
-            return false;
-        }
+        return false;
     }
 
     bool AbsGe(const BigNumber& big_int) const {
         if (number.size() > big_int.number.size()) {
             return true;
         }
-        else if (number.size() == big_int.number.size()) {
+        if (number.size() == big_int.number.size()) {
             for (int i = number.size()-1; i >= 0; --i) {
                 if (number[i] != big_int.number[i])
                     return number[i] > big_int.number[i];
             }
             return true;
         }
-        else {
-            return false;
-        }
+        return false;
     }
 
 

@@ -53,7 +53,7 @@ public:
 	}
 
 
-	size_t size() {
+	size_t size() const {
 		int size = rear_ - front_;
 		if (size > 0)
 			return size;

@@ -5,7 +5,7 @@
 - [x] File
 - [x] MultArray
 - [x] StringEncrypt
-- [x] BigNumber
+- [x] BigNumber <sup> @TODO, 暂时仅支持整数，不支持浮点数
 - [x] Time
 - [x] TestRunTime
 - [x] ThreadPool
@@ -14,7 +14,7 @@
 - [x] EventListener <sup> @TODO, linux版本未实现, 应当实现一个windows/linux的终端版本
 - [x] ProgressBar <sup> @TODO, 应当优化进度条的显示
 - [ ] TerminalMenu <sup> @TODO, 不能使用键盘上下按键进行选择
-- [ ] Matrix <sup> @TODO , 作为神经网络的前置内容
+- [x] Matrix
 - [ ] NeuralNetwork <sup> @TODO BP神经网络
 
 # 安装

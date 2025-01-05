@@ -159,7 +159,33 @@ std::ostream& operator << (std::ostream& out, const CursorPos& pos) {
 }
 
 #elif __linux__
-// @TODO
+class MouseLinux : MouseBase {
+
+public:
+    void click_left(int count = 1) override {
+
+    }
+    void click_right(int count = 1) override {
+
+    }
+
+    CursorPos get_cursor_pos() override {
+
+    }
+    void set_click_left_callback(std::function<void()>) override {
+
+    }
+    void set_click_right_callback(std::function<void()>) override {
+
+    }
+    void set_move_callback(std::function<void()>) override {
+
+    }
+    void move_to(const CursorPos&) override {
+
+    }
+
+};
 #endif
 
 export
@@ -168,7 +194,7 @@ NAMESPACE_BEGIN(nl)
 #ifdef _WIN32
 using Mouse = MouseWindows;
 #elif __linux__
-
+using Mouse = MouseLinux;
 #endif
 
 NAMESPACE_END(nl)

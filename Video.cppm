@@ -4,7 +4,6 @@
 *******************************************************************************/
 
 module;
-#include <thread>
 #include <opencv2/opencv.hpp>
 #include "tools.h"
 export module Video;

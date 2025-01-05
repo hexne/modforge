@@ -27,8 +27,9 @@ class TerminalMenu {
 public:
     friend std::ostream& operator<<(std::ostream& os, const TerminalMenu& menu) {
         for (const auto& [title, action] : menu.menu_) {
-            std::cout << title << std::endl;
+            std::cout << title << '\n';
         }
+        std::endl(std::cout);
         return os;
     }
 
@@ -36,11 +37,17 @@ public:
     void add_menu(std::string name, std::function<void()> func) {
         menu_.emplace_back(Options {name, func});
     }
+    void clear() {
+#ifdef __WIN32
+        system("cls");
+#elif __linux__
+        system("clear");
+#endif
+    }
 
     void start() {
         while (true) {
-            // 清屏
-            system("clear");
+            clear();
             std::cout << *this;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
