@@ -15,6 +15,15 @@ export
 NAMESPACE_BEGIN(nl)
 class Param {
     std::vector<std::string> params_;
+    // 方案2 :
+    template<size_t ... index>
+    void add_param_callback_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
+        auto lam = [&] (const std::string &str) {
+            if (std::ranges::find(params_, str) != params_.end())
+                callback();
+        };
+        (lam(std::get<index>(tuple)), ...);
+    }
 public:
     Param(const int argc,const char *const argv[]) {
         for (int i = 0;i < argc; ++i)
@@ -43,16 +52,7 @@ public:
             }
         });
     }
-    // 方案2 :
     */
-    template<size_t ... index>
-    void add_param_callback_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
-        auto lam = [&] (const std::string &str) {
-            if (std::ranges::find(params_, str) != params_.end())
-                callback();
-        };
-        (lam(std::get<index>(tuple)), ...);
-    }
     void add_param_callback(auto &&... args) {
         auto tuple = std::forward_as_tuple(args...);
         auto callback = std::get<sizeof ...(args) - 1>(tuple);
