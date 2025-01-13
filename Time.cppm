@@ -3,6 +3,7 @@
  * Data   : 2023/12/03
 *******************************************************************************/
 module;
+#include <iostream>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -218,9 +219,22 @@ public:
 
 NAMESPACE_END(nl)
 
-export template<>
-struct std::formatter<nl::Time>: std::formatter<char>  {
-    auto format(const nl::Time& time, auto& ctx) const {
-        return std::format_to(ctx.out(), "{}", time.to_string());
+template <>
+struct std::formatter<nl::Time> {
+    constexpr auto parse(auto& context) {
+        auto format_end = std::find_if(
+            context.begin(),
+            context.end(),
+            [](auto v) {return v == '}'; });
+
+        format_ = "{:" + std::string{std::begin(context), format_end} + "}";
+        return format_end;
     }
+
+    constexpr auto format(const nl::Time& time, auto& context) const {
+        std::string time_str = time.to_string();
+        return std::vformat_to(context.out(), format_, std::make_format_args(time_str));
+    }
+private:
+    std::string format_ {};
 };
