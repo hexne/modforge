@@ -170,7 +170,7 @@ public:
     }
 
     CursorPos get_cursor_pos() override {
-
+        return {};
     }
     void set_click_left_callback(std::function<void()>) override {
 
