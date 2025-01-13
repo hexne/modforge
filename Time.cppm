@@ -92,13 +92,20 @@ public:
         return *this;
     }
 
+    [[nodiscard]]
+    std::string to_string() const {
+        std::stringstream ss;
+
+        const std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(time_.get_local_time())};
+        ss << ymd << ' ';
+        const std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(time_.get_local_time()) - std::chrono::floor<std::chrono::days>(time_.get_local_time())};
+        ss << hms;
+
+        return ss.str();
+    }
+
     friend std::ostream& operator << (std::ostream& out,const Time &time) {
-        const std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(time.time_.get_local_time())};
-        out << ymd << ' ';
-
-        const std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(time.time_.get_local_time()) - std::chrono::floor<std::chrono::days>(time.time_.get_local_time())};
-        out << hms;
-
+        out << time.to_string();
         return out;
     }
 
@@ -210,3 +217,10 @@ public:
 
 
 NAMESPACE_END(nl)
+
+export template<>
+struct std::formatter<nl::Time>: std::formatter<char>  {
+    auto format(const nl::Time& time, auto& ctx) const {
+        return std::format_to(ctx.out(), "{}", time.to_string());
+    }
+};
