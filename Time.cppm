@@ -104,6 +104,20 @@ public:
 
         return ss.str();
     }
+    [[nodiscard]]
+    std::string to_date() const {
+        std::stringstream ss;
+        const std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(time_.get_local_time())};
+        ss << ymd;
+        return ss.str();
+    }
+    [[nodiscard]]
+    std::string to_clock() const {
+        std::stringstream ss;
+        const std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(time_.get_local_time()) - std::chrono::floor<std::chrono::days>(time_.get_local_time())};
+        ss << hms;
+        return ss.str();
+    }
 
     friend std::ostream& operator << (std::ostream& out,const Time &time) {
         out << time.to_string();
@@ -222,19 +236,61 @@ NAMESPACE_END(nl)
 template <>
 struct std::formatter<nl::Time> {
     constexpr auto parse(auto& context) {
-        auto format_end = std::find_if(
-            context.begin(),
-            context.end(),
-            [](auto v) {return v == '}'; });
+        auto d_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 'd';
+        });
+        if (d_it != context.end()) {
+            format_type_ = FormatType::Date;
+            format_ = "{:" + std::string(context.begin(), d_it) + "}";
+            return d_it + 1;
+        }
 
-        format_ = "{:" + std::string{std::begin(context), format_end} + "}";
-        return format_end;
+        auto c_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 'c';
+        });
+        if (c_it != context.end()) {
+            format_type_ = FormatType::Clock;
+            format_ = "{:" + std::string(context.begin(), c_it) + "}";
+            return c_it + 1;
+        }
+        auto t_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 't';
+        });
+        if (t_it != context.end()) {
+            format_type_ = FormatType::Time;
+            format_ = "{:" + std::string(context.begin(), t_it) + "}";
+            return t_it + 1;
+        }
+
+        auto end = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == '}';
+        });
+        format_type_ = FormatType::None;
+        format_ = "{:" + std::string(context.begin(), end) + "}";
+        return end;
     }
 
     constexpr auto format(const nl::Time& time, auto& context) const {
-        std::string time_str = time.to_string();
+        std::string time_str {};
+        switch (format_type_) {
+            case FormatType::None:
+            case FormatType::Time:
+                time_str = time.to_string();
+                break;
+            case FormatType::Date:
+                time_str = time.to_date();
+                break;
+            case FormatType::Clock:
+                time_str = time.to_clock();
+                break;
+            default:
+                break;
+        }
         return std::vformat_to(context.out(), format_, std::make_format_args(time_str));
     }
 private:
+    enum class FormatType {
+        None, Time, Date, Clock
+    } format_type_ {};
     std::string format_ {};
 };
