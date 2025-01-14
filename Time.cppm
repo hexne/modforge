@@ -233,6 +233,7 @@ public:
 
 NAMESPACE_END(nl)
 
+// use demo, std::format("{:*^30c}",time), 支持 c，d, t, 和 空'{:*^30}'
 template <>
 struct std::formatter<nl::Time> {
     constexpr auto parse(auto& context) {
