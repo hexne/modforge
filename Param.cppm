@@ -4,9 +4,17 @@
 *******************************************************************************/
 
 module;
+#ifdef Debug
+#include <iostream>
+#endif
+
+#include <map>
+#include <functional>
+#include <iostream>
+#include <ostream>
 #include <string>
 #include <vector>
-#include <functional>
+
 #include "tools.h"
 export module Param;
 
@@ -15,19 +23,48 @@ export
 NAMESPACE_BEGIN(nl)
 class Param {
     std::vector<std::string> params_;
+    std::map<std::string, std::function<void()>> support_params_;
     // 方案2 :
     template<size_t ... index>
     void add_param_callback_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
         auto lam = [&] (const std::string &str) {
-            if (std::ranges::find(params_, str) != params_.end())
-                callback();
+            support_params_.insert({str,callback});
         };
         (lam(std::get<index>(tuple)), ...);
     }
 public:
     Param(const int argc,const char *const argv[]) {
-        for (int i = 0;i < argc; ++i)
-            params_.push_back(argv[i]);
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            // - a -a - asd -asd
+            if (arg == "-" || arg[0] == '-' && arg[1] != '-') {
+                if (arg.size() == 1) {
+                    for (auto ch : std::string_view{argv[i+1]}) {
+                        params_.push_back({ch});
+                    }
+                    i += 1;
+                }
+                else {
+                    for (auto ch : std::string_view{arg.begin() + 1, arg.end()}) {
+                        params_.push_back({ch});
+                    }
+                }
+            }
+            // -- all --all
+            else if (arg == "--" || arg.find("--") != std::string::npos) {
+                if (arg.size() == 2) {
+                    params_.push_back({argv[i+1]});
+                    i += 1;
+                }
+                else {
+                    params_.push_back(std::string(arg.begin() + 2, arg.end()));
+                }
+
+            }
+            else {
+                throw std::invalid_argument("Invalid argument");
+            }
+        }
     }
 
     /*
@@ -53,6 +90,18 @@ public:
         });
     }
     */
+    void analyze() {
+
+        for (auto arg : params_) {
+            if (!support_params_.contains(arg)  ) {
+                throw std::invalid_argument("Invalid argument : " + arg);
+            }
+            support_params_.find(arg)->second();
+        }
+
+
+    }
+
     void add_param_callback(auto &&... args) {
         auto tuple = std::forward_as_tuple(args...);
         auto callback = std::get<sizeof ...(args) - 1>(tuple);
@@ -64,7 +113,7 @@ public:
     }
     [[nodiscard]]
     size_t count_param() const {
-        return params_.size() - 1;
+        return params_.size();
     }
 
 };
