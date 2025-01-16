@@ -26,7 +26,7 @@ class Param {
     std::map<std::string, std::function<void()>> support_params_;
     // 方案2 :
     template<size_t ... index>
-    void add_param_callback_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
+    void add_param_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
         auto lam = [&] (const std::string &str) {
             support_params_.insert({str,callback});
         };
@@ -102,10 +102,10 @@ public:
 
     }
 
-    void add_param_callback(auto &&... args) {
+    void add_param(auto &&... args) {
         auto tuple = std::forward_as_tuple(args...);
         auto callback = std::get<sizeof ...(args) - 1>(tuple);
-        add_param_callback_impl(tuple,callback,std::make_index_sequence<sizeof...(args) - 1>());
+        add_param_impl(tuple,callback,std::make_index_sequence<sizeof...(args) - 1>());
     }
     [[nodiscard]]
     bool have_param() const {
