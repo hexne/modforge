@@ -16,7 +16,7 @@ module;
 export module NeuralNetwork;
 
 // @TODO
-constexpr double speed = 0.001;
+constexpr double speed = 0.1;
 
 std::random_device random_device;
 std::mt19937 random_engine(random_device());
@@ -45,6 +45,14 @@ struct Activate {
     virtual double derivative(double) = 0;
     virtual ~Activate() = default;
 };
+struct NoneActivate : Activate {
+    double activate(const double x) override {
+        return x;
+    }
+    double derivative(const double x) override {
+        return 1;
+    }
+};
 struct Sigmoid : Activate {
     double activate(const double x) override {
         return 1.0 / (1 + exp(-x));
@@ -54,12 +62,11 @@ struct Sigmoid : Activate {
     }
 };
 struct Tanh : Activate {
-    double activate(const double) override {
-        // @TODO
-        return 0.0;
+    double activate(const double x) override {
+        return tanh(x);
     }
     double derivative(const double x) override {
-        return {};
+        return 1.0 - x * x;  // tanh 的导数是 1 - tanh(x)^2
     }
 };
 
@@ -80,13 +87,11 @@ struct MeanSquaredError : LossFunction {
 export
 NAMESPACE_BEGIN(nl)
 
-// 对于传入的参数 <2,3,4,2>
-// 对应的矩阵为
-// 2 x 3, 3 x 4, 4 x 2, 而非常规认为的 3 x 2, 4 x 3, 2 x 4
 template <std::size_t... N>
 class NeuralNetwork {
     typename NeuralNetworkHelper<N ...>::type weights_;         // 权值
-    typename NeuralNetworkHelper<N ...>::type tmp_value_;       // ?
+    typename NeuralNetworkHelper<N ...>::type gradients_;       //
+    std::tuple<std::array<double, N> ...> gradients_line_;       //
     std::tuple<std::array<double, N> ...> inputs_;              // 每层的输入
     std::tuple<std::array<double, N> ...> outputs_;             // 每层的输出
     std::size_t layout_count_ = sizeof ... (N);
@@ -98,8 +103,14 @@ class NeuralNetwork {
         MeanSquaredError,
     };
     std::shared_ptr<Activate> activate_function_ {new Sigmoid};
-    std::shared_ptr<Activate> out_activate_function_ {new Sigmoid};
+    std::shared_ptr<Activate> out_activate_function_ {new NoneActivate};
     std::shared_ptr<LossFunction> loss_function_ {new MeanSquaredError};
+
+    template <std::size_t index>
+    static constexpr size_t get_neural_size() {
+        constexpr static size_t sizes[] = { N ... };
+        return sizes[index];
+    }
 
     template <size_t index = 0>
     void init_weight() {
@@ -116,48 +127,16 @@ class NeuralNetwork {
     }
 
     static size_t constexpr get_input_count() {
-        return get_input_count_impl<N...>();
-    }
-
-    template <size_t First, size_t ... Last>
-    static size_t constexpr get_input_count_impl() {
-        return First;
+        return get_neural_size<0>();
     }
 
     static size_t constexpr get_output_count() {
-        return get_output_count_impl<N...>();
-    }
-    template <std::size_t First, std::size_t Last, std::size_t ... Args>
-    static size_t constexpr get_output_count_impl() {
-        return get_output_count_impl<Last, Args...>();
-    }
-    template <std::size_t Last>
-    static size_t constexpr get_output_count_impl() {
-        return Last;
+        return get_neural_size<sizeof...(N) - 1>();
     }
 public:
 
-
-    template <size_t index = 0>
-    void print() {
-        if constexpr (index < sizeof ...(N) - 1) {
-            auto& weights = std::get<index>(weights_);
-
-            std::cout << "[\n";
-            for (int i = 0;i < weights.size(); ++i) {
-                for (int j = 0;j < weights[i].size(); ++j) {
-                    std::cout << weights[i][j] << " ";
-                }
-                std::cout << std::endl;
-            }
-            std::cout << "]\n";
-            print<index + 1>();
-        }
-
-
-    }
     NeuralNetwork() {
-        init_weight<0>();
+        init_weight();
     }
 
     std::array<double,get_output_count()> forward(const std::array<double,get_input_count()> &input) {
@@ -197,22 +176,88 @@ public:
 
     }
 
-    template <size_t index = sizeof ... (N) - 1>
+    template <size_t index = sizeof ... (N) - 2>
     void backward() {
-        // 如果是最后一层
-        if constexpr (index == sizeof...(N) - 1) {
+        if constexpr (index > 0) {
+            // 隐藏层
+            auto& input = std::get<index - 1>(inputs_);
+            auto& output = std::get<index - 1>(outputs_);
+            auto& weight = std::get<index - 1>(weights_);
+            auto& gradient = std::get<index - 1>(gradients_);
+            auto& next_dZ = std::get<index + 1>(gradients_line_);
 
+            // 计算当前层的激活值梯度
+            std::array<double, get_neural_size<index>()> dA;
+            for (size_t i = 0; i < output.size(); ++i) {
+                for (size_t j = 0; j < weight[i].size(); ++j) {
+                    dA[i] += next_dZ[j] * weight[j][i];
+                }
+            }
+
+            // 计算当前层的线性部分梯度
+            std::array<double, get_neural_size<index>()> dZ;
+            for (size_t i = 0; i < output.size(); ++i) {
+                dZ[i] = dA[i] * activate_function_->derivative(output[i]);
+            }
+
+            // 计算权重梯度
+            for (size_t i = 0; i < weight.size(); ++i) {
+                for (size_t j = 0; j < weight[i].size(); ++j) {
+                    gradient[i][j] = dZ[i] * input[j];
+                }
+            }
+
+            // 更新权重
+            for (size_t i = 0; i < weight.size(); ++i) {
+                for (size_t j = 0; j < weight[i].size(); ++j) {
+                    weight[i][j] -= speed * gradient[i][j];
+                }
+            }
+
+            // 保存当前层的梯度
+            std::get<index>(gradients_line_) = dZ;
 
             backward<index - 1>();
         }
-        // 如果是中间层
-        else if constexpr (index > 0) {
+    }
+    void backward(const std::array<double, get_output_count()> &result) {
+        constexpr size_t index = sizeof...(N) - 1;
+        // 输出层
+        auto& output = std::get<index>(outputs_);
+        auto& input = std::get<index - 1>(inputs_);
+        auto& weight = std::get<index - 1>(weights_);
+        auto& gradient = std::get<index - 1>(gradients_);
 
-
-
-            backward<index - 1>();
+        // 计算输出层的激活值梯度
+        // aL中为计算的差值
+        std::array<double, get_neural_size<index>()> dAL;
+        for (size_t i = 0; i < output.size(); ++i) {
+            dAL[i] = loss_function_->derivative(output[i], result[i]);
         }
 
+        // 计算输出层的线性部分梯度
+        std::array<double, get_neural_size<index>()> dZ;
+        for (size_t i = 0; i < output.size(); ++i) {
+            dZ[i] = dAL[i] * out_activate_function_->derivative(output[i]);
+        }
+
+        // 计算权重梯度
+        for (size_t i = 0; i < weight.size(); ++i) {
+            for (size_t j = 0; j < weight[i].size(); ++j) {
+                gradient[i][j] = dZ[i] * input[j];
+            }
+        }
+
+        // 更新权重
+        for (size_t i = 0; i < weight.size(); ++i) {
+            for (size_t j = 0; j < weight[i].size(); ++j) {
+                weight[i][j] -= speed * gradient[i][j];
+            }
+        }
+
+        // 保存输出层的梯度
+        std::get<index>(gradients_line_) = dZ;
+        backward();
     }
 
     void set_activate(ActivateType activate) {
