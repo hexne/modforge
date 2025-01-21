@@ -15,7 +15,7 @@
 - [x] ProgressBar <sup> @TODO, 应当优化进度条的显示
 - [ ] TerminalMenu <sup> @TODO, 不能使用键盘上下按键进行选择
 - [x] Matrix
-- [ ] NeuralNetwork <sup> @TODO BP神经网络
+- [x] NeuralNetwork
 
 # 安装
 git clone https://github.com/hexne/NeLib.git  
