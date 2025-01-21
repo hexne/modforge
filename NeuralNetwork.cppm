@@ -29,7 +29,7 @@ struct NeuralNetworkHelper;
 template <std::size_t Row, std::size_t Col, std::size_t... Args>
 struct NeuralNetworkHelper<Row, Col, Args...> {
     using type = std::remove_cvref_t<decltype(std::tuple_cat(
-                        std::declval<std::tuple<std::array<std::array<double,Col>, Row>>>(),
+                        std::declval<std::tuple<std::array<std::array<double,Row>, Col>>>(),
                         std::declval<typename NeuralNetworkHelper<Col, Args...>::type>()
                     ))>;
 };
@@ -161,60 +161,58 @@ public:
     }
 
     std::array<double,get_output_count()> forward(const std::array<double,get_input_count()> &input) {
-        std::cout << input.size();
-        return {};
+        auto &tmp = std::get<0>(outputs_);
+        tmp = input;
+        forward();
+        return std::get<sizeof...(N) - 1>(outputs_);
     }
 
 
     template <size_t index = 0>
     void forward() {
         if constexpr (index < sizeof ...(N) - 1) {
-            auto &weight = std::get<index>(weights_);
-            auto &input = std::get<index + 1>(inputs_);
-            auto &output = std::get<index>(outputs_);
+            auto& weight = std::get<index>(weights_);
+            auto& input_cur = std::get<index>(inputs_);
+            auto& input_next = std::get<index + 1>(inputs_);
+            auto& output = std::get<index>(outputs_);
 
-            for (int i = 0;i < input.size(); ++i) {
-                input[i] = 0;
-                for (int j = 0;j < output.size(); ++j) {
-                    input[i] += weight[j][i] * output[j];
-                }
-            }
+            for (int i = 0;i < input_cur.size(); ++i)
+                output[i] = activate_function_->activate(input_cur[i]);
 
-            if constexpr (index < sizeof... (N) - 2) {
-                for (int i = 0;i < input.size(); ++i) {
-                    output[i] = activate_function_->activate(input[i]);
-                }
-            }
-            else if constexpr (index == sizeof... (N) - 2) {
-                for (int i = 0;i < input.size(); ++i) {
-                    output[i] = out_activate_function_->activate(input[i]);
+            for (int i = 0;i < weight.size(); ++i) {
+                input_next[i] = 0;
+                for (int j = 0;j < weight[i].size(); ++j) {
+                    input_next[i] += weight[i][j] * output[j];
                 }
             }
             forward<index + 1>();
         }
+        else if constexpr (index == sizeof...(N) - 1) {
+            auto &input = std::get<index>(inputs_);
+            auto &output = std::get<index>(outputs_);
+
+            for (int i = 0;i < input.size(); ++i)
+                output[i] = out_activate_function_->activate(input[i]);
+        }
+
     }
 
     template <size_t index = sizeof ... (N) - 1>
     void backward() {
+        // 如果是最后一层
         if constexpr (index == sizeof...(N) - 1) {
-            auto &tmp_value = std::get<index - 1>(tmp_value_);
-            auto &output = std::get<index - 1>(outputs_);
-            for (int i = 0;i < tmp_value.size(); ++i) {
-                for (int j = 0;j < tmp_value[i].size(); ++j) {
-                    tmp_value[i][j] = output[i] /* @TODO x 损失函数对 I[j] 求导, 需要知道损失函数 */;
-                }
-
-            }
-
 
 
             backward<index - 1>();
         }
+        // 如果是中间层
         else if constexpr (index > 0) {
 
 
+
             backward<index - 1>();
         }
+
     }
 
     void set_activate(ActivateType activate) {
