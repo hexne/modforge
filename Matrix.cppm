@@ -23,9 +23,25 @@ class Matrix {
     friend std::ostream& operator<<(std::ostream& os, const Matrix& matrix);
 public:
     static Matrix LoadMatrix(const std::string &file_name) {
+
+        std::ifstream in(file_name);
         if (std::ifstream in(file_name); !in.is_open())
             throw std::runtime_error("open file failed");
-        // @TODO
+        std::string line;
+        std::getline(in, line);
+        int col{};
+        for (int i = 0;i < line.size(); ++i) {
+            while (line[i] == ' ')
+                ;
+            col ++;
+        }
+        while (std::getline(in, line)) {
+            // @TODO
+
+        }
+
+
+
         return {};
     }
     static Matrix LoadMatrix(const std::string &file_name,int row, int col) {
