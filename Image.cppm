@@ -5,6 +5,7 @@
 
 module;
 #include <opencv2/opencv.hpp>
+#include <utility>
 #include <opencv2/highgui/highgui_c.h>
 #include "tools.h"
 export module Image;
@@ -49,7 +50,7 @@ public:
         open(path);
     }
 
-    explicit Image(const cv::Mat &image) : image_(image) {  }
+    explicit Image(cv::Mat image) : image_(std::move(image)) {  }
 
     Image(const Image &image) {
         image_ = image.image_;
@@ -67,10 +68,7 @@ public:
         image_ = image;
         return *this;
     }
-    Image &operator=(const Image &image) {
-        image_ = image.image_;
-        return *this;
-    }
+    Image &operator=(const Image &image) = default;
 
     Image &operator=(const cv::Scalar &scalar) {
         image_ = scalar;
@@ -481,15 +479,15 @@ public:
         cv::line(image_, p1, p2, color, pen_width, cv::LINE_8);
         return *this;
     }
-    Image &draw_circle(cv::Point center, int r, cv::Scalar color, int pen_width) {
+    Image &draw_circle(cv::Point center, int r, const cv::Scalar& color, int pen_width) {
         cv::circle(image_, center, r, color, pen_width, cv::LINE_8);
         return *this;
     }
-    Image &draw_ellipse(cv::RotatedRect rect, cv::Scalar color, int pen_width) {
+    Image &draw_ellipse(const cv::RotatedRect &rect, const cv::Scalar& color, int pen_width) {
         cv::ellipse(image_,rect,color,pen_width);
         return *this;
     }
-    Image &draw_rect(cv::Rect rect, cv::Scalar color, int pen_width = 1) {
+    Image &draw_rect(cv::Rect rect, const cv::Scalar& color, int pen_width = 1) {
         cv::rectangle(image_,rect,color, pen_width,cv::LINE_8,0);
         return *this;
     }
@@ -547,7 +545,7 @@ public:
         cv::merge(vec,ret_mat);
         return Image(ret_mat);
     }
-    Image get_inrange(cv::Scalar lower, cv::Scalar upper) const {
+    Image get_inrange(const cv::Scalar& lower, cv::Scalar upper) const {
         cv::Mat ret;
         cv::inRange(image_,lower,upper,ret);
         return Image(ret);
@@ -604,7 +602,7 @@ public:
         }
         return {};
     }
-    Image get_histogram(int width = 200, int height = 100) {
+    Image get_histogram(const int width = 200, const int height = 100) const {
         auto arrs = get_histogram_data();
 
         cv::Mat ret(height,width,CV_8UC3,cv::Scalar(255,255,255));
@@ -688,7 +686,7 @@ class Net {
     }
 public:
 
-    Net(std::string pd_file, std::string pd_text_file, double confidence_rate) : conf_rate_(confidence_rate) {
+    Net(const std::string &pd_file, const std::string &pd_text_file, const double confidence_rate) : conf_rate_(confidence_rate) {
         net_ = cv::dnn::readNetFromTensorflow(pd_file,pd_text_file);
     }
     bool forward(nl::Image &image) {
