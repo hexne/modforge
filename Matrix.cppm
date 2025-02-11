@@ -20,67 +20,35 @@ class Matrix {
     size_t row_{}, col_{};
     std::shared_ptr<double[]> data_ptr_;
     nl::MultArray<double> data_{};
-    friend std::ostream& operator<<(std::ostream& os, const Matrix& matrix);
+    friend std::ostream& operator << (std::ostream& os, const Matrix& matrix);
+    friend std::istream& operator >> (std::istream& is, Matrix& matrix);
 public:
-    static Matrix LoadMatrix(const std::string &file_name) {
-
-        std::ifstream in(file_name);
-        if (std::ifstream in(file_name); !in.is_open())
-            throw std::runtime_error("open file failed");
-        std::string line;
-        std::getline(in, line);
-        int col{};
-        for (int i = 0;i < line.size(); ++i) {
-            while (line[i] == ' ')
-                ;
-            col ++;
-        }
-        while (std::getline(in, line)) {
-            // @TODO
-
-        }
-
-
-
-        return {};
-    }
-    static Matrix LoadMatrix(const std::string &file_name,int row, int col) {
-        std::ifstream in(file_name);
-        if (!in.is_open())
-            throw std::runtime_error("open file failed");
-
-        Matrix ret(row,col);
-        for (int i = 0;i < row;i++)
-            for (int j = 0;j < col;j++)
-                in >> ret.data_[i][j];
-
-        return ret;
-    }
-    static Matrix LoadMatrix(const std::vector<double> &numbers, int row, int col) {
-        if (numbers.size() < row * col)
-            throw std::runtime_error("vector size is too small");
-
-        Matrix ret(row,col);
-        int index{};
-        for (int i = 0;i < row; i++)
-            for (int j = 0;j < col; j++)
-                ret.data_[i][j] = numbers[index ++];
-        return ret;
-    }
-
     Matrix() = default;
-    Matrix(size_t row, size_t col) :
+
+    Matrix(const size_t row, const size_t col) :
         row_(row), col_(col),
         data_ptr_(std::make_shared<double[]>(col * row)),
         data_(data_ptr_.get(), row, col) {  }
-    Matrix(const Matrix &other) {
-        row_ = other.row_;
-        col_ = other.col_;
-        data_ptr_ = other.data_ptr_;
-        data_ = other.data_;
+
+    Matrix(const Matrix &other) = default;
+
+    Matrix(const std::vector<double> &numbers, int row, int col) {
+        if (numbers.size() < row * col)
+            throw std::runtime_error("vector size is too small");
+
+        data_ptr_ = std::make_shared<double[]>(col * row);
+        data_ = nl::MultArray<double>(data_ptr_.get(), row, col);
+        row_ = row;
+        col_ = col;
+
+        int index{};
+        for (int i = 0;i < row; i++)
+            for (int j = 0;j < col; j++)
+                data_[i][j] = numbers[index ++];
     }
-    Matrix& operator = (const Matrix &other) {
-        new (this) Matrix(other);
+
+    Matrix& operator = (const Matrix &right) {
+        new (this) Matrix(right);
         return *this;
     }
 
@@ -88,7 +56,7 @@ public:
         if (row_ != right.row_ || col_ != right.col_)
             throw std::runtime_error("Matrix addition failed");
 
-        Matrix ret(row_,col_);
+        Matrix ret(row_, col_);
         for (int i = 0; i < row_; i++)
             for (int j = 0; j < col_; j++)
                 ret.data_[i][j] = data_[i][j] + right.data_[i][j];
@@ -124,7 +92,7 @@ public:
         return *this;
     }
     Matrix& operator -= (const Matrix & right) {
-
+        *this = *this - right;
         return *this;
     }
     Matrix& operator *= (const Matrix & right) {
@@ -134,16 +102,32 @@ public:
 };
 
 std::ostream& operator << (std::ostream& os, const Matrix& matrix) {
-    os << "[\n";
-
     for (int i = 0; i < matrix.row_;i++) {
         for (int j = 0; j < matrix.col_;j++) {
-            os << std::setw(5) << matrix.data_[i][j] << ' ';
+            os << std::fixed << std::setprecision(6) << matrix.data_[i][j] << ' ';
         }
         os << '\n';
     }
-    os << "]\n";
+    os << '\n';
     return os;
 }
+std::istream &operator >> (std::istream &is, Matrix &matrix) {
+    std::vector<double> datas;
+    std::string line;
+    int row{}, col{};
+    while (std::getline(is, line) && line != "\n" && line != "\r\n") {
+        std::istringstream iss(line);
+        double value{};
+        col = 0;
+        while (iss >> value) {
+            datas.emplace_back(value);
+            col ++;
+        }
+        row ++;
+    }
+    matrix = Matrix(datas, row, col);
+    return is;
+}
+
 
 NAMESPACE_END(nl)
