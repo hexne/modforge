@@ -4,6 +4,8 @@ project(NeLib)
 set(VERSION "1.0.0")
 set(CMAKE_CXX_STANDARD 20)
 find_package(OpenCV REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
+
 
 add_library(NeLib STATIC )
 
@@ -21,6 +23,7 @@ target_sources(NeLib
 )
 target_link_libraries(NeLib
     ${OpenCV_LIBS}
+    JsonCpp::JsonCpp
 )
 target_compile_features(NeLib PUBLIC cxx_std_20)
 
