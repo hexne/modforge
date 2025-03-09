@@ -28,7 +28,7 @@ public:
 
 		front_ = 0;
 		rear_ = init_list.size();
-		std::copy(init_list.begin(), init_list.end(), data_.begin());
+		copy(init_list.begin(), init_list.end(), data_.begin());
 	}
 
 	void push_back(const T &val) {

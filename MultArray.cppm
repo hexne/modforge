@@ -16,9 +16,13 @@ export module MultArray;
 export
 NAMESPACE_BEGIN(nl)
 
-
 template<typename T,size_t N = 2>
-class MultArray {
+class
+
+#if __cplusplus >= 202302L
+[[deprecated("plase use mdspan")]]
+#endif
+MultArray {
     T* data_;
     size_t count_;
     std::vector<size_t> dimensions_;
@@ -80,6 +84,7 @@ public:
         assert(row * col < count_ && "index out of range");
         return data_[row * col_ + col];
     }
+
     T *operator[] (const size_t row) {
         return data_ + row * col_;
     }
