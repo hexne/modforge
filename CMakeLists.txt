@@ -5,18 +5,29 @@ set(VERSION "1.0.0")
 
 set(CMAKE_CXX_STANDARD 23)
 
-set(CMAKE_CXX_COMPILER /bin/clang++)
-add_compile_options(-stdlib=libc++)
-
-add_library(NeLib STATIC)
+#set(CMAKE_CXX_COMPILER /bin/clang++)
 
 
 file(GLOB module_files "*.cppm")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    list(REMOVE_ITEM module_files
+            "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-stdlib=libc++)
+    add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    message(STATUS "${CMAKE_CXX_COMPILER_ID}")
+endif()
 
 find_package(OpenCV REQUIRED)
 # find_package(jsoncpp CONFIG REQUIRED)
 
+add_library(NeLib STATIC)
 target_sources(NeLib
     PUBLIC
     FILE_SET cxx_modules TYPE CXX_MODULES FILES
