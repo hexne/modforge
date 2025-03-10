@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.29)
+
+# set(CMAKE_CXX_COMPILER /bin/clang++)
+
 project(NeLib)
 
 set(VERSION "1.0.0")
 
 set(CMAKE_CXX_STANDARD 23)
 
-#set(CMAKE_CXX_COMPILER /bin/clang++)
 
 
 file(GLOB module_files "*.cppm")

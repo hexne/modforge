@@ -6,7 +6,6 @@ module;
 #include <iostream>
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <functional>
 #include <mutex>
 #include <ranges>
