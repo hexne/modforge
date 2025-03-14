@@ -63,6 +63,9 @@ public:
         cv::Rect rect(x, y, width, height);
         image_ = cv::Mat(image.image_, rect);
     }
+    uchar& operator[] (int x,int y) {
+        return image_.at<uchar>(x, y);
+    }
 
     Image &operator=(const cv::Mat &image) {
         image_ = image;
@@ -97,6 +100,9 @@ public:
 
     cv::Mat get_mat() {
         return image_;
+    }
+    uchar *data() {
+        return image_.data;
     }
 
     void show(const std::string &window_name) const {
@@ -668,55 +674,55 @@ public:
     }
 };
 
-class Net {
-    double conf_rate_{};
-    cv::dnn::Net net_;
-    /**
-     * @return : 1 x 1 x N x 7, 有N个目标，每个目标有7个信息，
-     *              分别为 None, None, conf_rate, x1, y1, x2, y2
-    **/
-    cv::Mat forward_and_return_message(Image& image) {
-        auto mat = image.get_mat();
-        cv::Mat bolb = cv::dnn::blobFromImage(mat, 1.0);
-        net_.setInput(bolb);
-
-        // 1 x 1 x N x 7
-        cv::Mat probs = net_.forward();
-        return probs;
-    }
-public:
-
-    Net(const std::string &pd_file, const std::string &pd_text_file, const double confidence_rate) : conf_rate_(confidence_rate) {
-        net_ = cv::dnn::readNetFromTensorflow(pd_file,pd_text_file);
-    }
-    bool forward(nl::Image &image) {
-        auto probs = forward_and_return_message(image);
-        cv::Mat detectMat(probs.size[2], probs.size[3], CV_32F, probs.ptr<float>());
-        for (int row = 0; row < detectMat.rows; row++) {
-            if (detectMat.at<float>(row,2) > conf_rate_)
-                return true;
-        }
-        return false;
-    }
-    void forward_and_draw(nl::Image image, const cv::Scalar &color) {
-        auto probs = forward_and_return_message(image);
-        cv::Mat info(probs.size[2], probs.size[3], CV_32F, probs.ptr<float>());
-        for (int row = 0; row < info.rows; row++) {
-            if (info.at<float>(row,2) > conf_rate_) {
-                float x1 = info.at<float>(row,3) * image.get_width();
-                float y1 = info.at<float>(row,4) * image.get_height();
-                float x2 = info.at<float>(row,5) * image.get_width();
-                float y2 = info.at<float>(row,6) * image.get_height();
-                image.draw_rect(cv::Rect(x1,y1,x2 - x1, y2 - y1), color);
-            }
-        }
-    }
-
-
-
-
-};
-
+// class Net {
+//     double conf_rate_{};
+//     cv::dnn::Net net_;
+//     /**
+//      * @return : 1 x 1 x N x 7, 有N个目标，每个目标有7个信息，
+//      *              分别为 None, None, conf_rate, x1, y1, x2, y2
+//     **/
+//     cv::Mat forward_and_return_message(Image& image) {
+//         auto mat = image.get_mat();
+//         cv::Mat bolb = cv::dnn::blobFromImage(mat, 1.0);
+//         net_.setInput(bolb);
+//
+//         // 1 x 1 x N x 7
+//         cv::Mat probs = net_.forward();
+//         return probs;
+//     }
+// public:
+//
+//     Net(const std::string &pd_file, const std::string &pd_text_file, const double confidence_rate) : conf_rate_(confidence_rate) {
+//         net_ = cv::dnn::readNetFromTensorflow(pd_file,pd_text_file);
+//     }
+//     bool forward(nl::Image &image) {
+//         auto probs = forward_and_return_message(image);
+//         cv::Mat detectMat(probs.size[2], probs.size[3], CV_32F, probs.ptr<float>());
+//         for (int row = 0; row < detectMat.rows; row++) {
+//             if (detectMat.at<float>(row,2) > conf_rate_)
+//                 return true;
+//         }
+//         return false;
+//     }
+//     void forward_and_draw(nl::Image image, const cv::Scalar &color) {
+//         auto probs = forward_and_return_message(image);
+//         cv::Mat info(probs.size[2], probs.size[3], CV_32F, probs.ptr<float>());
+//         for (int row = 0; row < info.rows; row++) {
+//             if (info.at<float>(row,2) > conf_rate_) {
+//                 float x1 = info.at<float>(row,3) * image.get_width();
+//                 float y1 = info.at<float>(row,4) * image.get_height();
+//                 float x2 = info.at<float>(row,5) * image.get_width();
+//                 float y2 = info.at<float>(row,6) * image.get_height();
+//                 image.draw_rect(cv::Rect(x1,y1,x2 - x1, y2 - y1), color);
+//             }
+//         }
+//     }
+//
+//
+//
+//
+// };
+//
 
 NAMESPACE_END(nl)
 

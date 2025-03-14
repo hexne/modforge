@@ -8,6 +8,9 @@ set(VERSION "1.0.0")
 
 set(CMAKE_CXX_STANDARD 23)
 
+set(OpenCV_INCLUDE_DIRS "/home/yongheng/custom_libs/opencv_libc/include")
+
+set(OpenCV_LIBRARIES "/home/yongheng/custom_libs/opencv_libc/lib")
 
 
 file(GLOB module_files "*.cppm")
@@ -37,6 +40,8 @@ target_sources(NeLib
 )
 target_link_libraries(NeLib
     ${OpenCV_LIBS}
+        c++
+        c++abi
     # JsonCpp::JsonCpp
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
