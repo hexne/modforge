@@ -14,172 +14,258 @@ export module CNN;
 
 import Image;
 
-struct Layout {
-    virtual ~Layout() = default;
-    virtual void forward() = 0;
-    virtual void background() = 0;
+
+template <typename T>
+class Tensor {
+    std::shared_ptr<T []> data_;
+    std::mdspan<T, std::dextents<size_t,3>> view_;
+public:
+    int x{},y{},z{};
+    Tensor(int x, int y, int z = 1) : x(x), y(y), z(z) {
+        auto p = new T[x * y * z];
+        new (this) Tensor(p, x, y, z);
+    }
+    Tensor(T * data, int x, int y, int z = 1) : x(x), y(y), z(z) {
+        data_ = std::shared_ptr<T[]>(data);
+        view_ = std::mdspan(data_.get(), z, x, y);
+    }
+    T &operator[] (int x, int y, int z) {
+        return view_[z, x, y];
+    }
+    size_t extent(int num) {
+        return view_.extent(num);
+    }
+
+    Tensor operator - (const Tensor &other) const {
+        int z = view_.extent(0), x = view_.extent(1), y = view_.extent(2);
+        Tensor ret(z, x, y);
+        for (int i = 0; i < z * x * y; ++i) {
+            ret[i] = data_[i] - other[i];
+        }
+        return ret;
+    }
+    Tensor operator + (const Tensor &other) const {
+        int z = view_.extent(0), x = view_.extent(1), y = view_.extent(2);
+        Tensor<T> ret(z, x, y);
+        for (int i = 0; i < z * x * y; ++i) {
+            ret[i] = data_[i] + other[i];
+        }
+        return ret;
+    }
 };
 
-// 卷积层
+struct Layout {
+    virtual Tensor<float> forward(const Tensor<float> &) = 0;
+    virtual void background() = 0;
+    virtual ~Layout() = default;
+};
+
+
+template <typename T>
+struct ImageLabelPair {
+    Tensor<T> image;
+    Tensor<T> label;
+};
+
+
 class ConvLayer : public Layout {
-
-    static constexpr size_t colors{3};
-    static constexpr size_t kernel_row{3}, kernel_col{3}, kernel_count{5};
-    static constexpr size_t image_weight{512}, image_height{255};
-    static constexpr size_t stride{1};
-
-
-    static constexpr std::array<std::size_t, 2> view_strides = { image_weight * colors, colors};
-    static constexpr std::layout_stride::mapping<std::dextents<size_t, 2>> image_layout
-                = std::layout_stride::mapping(std::dextents<size_t, 2> { image_height, image_weight }, view_strides);
-
-
-    // 内核数据 和 数据的二维视图
-    std::array<std::array<double,kernel_row * kernel_col>, kernel_count> kernels_data_{};
-    std::array<std::mdspan<double, std::dextents<size_t, 2>>, kernel_count> kernels_ {};
-
-    // 特征数据, @TODO, 暂时只有一张特征图
-    std::array<unsigned char, image_weight * image_height * colors> trait_data_{};
-
-    // 图像和特征 的二维视图
-    std::mdspan<unsigned char, std::dextents<size_t, 2>> image_, trait_;
-
-    // 图像和特征各个通道 的二维视图
-    std::array<std::mdspan<unsigned char, std::dextents<size_t, 2>, std::layout_stride>, colors> rgb_, trait_rgb_;
+    size_t kernel_count_{};
+    std::vector<Tensor<float>> kernels_;
+    size_t image_size_{28}, padding_{}, stride_{1}, channels_{1};
 
 
 
-    void init_kernels() {
-        // kernels_data_ = {
-        //     {
-        //         0.f, 1.f, 0.f,
-        //         0.f, 1.f, 0.f,
-        //         0.f, 1.f, 0.f,
-        //     },
-        // };
 
-        static std::random_device rd;
+
+public:
+    size_t kernel_size{3};
+    ConvLayer(int kernel_count) : kernel_count_(kernel_count) {
+        kernels_ = std::vector<Tensor<float>> (kernel_count, Tensor<float>(kernel_size,kernel_size, 1));
+        std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_real_distribution dis(-1.0, 1.0);
+        std::uniform_real_distribution dis(0.f,1.f);
 
-        int count{};
-        while (count++ < kernel_count) {
-            int pos{};
-            while (pos < kernel_row * kernel_col) {
-                kernels_data_[count][pos++] = dis(gen);
+        // 初始化kernel
+        for (auto &kernel : kernels_) {
+            for (int i = 0;i < kernel.extent(0); ++i) {
+                for (int j = 0;j < kernel.extent(1); ++j) {
+                    for (int k = 0;k < kernel.extent(2); ++k) {
+                        kernel[i, j, k] = dis(gen);
+                    }
+                }
+
             }
         }
 
 
-        for (int i = 0; i < kernel_count; i++)
-            kernels_[i] = std::mdspan(kernels_data_[i].data(), kernel_row, kernel_col);
-
-        kernels_data_[0] = {
-            1, 0, 1,
-            1, 0, 1,
-            1, 0, 1,
-        };
 
     }
-    static double normalize(const unsigned char num) {
-        return static_cast<double>(num) / 255;
+    Tensor<float> forward(Tensor<float> &data) {
+
+        size_t out_size = (image_size_ + 2 * padding_ - kernel_size) / stride_ + 1;
+        Tensor<float> out(out_size, out_size, kernel_count_);
+
+        // 使用每个卷积核
+        for (int k = 0; k < kernel_count_; ++k) {
+            // 对于每个输出的元素
+            for (int i = 0;i < out_size; ++ i) {
+                for (int j = 0; j < out_size; ++ j) {
+
+                    float sum{};
+                    for (int x = 0; x < kernel_size; ++ x) {
+                        for (int y = 0; y < kernel_size; ++ y) {
+                            size_t input_x = i + x;
+                            size_t input_y = j + y;
+                            if (input_x < image_size_ && input_y < image_size_) {
+                                for (int z = 0; z < channels_; ++ z) {
+                                    sum += data[input_x, input_y, z] * kernels_[k][input_x, input_y, z];
+                                }
+                            }
+                        }
+                    }
+                    out[i, j, k] = sum;
+                }
+            }
+        }
+        return out;
     }
-    static unsigned char denormalize(const double num) {
-        if (num > 1)
-            return 255;
-        return static_cast<unsigned char>(num * 255);
+    void background() {
+
+    }
+
+};
+
+
+template <typename T>
+class PoolLayout {
+    size_t kernel_size_{};
+    size_t padding_{}, stride_{1}, channels_{1};
+public:
+    PoolLayout() {
+
+    }
+
+    Tensor<float> forward(Tensor<float> &data) {
+
+        // x == y
+        size_t out_size = (data.x + 2 * padding_ - kernel_size_) / stride_ + 1;
+        Tensor<float> out(out_size,out_size, data.z);
+
+        for (int i = 0;i < out_size; ++i) {
+            for (int j = 0;j < out_size; ++j) {
+                for (int z = 0;z < data.z; ++z) {
+
+                    float max = INT_MIN * 1.f;
+                    for (int x = 0;x < kernel_size_; ++x) {
+                        for (int y = 0;y < kernel_size_; ++y) {
+                            if (data[i + x, j + y, z] < max) {
+                                max = data[i + x, j + y, z];
+                            }
+                        }
+                    }
+                    out[i, j, z] = max;
+                }
+            }
+        }
+        return out;
+    }
+
+    void background() {
+
+    }
+
+};
+
+
+template <typename T>
+class ReluLayout {
+
+public:
+    ReluLayout() = default;
+
+    float activator(float x) const {
+        if (x > 0)
+            return x;
+        return 0;
+    }
+    Tensor<float> forward(Tensor<float> &data) {
+        Tensor<float> out(data.x, data.y, data.z);
+        for (int x = 0; x < data.x; ++x) {
+            for (int y = 0; y < data.y; ++y) {
+                for (int z = 0; z < data.z; ++z) {
+                    out[x, y, z] = activator(data[x, y, z]);
+                }
+
+            }
+        }
+        return out;
+    }
+    void background() {
+
+    }
+
+};
+
+template <typename T>
+class FCLayout {
+
+    std::vector<Tensor<float>> weight_;
+    std::vector<float> out_;
+
+    size_t out_size_{};
+    float activator(float x) const {
+        return 1.f / (1 + exp(-x));
+    }
+    float deactivator(float x) const {
+        float sigmod = 1.f / (1 + exp(-x));
+        return sigmod * (1 - sigmod);
     }
 public:
+    FCLayout(size_t x, size_t y, size_t z, size_t out_size) : out_size_(out_size) {
+        weight_ = std::vector(out_size_, Tensor<float>(x, y, z));
+        out_ = std::vector<float>(x * y * z);
 
-    explicit ConvLayer(unsigned char * image) : image_(std::mdspan(image, image_height, image_weight)),
-            trait_(std::mdspan(trait_data_.data(), image_height, image_weight)) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution dis(0.f,1.f);
 
-        init_kernels();
-
-        for (int i = 0;i < colors; ++i)
-            rgb_[i] = std::mdspan(image + i, image_layout);
-
-        for (int i = 0;i < colors; ++i)
-            trait_rgb_[i] = std::mdspan(trait_data_.data() + i, image_layout);
-
-    }
-
-    void convolution() {
-
-        for (int cur_kernel{}; cur_kernel < 1; ++cur_kernel) {
-            for (int cur_color{}; cur_color < colors; ++cur_color) {
-                // 遍历图像
-                for (int i = 0;i < image_height - (kernel_row+1)/2; ++i) {
-                    for (int j = 0;j < image_weight - (kernel_col+1)/2; ++j) {
-
-                        double sum{};
-                        for (int x = 0; x < kernel_row; ++x) {
-                            for (int y = 0; y < kernel_col; ++y) {
-                                // sum += normalize(rgb_[cur_color][i + x, j + y] * kernels_[cur_kernel][x, y]);
-                                sum += rgb_[cur_color][i + x, j + y] * kernels_[cur_kernel][x, y];
-                                // ... 卷积出一个结果
-                            }
-                            // std::cout << std::endl;
-                        }
-                        // std::cout << std::endl;
-                        // trait_rgb_[cur_color][i, j] = denormalize(sum / (kernel_row * kernel_col));
-                        trait_rgb_[cur_color][i, j] = sum;
+        for (int count = 0;count < weight_.size(); ++count) {
+            for (int z = 0;z < weight_[count].extent(0); ++z) {
+                for (int x = 0;x < weight_[count].extent(1);++x) {
+                    for (int y = 0;y < weight_[count].extent(2);++y) {
+                        weight_[count][x,y,z] = dis(gen);
                     }
                 }
             }
-            // @TODO 暂时仅有一个卷积核
         }
-        cv::Mat image(image_height, image_weight, CV_8UC3, trait_data_.data());
-        cv::imshow("image", image);
-        cv::waitKey();
-    }
-    void forward() override {
+
+
 
     }
-    void background() override {
+
+    Tensor<T> forward(Tensor<float> &data) {
+
+        for (size_t pos{}; pos < out_size_; ++pos) {
+
+            float sum{};
+            for (int z = 0;z < weight_[pos].extent(0); ++z) {
+                for (int x = 0;x < weight_[pos].extent(1);++x) {
+                    for (int y = 0;y < weight_[pos].extent(2);++y) {
+                        sum += weight_[pos][x,y,z] * data[x, y, z];
+                    }
+                }
+            }
+            out_[pos] = activator(sum);
+        }
+        return {};
+    }
+
+    void background() {
 
     }
 
 
 };
-
-// 非线性激励层
-class ReLULayer : public Layout {
-
-public:
-    void forward() override {
-
-    }
-    void background() override {
-
-    }
-
-
-
-};
-
-// 池化层
-class PoolLayer : public Layout {
-public:
-    void forward() override {
-
-    }
-    void background() override {
-
-    }
-};
-
-// 全链接层
-class FullyConnLayer : public Layout {
-public:
-    void forward() override {
-
-    }
-    void background() override {
-
-    }
-};
-
 
 
 export
@@ -188,22 +274,18 @@ NAMESPACE_BEGIN(nl)
 
 
 
-
 class CNN {
-    std::vector<Layout *> layouts_;
-
+    int label_count{};
 
 public:
 
-    void add_convlayout() {  }
-    void add_poollayout() {  }
-    void add_relulayout() {  }
+    CNN(const nl::Image image, Tensor<float> label) {
 
-    void start(nl::Image image) {  }
-
-
+    }
 
 };
+
+
 
 NAMESPACE_END(nl)
 
