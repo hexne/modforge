@@ -15,7 +15,9 @@ module;
 #include "tools.h"
 export module Matrix;
 
-import Random;
+static std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_real_distribution<> dis(-1.f, 1.f);
 
 export
 NAMESPACE_BEGIN(nl)
@@ -50,11 +52,17 @@ public:
     Matrix() = default;
 
     // 有所有权
-    Matrix(int x,int y, int z = 1) : Matrix(new T[](x * y * z), x, y, z) {  }
+    Matrix(int x,int y, int z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
 
-    Matrix(T *ptr, int x, int y, int z = 1) : x(x), y(y), z(z) {
+    Matrix(std::shared_ptr<T[]> ptr, int x, int y, int z = 1) : x(x), y(y), z(z) {
         data_ptr_ = std::shared_ptr<T[]>(ptr);
         view_ = std::mdspan(data_ptr_.get(), z, x, y);
+    }
+    Matrix(const Matrix &right) {
+        *this = right;
+    }
+    Matrix(Matrix &&right) {
+        *this = std::move(right);
     }
     Matrix& operator = (const Matrix& matrix) {
         data_ptr_ = matrix.data_ptr_;
@@ -64,7 +72,7 @@ public:
         z = matrix.z;
         return *this;
     }
-    Matrix& operator = (const Matrix&& right) {
+    Matrix& operator = (Matrix&& right) {
         data_ptr_ = std::move(right.data_ptr_);
         view_ = std::move(right.view_);
         x = std::move(right.x);
@@ -76,10 +84,13 @@ public:
     // 随机初始化到 [0.f, 1.f]
     void random_init() {
         for (int i = 0; i < x * y * z; ++i)
-            data_ptr_[i] = Random::get_random_float(0.f, 1.f);
+            data_ptr_[i] = dis(gen);
     }
 
     T& operator[] (int x, int y, int z = 0) {
+        if (z * this->x * this->y + x * this->y + y >= this->z * this->x * this->y) {
+            std::cout << "out of range" << std::endl;
+        }
         return view_[z, x, y];
     }
     const T &get_const(int x, int y, int z = 0) const {
