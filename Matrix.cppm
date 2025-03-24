@@ -211,35 +211,4 @@ public:
     }
 };
 
-// template <typename T, size_t ROW, size_t COL>
-// std::ostream& operator << (std::ostream& os, const Matrix<T, ROW, COL>& matrix) {
-//     for (int i = 0; i < matrix.row_;i++) {
-//         for (int j = 0; j < matrix.col_;j++) {
-//             os << std::fixed << std::setprecision(6) << matrix.data_[i][j] << ' ';
-//         }
-//         os << '\n';
-//     }
-//     os << '\n';
-//     return os;
-// }
-//
-// template <typename T, size_t ROW, size_t COL>
-// std::istream &operator >> (std::istream &is, Matrix<T, ROW, COL> &matrix) {
-//     std::vector<double> datas;
-//     std::string line;
-//     int row{}, col{};
-//     while (std::getline(is, line) && line != "\n" && line != "\r\n") {
-//         std::istringstream iss(line);
-//         double value{};
-//         col = 0;
-//         while (iss >> value) {
-//             datas.emplace_back(value);
-//             col ++;
-//         }
-//         row ++;
-//     }
-//     matrix = Matrix<T,ROW,COL> (datas, row, col);
-//     return is;
-// }
-
 NAMESPACE_END(nl)
