@@ -5,11 +5,9 @@
 
 
 module;
-#include <mdspan>
-#include <random>
-#include <array>
-#include <X11/X.h>
-#include <opencv2/opencv.hpp>
+#include <cmath>
+#include <memory>
+#include <vector>
 #include "tools.h"
 export module CNN;
 

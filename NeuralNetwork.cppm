@@ -4,10 +4,7 @@
 *******************************************************************************/
 
 module;
-#include <iostream>
-#include <array>
 #include <memory>
-#include <numeric>
 #include <vector>
 #include <random>
 #include "tools.h"
