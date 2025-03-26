@@ -46,14 +46,15 @@ class Matrix {
     }
 
 public:
-    int x{}, y{}, z{};
+    size_t x{}, y{}, z{};
     Matrix() = default;
 
-    // 有所有权
-    Matrix(int x, int y, int z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
+    Matrix(size_t x, size_t y, size_t z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
 
-    Matrix(std::shared_ptr<T[]> ptr, int x, int y, int z = 1) : x(x), y(y), z(z),
-                            data_ptr_(ptr) , view_(std::mdspan(data_ptr_.get(), z, x, y)) {  }
+    Matrix(std::shared_ptr<T[]> ptr, size_t x, size_t y, size_t z = 1) : x(x), y(y), z(z) {
+        data_ptr_ = ptr;
+        view_ = std::mdspan(data_ptr_.get(), z, x, y);
+    }
 
     Matrix(const Matrix &right) {
         *this = right;
@@ -61,22 +62,8 @@ public:
     Matrix(Matrix &&right)  noexcept {
         *this = std::move(right);
     }
-    Matrix& operator = (const Matrix& matrix) {
-        data_ptr_ = matrix.data_ptr_;
-        view_ = matrix.view_;
-        x = matrix.x;
-        y = matrix.y;
-        z = matrix.z;
-        return *this;
-    }
-    Matrix& operator = (Matrix&& right) {
-        data_ptr_ = std::move(right.data_ptr_);
-        view_ = std::move(right.view_);
-        x = std::move(right.x);
-        y = std::move(right.y);
-        z = std::move(right.z);
-        return *this;
-    }
+    Matrix& operator = (const Matrix& matrix) = default;
+    Matrix& operator = (Matrix&& right) = default;
 
     // 随机初始化到 [-1.f, 1.f]
     void random_init() {

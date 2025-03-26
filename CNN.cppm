@@ -270,6 +270,8 @@ public:
     // 预测
     nl::Matrix<double> forecast(nl::Image image) {
 
+        return {};
+
     }
 
 
