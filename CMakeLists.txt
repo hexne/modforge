@@ -29,8 +29,29 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     message(STATUS "${CMAKE_CXX_COMPILER_ID}")
 endif()
 
-find_package(OpenCV REQUIRED)
-# find_package(jsoncpp CONFIG REQUIRED)
+
+find_package(OpenCV)
+if(NOT OpenCV_FOUND)
+   list(REMOVE_ITEM module_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
+   )
+    message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image, Video, Camera")
+endif ()
+
+
+
+find_package(jsoncpp CONFIG)
+set(JsonCPP_LINK JsonCpp::JsonCpp)
+if(NOT jsoncpp_FOUND)
+   list(REMOVE_ITEM module_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
+   )
+    message(STATUS "没有找到jsoncpp库，因此下列模块跳过编译: Json")
+set(JsonCPP_LINK "")
+endif ()
+
 
 add_library(NeLib STATIC)
 target_sources(NeLib
@@ -39,10 +60,10 @@ target_sources(NeLib
     ${module_files}
 )
 target_link_libraries(NeLib
-    ${OpenCV_LIBS}
+        ${OpenCV_LIBS}
         c++
         c++abi
-    # JsonCpp::JsonCpp
+        ${JsonCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
