@@ -52,16 +52,15 @@ public:
     Matrix() = default;
 
     // 有所有权
-    Matrix(int x,int y, int z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
+    Matrix(int x, int y, int z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
 
-    Matrix(std::shared_ptr<T[]> ptr, int x, int y, int z = 1) : x(x), y(y), z(z) {
-        data_ptr_ = std::shared_ptr<T[]>(ptr);
-        view_ = std::mdspan(data_ptr_.get(), z, x, y);
-    }
+    Matrix(std::shared_ptr<T[]> ptr, int x, int y, int z = 1) : x(x), y(y), z(z),
+                            data_ptr_(ptr) , view_(std::mdspan(data_ptr_.get(), z, x, y)) {  }
+
     Matrix(const Matrix &right) {
         *this = right;
     }
-    Matrix(Matrix &&right) {
+    Matrix(Matrix &&right)  noexcept {
         *this = std::move(right);
     }
     Matrix& operator = (const Matrix& matrix) {
@@ -81,19 +80,19 @@ public:
         return *this;
     }
 
-    // 随机初始化到 [0.f, 1.f]
+    // 随机初始化到 [-1.f, 1.f]
     void random_init() {
         for (int i = 0; i < x * y * z; ++i)
             data_ptr_[i] = dis(gen);
     }
 
-    T& operator[] (int x, int y, int z = 0) {
+    T& operator[] (size_t x, size_t y, size_t z = 0) {
         if (z * this->x * this->y + x * this->y + y >= this->z * this->x * this->y) {
             std::cout << "out of range" << std::endl;
         }
         return view_[z, x, y];
     }
-    const T &get_const(int x, int y, int z = 0) const {
+    const T &get_const(size_t x, size_t y, size_t z = 0) const {
         return view_[z, x, y];
     }
 
@@ -119,10 +118,11 @@ public:
         }
         return ret;
     }
+
     Matrix operator - (const Matrix & right) const {
 
         if (x != right.x || y != right.y || z != right.z) {
-            throw std::runtime_error("Matrix::operator +");
+            throw std::runtime_error("Matrix::operator -");
         }
 
         Matrix ret(x, y, z);
@@ -137,6 +137,7 @@ public:
         }
         return ret;
     }
+
     Matrix operator * (const Matrix & right) const {
         if (y != right.x || z != right.z)
             throw std::runtime_error("can't multiply matrix");
@@ -171,7 +172,7 @@ public:
     }
     Matrix& operator -= (const Matrix & right) {
         if (x != right.x || y != right.y || z != right.z) {
-            throw std::runtime_error("Matrix::operator +");
+            throw std::runtime_error("Matrix::operator -");
         }
         for (int i = 0; i < x; ++i) {
             for (int j = 0; j < y; ++j) {
@@ -182,6 +183,7 @@ public:
         }
         return *this;
     }
+
     Matrix& operator *= (const Matrix & right) {
         if (y != right.x || z != right.z)
             throw std::runtime_error("can't multiply matrix");
@@ -198,14 +200,6 @@ public:
             }
 
         }
-        // new (this) Matrix(new T[](x * right.y * z), x, right.y, z);
-        // for (int k = 0;k < z; ++k) {
-        //     for (int i = 0; i < x; i++) {
-        //         for (int j = 0; j < y; j++) {
-        //             operator[](i, j, k) = ret.get_const(i, j, k);
-        //         }
-        //     }
-        // }
         *this = std::move(ret);
         return *this;
     }

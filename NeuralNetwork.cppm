@@ -99,7 +99,7 @@ struct Layout {
     size_t size() {
         return out.size();
     }
-    std::vector<double> forward(const std::vector<double> &in) {
+    void forward(const std::vector<double> &in) {
         this->in = in;
         for (int i = 0;i < in.size(); ++i) {
             out[i] = action->action(in[i]);
@@ -107,7 +107,7 @@ struct Layout {
 
         // 如果当前是最后一层，直接结束，返回值不需要
         if (next_in.empty()) {
-            return {};
+            return ;
         }
 
         for (int i = 0;i < next_in.size(); ++i) {
@@ -117,7 +117,6 @@ struct Layout {
             }
             next_in[i] = sum;
         }
-        return next_in;
     }
     virtual void backward(const std::vector<double>&) = 0;
 
@@ -233,7 +232,6 @@ public:
     }
 
 };
-
 
 NAMESPACE_END(nl)
 
