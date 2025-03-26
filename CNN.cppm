@@ -8,6 +8,7 @@ module;
 #include <cmath>
 #include <memory>
 #include <vector>
+
 #include "tools.h"
 export module CNN;
 
@@ -213,6 +214,7 @@ public:
 
 
 };
+
 
 
 

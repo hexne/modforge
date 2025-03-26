@@ -5,6 +5,7 @@
 
 module;
 #include <cmath>
+#include <random>
 
 #include "tools.h"
 export module NeuralNetworkTool;
@@ -83,6 +84,14 @@ struct Normalization {
     virtual double deaction(double num) = 0;
     virtual ~Normalization() = default;
 };
+
+
+double GetRandom(const double min, const double max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(min, max);
+    return dis(gen);
+}
 
 
 NAMESPACE_END(nl)
