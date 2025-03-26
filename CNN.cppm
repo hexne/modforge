@@ -13,65 +13,7 @@ export module CNN;
 
 import Matrix;
 import Image;
-
-
-
-// ======================================= 激活函数 、sigmoid
-struct Activation {
-    virtual double action(double num) = 0;
-    virtual double deaction(double num) = 0;
-
-    virtual ~Activation() = default;
-};
-
-struct Sigmoid : Activation {
-    double action(double num) override {
-        return 1.0 / (1.0 + exp(-num));
-    }
-
-    double deaction(double num) override {
-        const auto sigmoid = action(num);
-        return sigmoid * (1.0 - sigmoid);
-    }
-    ~Sigmoid() override = default;
-};
-
-struct Relu : Activation {
-
-    double action(double num) override {
-        return std::max(0.0, num);
-    }
-
-    double deaction(double num) override {
-        if (num > 0)
-            return 1;
-        return 0;
-    }
-
-    ~Relu() override = default;
-};
-
-
-
-// ======================================= 损失函数、均方误差
-struct LossFunction {
-    virtual double action(double, double) = 0;
-    virtual double deaction(double, double) = 0;
-
-    virtual ~LossFunction() = default;
-};
-
-struct MeanSquaredError : LossFunction {
-    // 参数分别是 预测值 ， 真实值
-    double action(double predicted_value, double true_value) override {
-        return 0.5 * std::pow(true_value - predicted_value, 2);
-    }
-    double deaction(double predicted_value, double true_value) override {
-        return predicted_value - true_value;
-    }
-
-    ~MeanSquaredError() override = default;
-};
+import NeuralNetworkTool;
 
 
 struct Layout {
@@ -176,7 +118,7 @@ public:
 
 
 class ReluLayout : Layout {
-    std::shared_ptr<Activation> activation_ = std::make_shared<Relu>();
+    std::shared_ptr<nl::Activation> activation_ = std::make_shared<nl::Relu>();
 
 public:
 
@@ -205,15 +147,10 @@ class FCLayout : Layout {
 
     std::vector<nl::Matrix<double>> weight_;
     std::vector<double> out_;
+    std::shared_ptr<nl::Activation> activation_ = std::make_shared<nl::Sigmoid>();
 
     size_t out_size_{};
-    float activator(float x) const {
-        return 1.f / (1 + exp(-x));
-    }
-    float deactivator(float x) const {
-        float sigmod = 1.f / (1 + exp(-x));
-        return sigmod * (1 - sigmod);
-    }
+
 public:
     FCLayout(int x, int y, int z) {
         weight_ = std::vector(out_size_, nl::Matrix<double>(x, y, z));
@@ -239,7 +176,7 @@ public:
                     }
                 }
             }
-            out_[pos] = activator(sum);
+            out_[pos] = activation_->action(sum);
         }
     }
 

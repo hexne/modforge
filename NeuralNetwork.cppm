@@ -12,66 +12,12 @@ module;
 export module NeuralNetwork;
 
 import Matrix;
+import NeuralNetworkTool;
 
 export
 NAMESPACE_BEGIN(nl)
 
-// ======================================= 激活函数 、sigmoid
-struct Activation {
-    virtual double action(double num) = 0;
-    virtual double deaction(double num) = 0;
 
-    virtual ~Activation() = default;
-};
-
-struct Sigmoid : Activation {
-    double action(double num) override {
-        return 1.0 / (1.0 + exp(-num));
-    }
-
-    double deaction(double num) override {
-        double sigmod = action(num);
-        return sigmod * (1.0 - sigmod);
-    }
-    ~Sigmoid() override = default;
-};
-
-struct Relu : Activation {
-
-    double action(double num) override {
-        return std::max(0.0, num);
-    }
-
-    double deaction(double num) override {
-        if (num > 0)
-            return 1;
-        return 0;
-    }
-
-    ~Relu() override = default;
-};
-
-
-
-// ======================================= 损失函数、均方误差
-struct LossFunction {
-    virtual double action(double, double) = 0;
-    virtual double deaction(double, double) = 0;
-
-    virtual ~LossFunction() = default;
-};
-
-struct MeanSquaredError : LossFunction {
-    // 参数分别是 预测值 ， 真实值
-    double action(double predicted_value, double true_value) override {
-        return 0.5 * std::pow(true_value - predicted_value, 2);
-    }
-    double deaction(double predicted_value, double true_value) override {
-        return predicted_value - true_value;
-    }
-
-    ~MeanSquaredError() override = default;
-};
 
 
 
@@ -80,7 +26,7 @@ struct Layout {
     double speed = 0.01;
     std::vector<double> in{}, out{}, next_in{}, gradient{}; // gradient 中是保存的供前一层使用的next梯度
     nl::Matrix<double> weight{};
-    std::shared_ptr<Activation> action{};
+    std::shared_ptr<nl::Activation> action{};
 
     Layout(size_t size, std::shared_ptr<Activation> p)
             : out(std::vector<double>(size)), gradient(std::vector<double>(size)) , action(p) {  }
