@@ -37,7 +37,7 @@ if(NOT OpenCV_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
         "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
    )
-    message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image, Video, Camera")
+    message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image、Video、Camera")
 endif ()
 
 
@@ -61,9 +61,9 @@ target_sources(NeLib
 )
 target_link_libraries(NeLib
         ${OpenCV_LIBS}
+        ${JsonCPP_LINK}
         c++
         c++abi
-        ${JsonCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
