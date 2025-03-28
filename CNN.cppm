@@ -31,8 +31,8 @@ struct Layout {
     virtual ~Layout() = default;
 };
 
-
-
+export
+NAMESPACE_BEGIN(nl)
 
 class ConvLayer : public Layout {
     size_t kernel_count_{};
@@ -41,7 +41,7 @@ class ConvLayer : public Layout {
     size_t kernel_size{3};
 public:
 
-    ConvLayer(size_t image_size, size_t kernel_count ,size_t kernel_size) : kernel_count_(kernel_count) {
+    ConvLayer(size_t kernel_count ,size_t kernel_size) : kernel_count_(kernel_count) {
         kernels_ = std::vector(kernel_count, nl::Matrix<double>(kernel_size,kernel_size, 1));
         kernel_gradient_ = std::vector(kernel_count, nl::Matrix<double>(kernel_size,kernel_size, 1));
         // 卷积核全部初始化到 [-1 , 1]
@@ -318,45 +318,21 @@ public:
 };
 
 
-export
-NAMESPACE_BEGIN(nl)
 
 
 
 
 class CNN {
     std::vector<std::shared_ptr<Layout>> layouts_;
+    size_t in_size_, out_size_;
 public:
 
-    // 传入的图像大小和输出的label大小
-    // label_size 是不动的，最后和全连接层的输出大小一致, 且数量上和全连接层的权重数量相同
-                // lable size 在某种程度上标识此次训练是几分类任务
-    // image_size 在每次卷积之后是要变小的
-    CNN(size_t image_size, size_t label_size) {
+    // 参数为图像大小 和 输出的结果大小
+    CNN(const size_t in_size, const size_t label_size) : in_size_(in_size), out_size_(label_size) {  }
 
+    void add_layout(std::shared_ptr<Layout> &layout) {
+        layouts_.push_back(layout);
     }
-
-    // 参数为 卷积核数量 和 卷积核大小
-    void conv_layout(size_t kernel_count, size_t kernel_size) {
-
-    }
-
-    // @TODO 应该可选池化类型
-    void pool_layout() {
-
-    }
-
-    // @TODO 应该可选激活函数
-    void relu_layout() {
-
-    }
-
-    // @ TODO 权值矩阵数量和输出label大小相同
-    void fc_layout() {
-
-    }
-
-
 
     // 训练
     void train(nl::Image &image, nl::Matrix<double> &label) {

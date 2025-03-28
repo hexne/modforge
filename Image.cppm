@@ -10,6 +10,7 @@ module;
 #include "tools.h"
 export module Image;
 import MultArray;
+import Matrix;
 
 #define USE_OPENCV_LIB true
 
@@ -514,11 +515,36 @@ public:
     }
 
 
-    int get_width() const {
+    size_t get_width() const {
         return image_.cols;
     }
-    int get_height() const {
+    size_t get_height() const {
         return image_.rows;
+    }
+    size_t get_channels() const {
+        return image_.channels();
+    }
+
+    // 如果是三通道的图像, 返回的matrix数据是b g r格式
+    nl::Matrix<double> to_matrix() {
+        auto ret = nl::Matrix<double>(image_.rows, image_.cols, image_.channels());
+
+        for (int x{}; x < image_.rows; x++) {
+            for (int y{}; y < image_.cols; y++) {
+                if (image_.channels() == 1) {
+                    ret[x, y, 0] = image_.at<uchar>(x, y);
+                }
+                else if (image_.channels() == 3) {
+                    auto vec = image_.at<cv::Vec3b>(x, y);
+                    ret[x, y, 0] = vec[0];
+                    ret[x, y, 1] = vec[1];
+                    ret[x, y, 2] = vec[2];
+                }
+
+            }
+        }
+
+        return ret;
     }
 
 

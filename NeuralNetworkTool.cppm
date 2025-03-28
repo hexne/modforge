@@ -15,13 +15,7 @@ export
 NAMESPACE_BEGIN(nl)
 
 
-
-
-
-
-
-
-// =================================== 激活函数
+/**************************************** 激活函数 ****************************************/
 struct Activation {
     virtual double action(double num) = 0;
     virtual double deaction(double num) = 0;
@@ -57,7 +51,7 @@ struct Relu : Activation {
 
 
 
-// ======================================= 损失函数、均方误差
+/**************************************** 损失函数 ****************************************/
 struct LossFunction {
     virtual double action(double predicted_value, double true_value) = 0;
     virtual double deaction(double predicted_value, double true_value) = 0;
@@ -78,7 +72,7 @@ struct MeanSquaredError : LossFunction {
 
 
 
-// ======================================== 归一化
+/**************************************** 归一化 ****************************************/
 struct Normalization {
     virtual double action(double num) = 0;
     virtual double deaction(double num) = 0;
@@ -93,7 +87,7 @@ double GetRandom(const double min, const double max) {
     return dis(gen);
 }
 
-
+/**************************************** 获取受该点影响的元素们在输出中的范围 ****************************************/
 std::tuple<size_t, size_t, size_t, size_t, size_t, size_t>
             GetRange(int x, int y, int kernel_size, int stride, int channels) {
 
