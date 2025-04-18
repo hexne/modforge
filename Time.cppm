@@ -108,6 +108,14 @@ public:
         return *this;
     }
 
+    Time& operator-=(const Time& other) {
+        time_ = std::chrono::zoned_time{
+            time_.get_time_zone(),
+            time_.get_sys_time() - other.time_.get_sys_time().time_since_epoch()
+        };
+        return *this;
+    }
+
     template<CountType T = std::chrono::milliseconds>
     size_t count() const {
         return std::chrono::duration_cast<T>(time_.get_local_time().time_since_epoch()).count();
