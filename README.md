@@ -17,14 +17,29 @@
 - [x] Matrix
 - [x] NeuralNetwork
 
+
+# 仅在部分平台被支持的库
+在使用特定平台构建时，不被支持的模块将被移除  
+
+| 库      | libstdc++ | libc++  |
+|--------|-----------|---------|
+| Image  | &cross;   | &check; |
+| Camera | &cross;   | &check; |
+| Video  | &cross;   | &check; |
+| Matrix | &cross;   | &check; |
+| BP     | &cross;   | &check; |
+| CNN    | &cross;   | &check; |
+
+
 # 安装
+```
 git clone https://github.com/hexne/NeLib.git  
 cd NeLib  
 mkdir build && cd build  
 cmake .. -G Ninja -DCMAKE_CXX_COMPILER=/usr/bin/clang++  
 cmake --build .  
 sudo cmake --install .  
-
+```
 
 # 使用
 ### CMakeLists.txt

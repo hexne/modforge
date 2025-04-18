@@ -15,6 +15,7 @@ set(OpenCV_LIBRARIES "/home/yongheng/custom_libs/opencv_libc/lib")
 
 file(GLOB module_files "*.cppm")
 
+# 安装编译器判断
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     list(REMOVE_ITEM module_files
             "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
@@ -23,8 +24,28 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-stdlib=libc++)
-    add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
+
+    execute_process(
+        COMMAND ${CMAKE_CXX_COMPILER} -dM -E -x c++ /dev/null
+        OUTPUT_VARIABLE COMPILER_MACROS
+    )
+
+    if(COMPILER_MACROS MATCHES "_LIBCPP_VERSION")
+        message(STATUS "Using libc++ with Clang")
+        add_compile_options(-stdlib=libc++)
+        add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
+        message(STATUS "Using libstdc++ with Clang")
+    else()
+        list(REMOVE_ITEM module_files
+                "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
+                "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
+                "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
+                "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
+                "${CMAKE_CURRENT_SOURCE_DIR}/BP.cppm"
+                "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
+        )
+        message(STATUS "Using libstdc++ with Clang")
+    endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     message(STATUS "${CMAKE_CXX_COMPILER_ID}")
 endif()
@@ -64,6 +85,7 @@ target_link_libraries(NeLib
         ${JsonCPP_LINK}
         c++
         c++abi
+        c++experimental
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
