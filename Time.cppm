@@ -107,8 +107,17 @@ public:
         time_ = std::chrono::zoned_time(time_.get_time_zone(), local_time);
         return *this;
     }
+    Time operator - (const Time &other) const {
+        Time ret(*this);
+        ret -= other;
+        return ret;
+    }
 
-    Time& operator-=(const Time& other) {
+    // please use ``Time + (const std::chrono::)`` 系列
+    Time operator + (const Time &other) = delete;
+    Time& operator += (const Time &other) = delete;
+
+    Time& operator-=(const Time &other) {
         time_ = std::chrono::zoned_time{
             time_.get_time_zone(),
             time_.get_sys_time() - other.time_.get_sys_time().time_since_epoch()
