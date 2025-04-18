@@ -36,7 +36,10 @@
 git clone https://github.com/hexne/NeLib.git  
 cd NeLib  
 mkdir build && cd build  
-cmake .. -G Ninja -DCMAKE_CXX_COMPILER=/usr/bin/clang++  
+cmake -G Ninja\  
+    -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+    ..
 cmake --build .  
 sudo cmake --install .  
 ```
