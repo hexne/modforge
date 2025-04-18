@@ -1,40 +1,29 @@
 cmake_minimum_required(VERSION 3.29)
 
-# set(CMAKE_CXX_COMPILER /bin/clang++)
-
 project(NeLib)
 
 set(VERSION "1.0.0")
 
 set(CMAKE_CXX_STANDARD 23)
 
-set(OpenCV_INCLUDE_DIRS "/home/yongheng/custom_libs/opencv_libc/include")
-
-set(OpenCV_LIBRARIES "/home/yongheng/custom_libs/opencv_libc/lib")
-
-
 file(GLOB module_files "*.cppm")
 
-# 安装编译器判断
+# gnu 不支持指定 libc++
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     list(REMOVE_ITEM module_files
             "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
             "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
             "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
             "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/BP.cppm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
     )
+    message(STATUS "libstdc++ with GNU")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-
-    execute_process(
-        COMMAND ${CMAKE_CXX_COMPILER} -dM -E -x c++ /dev/null
-        OUTPUT_VARIABLE COMPILER_MACROS
-    )
-
-    if(COMPILER_MACROS MATCHES "_LIBCPP_VERSION")
-        message(STATUS "Using libc++ with Clang")
-        add_compile_options(-stdlib=libc++)
+    if(CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+" OR CMAKE_CXX_FLAGS_INIT MATCHES "-stdlib=libc\\+\\+")
+        message(STATUS "Using libc++ with Clang (explicitly specified)")
         add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
-        message(STATUS "Using libstdc++ with Clang")
+        set(LIBCPP_LINK "c++ c++abi c++experimental")
     else()
         list(REMOVE_ITEM module_files
                 "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
@@ -45,10 +34,11 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
                 "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
         )
         message(STATUS "Using libstdc++ with Clang")
-    endif()
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    message(STATUS "${CMAKE_CXX_COMPILER_ID}")
+    endif ()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    message(STATUS "MSVC")
 endif()
+
 
 
 find_package(OpenCV)
@@ -83,9 +73,7 @@ target_sources(NeLib
 target_link_libraries(NeLib
         ${OpenCV_LIBS}
         ${JsonCPP_LINK}
-        c++
-        c++abi
-        c++experimental
+        ${LIBCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
