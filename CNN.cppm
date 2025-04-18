@@ -336,6 +336,8 @@ public:
 
     // 训练
     void train(nl::Image &image, nl::Matrix<double> &label) {
+        auto matrix = image.to_matrix();
+
         // @TODO 图像应该被预处理
         // 预处理后的数据传入第一个layout的forward中
 

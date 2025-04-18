@@ -525,7 +525,7 @@ public:
         return image_.channels();
     }
 
-    // 如果是三通道的图像, 返回的matrix数据是b g r格式
+    // 如果是三通道的图像, 返回的matrix数据是b g r格式, 本操作不进行归一化
     nl::Matrix<double> to_matrix() {
         auto ret = nl::Matrix<double>(image_.rows, image_.cols, image_.channels());
 
