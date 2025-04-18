@@ -131,6 +131,9 @@ public:
     size_t get_second() const {
         return count<std::chrono::seconds>() % 60;
     }
+    size_t get_week() const {
+        return std::chrono::weekday(std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time()))).iso_encoding();
+    }
 
     Time& to_now() {
         time_ = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
