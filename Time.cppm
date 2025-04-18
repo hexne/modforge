@@ -34,7 +34,13 @@ public:
     static Time now() {
         return Time(std::chrono::system_clock::now());
     }
-
+    static int count_month_day(int year, int month) {
+        if (month == 2) {
+            return (year % 400 == 0) || (year % 100 != 0 && year % 4 == 0) ? 29 : 28;
+        }
+        constexpr int days[] = {0, 31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        return days[month];
+    }
     Time() {
         time_ = std::chrono::zoned_time(std::chrono::current_zone()->name(),std::chrono::system_clock::now());
     }
