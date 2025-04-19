@@ -17,7 +17,6 @@ function(remove_libstdcxx_unsupported_modules)
     message(STATUS "Removed unsupported modules for libstdc++")
 endfunction()
 
-set(module_files ${module_files} PARENT_SCOPE)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     remove_libstdcxx_unsupported_modules()
