@@ -83,3 +83,12 @@ install(EXPORT ${PROJECT_NAME}
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NeLibConfig.cmake"
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NeLib)
+
+add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -E echo "uninstall NeLib..."
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/NeLib"
+        COMMAND ${CMAKE_COMMAND} -E echo "remove $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/NeLib"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/cmake/NeLib"
+        COMMAND ${CMAKE_COMMAND} -E echo "remove $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/cmake/NeLib"
+        COMMAND ${CMAKE_COMMAND} -E echo "finish."
+)
