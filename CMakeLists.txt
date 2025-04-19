@@ -12,14 +12,7 @@ file(GLOB module_files "*.cppm")
 # libstdc++ 不支持的模块：mdspan  => Matrix, BP, CNN
 #                      opencv4 => Image, Video, Camera
 function(remove_libstdcxx_unsupported_modules)
-    list(REMOVE_ITEM module_files
-            "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/BP.cppm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
-    )
+    list(FILTER module_files EXCLUDE REGEX ".*/(Image|Video|Camera|Matrix|BP|CNN)\\.cppm$")
     set(module_files ${module_files} PARENT_SCOPE)
     message(STATUS "Removed unsupported modules for libstdc++")
 endfunction()
