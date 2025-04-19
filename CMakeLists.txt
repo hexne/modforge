@@ -8,8 +8,10 @@ set(CMAKE_CXX_STANDARD 23)
 
 file(GLOB module_files "*.cppm")
 
-# gnu 不支持指定 libc++
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+# 移除libstdc++不支持的模块
+# libstdc++ 不支持的模块：mdspan  => Matrix, BP, CNN
+#                      opencv4 => Image, Video, Camera
+function(remove_libstdcxx_unsupported_modules)
     list(REMOVE_ITEM module_files
             "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
             "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
@@ -18,27 +20,26 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             "${CMAKE_CURRENT_SOURCE_DIR}/BP.cppm"
             "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
     )
+    set(module_files ${module_files} PARENT_SCOPE)
+    message(STATUS "Removed unsupported modules for libstdc++")
+endfunction()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    remove_libstdcxx_unsupported_modules()
     message(STATUS "libstdc++ with GNU")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     if(CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+" OR CMAKE_CXX_FLAGS_INIT MATCHES "-stdlib=libc\\+\\+")
         message(STATUS "Using libc++ with Clang (explicitly specified)")
+        # jthread库 在clang中需要开启实验支持
         add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
         set(LIBCPP_LINK "c++ c++abi c++experimental")
     else()
-        list(REMOVE_ITEM module_files
-                "${CMAKE_CURRENT_SOURCE_DIR}/Image.cppm"
-                "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
-                "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
-                "${CMAKE_CURRENT_SOURCE_DIR}/Matrix.cppm"
-                "${CMAKE_CURRENT_SOURCE_DIR}/BP.cppm"
-                "${CMAKE_CURRENT_SOURCE_DIR}/CNN.cppm"
-        )
+        remove_libstdcxx_unsupported_modules()
         message(STATUS "Using libstdc++ with Clang")
     endif ()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     message(STATUS "MSVC")
 endif()
-
 
 
 find_package(OpenCV)
@@ -48,7 +49,7 @@ if(NOT OpenCV_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/Video.cppm"
         "${CMAKE_CURRENT_SOURCE_DIR}/Camera.cppm"
    )
-    message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image、Video、Camera")
+   message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image、Video、Camera")
 endif ()
 
 
@@ -71,9 +72,9 @@ target_sources(NeLib
     ${module_files}
 )
 target_link_libraries(NeLib
-        ${OpenCV_LIBS}
-        ${JsonCPP_LINK}
-        ${LIBCPP_LINK}
+    ${OpenCV_LIBS}
+    ${JsonCPP_LINK}
+    ${LIBCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
@@ -82,6 +83,7 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/NeLibConfig.cmake"
     @ONLY
 )
+
 
 install(FILES "tools.h" DESTINATION /usr/lib/NeLib)
 install(TARGETS  ${PROJECT_NAME}  DESTINATION /usr/lib/NeLib EXPORT ${PROJECT_NAME} FILE_SET cxx_modules)
