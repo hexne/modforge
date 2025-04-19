@@ -25,7 +25,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     if(CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+" OR CMAKE_CXX_FLAGS_INIT MATCHES "-stdlib=libc\\+\\+")
         message(STATUS "Using libc++ with Clang (explicitly specified)")
         add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
-        set(LIBCPP_LINK "c++ c++abi c++experimental")
+        # set(LIBCPP_LINK "c++ c++abi c++experimental")
     else()
         remove_libstdcxx_unsupported_modules()
         message(STATUS "Using libstdc++ with Clang")
@@ -48,7 +48,7 @@ find_package(jsoncpp CONFIG)
 set(JsonCPP_LINK JsonCpp::JsonCpp)
 if(NOT jsoncpp_FOUND)
     list(REMOVE_ITEM module_files
-            "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
     )
     message(STATUS "没有找到jsoncpp库，因此下列模块跳过编译: Json")
     set(JsonCPP_LINK "")
@@ -63,7 +63,6 @@ target_sources(NeLib
 target_link_libraries(NeLib
         ${OpenCV_LIBS}
         ${JsonCPP_LINK}
-        ${LIBCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
@@ -73,7 +72,6 @@ configure_file(
         @ONLY
 )
 
-# install(FILES "tools.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/NeLib)
 install(FILES "tools.h" DESTINATION ${CMAKE_INSTALL_LIBDIR}/NeLib)
 install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}
