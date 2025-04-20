@@ -44,7 +44,7 @@ if(NOT OpenCV_FOUND)
     message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image、Video、Camera")
 endif ()
 
-find_package(jsoncpp CONFIG)
+find_package(jsoncpp)
 if(NOT jsoncpp_FOUND)
     list(REMOVE_ITEM module_files
         "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
