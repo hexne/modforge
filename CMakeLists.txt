@@ -45,13 +45,14 @@ if(NOT OpenCV_FOUND)
 endif ()
 
 find_package(jsoncpp CONFIG)
-set(JsonCPP_LINK JsonCpp::JsonCpp)
 if(NOT jsoncpp_FOUND)
     list(REMOVE_ITEM module_files
         "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
     )
     message(STATUS "没有找到jsoncpp库，因此下列模块跳过编译: Json")
     set(JsonCPP_LINK "")
+else ()
+    set(JsonCPP_LINK JsonCpp::JsonCpp)
 endif ()
 
 add_library(NeLib STATIC)
