@@ -25,7 +25,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     if(CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+" OR CMAKE_CXX_FLAGS_INIT MATCHES "-stdlib=libc\\+\\+")
         message(STATUS "Using libc++ with Clang (explicitly specified)")
         add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
-        # set(LIBCPP_LINK "c++ c++abi c++experimental")
+        set(LIBCPP_LINK "c++experimental")
     else()
         remove_libstdcxx_unsupported_modules()
         message(STATUS "Using libstdc++ with Clang")
@@ -64,6 +64,7 @@ target_sources(NeLib
 target_link_libraries(NeLib
         ${OpenCV_LIBS}
         ${JsonCPP_LINK}
+        ${LIBCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
