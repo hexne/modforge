@@ -1,10 +1,16 @@
-﻿module;
+﻿/*******************************************************************************
+* @Author : hexne
+* @Data   : 2025/03/09 11:08
+*******************************************************************************/
+
+module;
 
 #ifdef _WIN32
 #include <windows.h>
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <condition_variable>
 #elif __linux__
 #include <mutex>
 #include <thread>
@@ -16,6 +22,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #endif
+
 #include "tools.h"
 export module KeyEventListener;
 

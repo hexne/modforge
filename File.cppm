@@ -1,7 +1,7 @@
 /*******************************************************************************
- * Author  : yongheng
- * Data    : 2024/5/18 0:8
- * warning : 使用vs时，由于wstring_convert 和convert_utf8已经已经被C++17标记为弃用
+ * @Author  : hexne
+ * @Data    : 2024/5/18 0:8
+ * @warning : 使用vs时，由于wstring_convert 和convert_utf8已经已经被C++17标记为弃用
  *           因此需要添加宏：_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 *******************************************************************************/
 module;
@@ -267,7 +267,7 @@ std::ostream& operator << (std::ostream &out, const Encoding::EncodingType &enco
 }
 
 class FileBatching {
-    std::string root_path_ = ".";
+    std::filesystem::path root_path_ = ".";
     std::function<void(std::filesystem::path)> batching_func_;
 
     [[nodiscard]]

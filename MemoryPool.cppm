@@ -1,13 +1,12 @@
 /*******************************************************************************
- * Author : yongheng
- * Data   : 2023/5/28
+ * @Author : hexne
+ * @Data   : 2023/5/28
 *******************************************************************************/
 
 module;
 #include <algorithm>
 #include <functional>
 #include <memory>
-#include <opencv2/imgproc.hpp>
 #include <ranges>
 #include <set>
 #include <vector>
