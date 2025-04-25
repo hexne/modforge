@@ -17,10 +17,6 @@ import NeuralNetworkTool;
 export
 NAMESPACE_BEGIN(nl)
 
-
-
-
-
 // ========================================层、隐藏层、输出层
 struct Layout {
     double speed = 0.01;

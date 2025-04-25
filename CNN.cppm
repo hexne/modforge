@@ -2,13 +2,10 @@
  * @Author : hexne
  * @Data   : 2025/03/09 11:08
 *******************************************************************************/
-
-
 module;
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <opencv2/core.hpp>
 
 #include "tools.h"
 export module CNN;
