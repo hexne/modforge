@@ -10,7 +10,7 @@ include(GNUInstallDirs)
 file(GLOB module_files "*.cppm")
 
 function(remove_opencv_modules)
-    list(FILTER module_files EXCLUDE REGEX ".*/(Image|Video|Camera)\\.cppm$")
+    list(FILTER module_files EXCLUDE REGEX ".*/(Image|Video|Camera|CNN)\\.cppm$")
     set(module_files ${module_files} PARENT_SCOPE)
     message(STATUS "remove gcc ice module")
 endfunction()

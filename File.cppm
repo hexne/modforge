@@ -165,12 +165,32 @@ std::string UTF8ToStringGBK(const std::string& str) {
 }
 
 class Encoding {
-    enum class EncodingType{
+    enum class EncodingType {
         None, GBK, UTF8, ERROR
     };
+
+    friend std::ostream& operator << (std::ostream & out, const EncodingType & encoding) {
+        switch (encoding) {
+        case Encoding::EncodingType::GBK:
+            out << "GBK";
+            break;
+        case Encoding::EncodingType::UTF8:
+            out << "UTF8";
+            break;
+        case Encoding::EncodingType::ERROR:
+            out << "Error";
+            break;
+        default:
+            break;
+        }
+        return out;
+
+    }
+
+    EncodingType encoding_type_ = EncodingType::None;
+
     std::filesystem::path file_path_;
     std::variant<std::string,std::wstring> content_;
-    EncodingType encoding_type_ = EncodingType::None;
 
 
 public:
@@ -248,25 +268,7 @@ public:
 
 };
 
-
-std::ostream& operator << (std::ostream &out, const Encoding::EncodingType &encoding) {
-    switch (encoding) {
-    case Encoding::EncodingType::GBK :
-        out << "GBK";
-        break;
-    case Encoding::EncodingType::UTF8 :
-        out << "UTF8";
-        break;
-    case Encoding::EncodingType::ERROR :
-        out << "Error";
-        break;
-    default:
-        break;
-    }
-    return out;
-}
-
-class FileBatching {
+class Directory {
     std::filesystem::path root_path_ = ".";
     std::function<void(std::filesystem::path)> batching_func_;
 
@@ -281,10 +283,10 @@ public:
     size_t limit_times = 0;
 
 
-    explicit FileBatching(const std::filesystem::path &root_path) : root_path_(root_path) {  }
+    explicit Directory(const std::filesystem::path &root_path) : root_path_(root_path) {  }
 
     template <typename Func>
-    FileBatching(const std::filesystem::path &root_path,Func func)
+    Directory(const std::filesystem::path &root_path,Func func)
             : root_path_(root_path) ,batching_func_(func) {  }
 
     template <typename Func>
