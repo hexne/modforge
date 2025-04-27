@@ -66,38 +66,8 @@ class MouseWindows : MouseBase {
     bool get_key_state(int key) {
         return GetKeyState(key) & 0x8000;
     }
+    void listen_event();
 
-    void listen_event() {
-        ClickEvent right_click_event;
-        ClickEvent left_click_event;
-
-        while (true) {
-            {
-                std::lock_guard lock(thread_mutex_);
-                if (!run_flag_) {
-                    return;
-                }
-
-            }
-            if (left_click_event(get_key_state(VK_LBUTTON))) {
-                if (left_click_callback_)
-                    left_click_callback_();
-            }
-            if (right_click_event(get_key_state(VK_RBUTTON))) {
-                if (right_click_callback_)
-                    right_click_callback_();
-            }
-            if (const auto cur_cursor_pos = get_cursor_pos(); cur_cursor_pos != old_cursor_pos_) {
-                old_cursor_pos_ = cursor_pos = cur_cursor_pos;
-
-                if (move_callback_)
-                    move_callback_();
-            }
-            // std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
-            Sleep(10);
-
-        }
-    }
 public:
     CursorPos cursor_pos;
     MouseWindows() : MouseWindows(get_cursor_pos()) {  }
@@ -157,6 +127,37 @@ public:
 
 
 };
+
+void MouseWindows::listen_event() {
+    ClickEvent right_click_event;
+    ClickEvent left_click_event;
+
+    while (true) {
+        {
+            std::lock_guard lock(thread_mutex_);
+            if (!run_flag_) {
+                return;
+            }
+
+        }
+        if (left_click_event(get_key_state(VK_LBUTTON))) {
+            if (left_click_callback_)
+                left_click_callback_();
+        }
+        if (right_click_event(get_key_state(VK_RBUTTON))) {
+            if (right_click_callback_)
+                right_click_callback_();
+        }
+        if (const auto cur_cursor_pos = get_cursor_pos(); cur_cursor_pos != old_cursor_pos_) {
+            old_cursor_pos_ = cursor_pos = cur_cursor_pos;
+
+            if (move_callback_)
+                move_callback_();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
+    }
+}
+
 
 std::ostream& operator << (std::ostream& out, const CursorPos& pos) {
     out << pos.x << ' ' << pos.y;
