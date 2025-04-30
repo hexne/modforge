@@ -130,24 +130,33 @@ public:
     size_t count() const {
         return std::chrono::duration_cast<T>(time_.get_local_time().time_since_epoch()).count();
     }
+    std::chrono::year_month_day get_ymd() const {
+        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time()));
+    }
+    std::chrono::hh_mm_ss<std::chrono::seconds> get_hms() const {
+        const auto local_time = time_.get_local_time();
+        const auto since_midnight = local_time - floor<std::chrono::days>(local_time);
+        const auto since_midnight_sec = std::chrono::duration_cast<std::chrono::seconds>(since_midnight);
+        return std::chrono::hh_mm_ss(since_midnight_sec);
+    }
 
     size_t get_year() const {
-        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time())).year().operator int();
+        return get_ymd().year().operator int();
     }
     size_t get_month() const {
-        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time())).month().operator unsigned();
+        return get_ymd().month().operator unsigned();
     }
     size_t get_day() const {
-        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time())).day().operator unsigned();
+        return get_ymd().day().operator unsigned();
     }
     size_t get_hour() const {
-        return count<std::chrono::hours>() % 24;
+        return get_hms().hours().count();
     }
     size_t get_minute() const {
-        return count<std::chrono::minutes>() % 60;
+        return get_hms().minutes().count();
     }
     size_t get_second() const {
-        return count<std::chrono::seconds>() % 60;
+        return get_hms().seconds().count();
     }
     size_t get_week() const {
         return std::chrono::weekday(std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time()))).iso_encoding();
