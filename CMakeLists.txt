@@ -43,17 +43,6 @@ if(NOT OpenCV_FOUND)
     message(STATUS "没有找到opencv库，因此下列模块跳过编译: Image、Video、Camera")
 endif ()
 
-find_package(jsoncpp)
-if(NOT jsoncpp_FOUND)
-    list(REMOVE_ITEM module_files
-        "${CMAKE_CURRENT_SOURCE_DIR}/Json.cppm"
-    )
-    message(STATUS "没有找到jsoncpp库，因此下列模块跳过编译: Json")
-    set(JsonCPP_LINK "")
-else ()
-    set(JsonCPP_LINK JsonCpp::JsonCpp)
-endif ()
-
 add_library(NeLib STATIC)
 target_sources(NeLib
         PUBLIC
@@ -62,7 +51,6 @@ target_sources(NeLib
 )
 target_link_libraries(NeLib
         ${OpenCV_LIBS}
-        ${JsonCPP_LINK}
 )
 target_compile_features(NeLib PUBLIC cxx_std_23)
 
