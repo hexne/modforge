@@ -1,5 +1,5 @@
 /*******************************************************************************
- * @Author : yongheng
+ * @Author : hexne
  * @Data   : 2024/12/10 22:32
 *******************************************************************************/
 
@@ -71,7 +71,15 @@ public:
             data_ptr_[i] = dis(gen);
     }
 
-    T& operator[] (size_t x, size_t y, size_t z = 0) {
+    // msvc暂不支持 operator [] 存在默认参数
+    T& operator[] (size_t x, size_t y) {
+        size_t z = 0uz;
+        if (z * this->x * this->y + x * this->y + y >= this->z * this->x * this->y) {
+            std::cout << "out of range" << std::endl;
+        }
+        return view_[z, x, y];
+    }
+    T& operator[] (size_t x, size_t y, size_t z) {
         if (z * this->x * this->y + x * this->y + y >= this->z * this->x * this->y) {
             std::cout << "out of range" << std::endl;
         }

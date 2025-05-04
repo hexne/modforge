@@ -1,19 +1,25 @@
 /*******************************************************************************
- * @Author : yongheng
+ * @Author : hexne
  * @Data   : 2024/12/01 22:56
 *******************************************************************************/
-
 
 module;
 #include <array>
 #include <stdexcept>
-
 #include "tools.h"
 export module AverageQueue;
 
+template <typename T>
+concept AverageType = requires(T val1, T val2, T res, int count){
+	T {};
+	res = val1 + val2;
+	res = val1 - val2;
+	res /= count;
+};
+
 
 NAMESPACE_BEGIN(nl)
-template <typename T, size_t MaxSize>
+template <AverageType T, size_t MaxSize>
 class AverageQueue {
 	std::array<T, MaxSize + 1> data_{};
 	size_t max_size_ = MaxSize + 1;
