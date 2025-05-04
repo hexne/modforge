@@ -35,6 +35,23 @@ public:
     static Time now() {
         return Time(std::chrono::system_clock::now());
     }
+    static Time FromDate(int year, int month, int day) {
+        return Time(std::to_string(year) + "/"
+                     + std::to_string(month) + "/"
+                     + std::to_string(day));
+    }
+    static Time FromDate(const std::string &date) {
+        return Time(date);
+    }
+    static Time FromTime(int hour, int minute, int second) {
+        return Time("1970/1/1 " + std::to_string(hour) + ":"
+                                + std::to_string(minute) + ":"
+                                + std::to_string(second));
+    }
+    static Time FromTime(const std::string &time) {
+        return Time("1970/1/1 " + time);
+    }
+
     static int count_month_day(int year, int month) {
         if (month == 2) {
             return (year % 400 == 0) || (year % 100 != 0 && year % 4 == 0) ? 29 : 28;
@@ -71,7 +88,7 @@ public:
         std::chrono::year_month_day ymd{};
         std::chrono::hh_mm_ss<std::chrono::seconds> hms{};
 
-        if (time_node.size() >= 3) {
+        if (time_node.size() == 3 || time_node.size() == 6) {
             ymd = std::chrono::year_month_day(
                     std::chrono::year(std::stoi(time_node[0])),
                     std::chrono::month(std::stoi(time_node[1])),
@@ -171,10 +188,8 @@ public:
     std::string to_string() const {
         std::stringstream ss;
 
-        const std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(time_.get_local_time())};
-        ss << ymd << ' ';
-        const std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(time_.get_local_time()) - std::chrono::floor<std::chrono::days>(time_.get_local_time())};
-        ss << hms;
+        ss << get_ymd() << ' ';
+        ss << get_hms();
 
         return ss.str();
     }
