@@ -213,6 +213,15 @@ public:
         return out;
     }
 
+    [[nodiscard]]
+    bool compare_date(const Time &date) const {
+        return get_ymd() == date.get_ymd();
+    }
+    
+    [[nodiscard]]
+    bool compare_time(const Time &time) const {
+        return to_clock_string() == time.to_clock_string();
+    }
 
     bool operator == (const Time &time) const {
         return count<std::chrono::seconds>() == time.count<std::chrono::seconds>();
