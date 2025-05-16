@@ -9,8 +9,6 @@ module;
 #include <chrono>
 #include <functional>
 #include <mutex>
-#include <ranges>
-#include <thread>
 export module modforge.time;
 
 template<class T>
@@ -25,7 +23,7 @@ concept CountType = std::is_same_v<T, std::chrono::nanoseconds>
     || std::is_same_v<T, std::chrono::years>
     || std::is_same_v<T, std::chrono::weeks>;
 
-class Time {
+export class Time {
     std::chrono::zoned_time<std::chrono::system_clock::duration> time_;
 public:
     static Time now() {

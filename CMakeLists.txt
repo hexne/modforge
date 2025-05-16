@@ -2,11 +2,13 @@ cmake_minimum_required(VERSION 3.29)
 
 project(modforge)
 set(VERSION "1.0.0")
-set(CMAKE_CXX_STANDARD 23)
-
+set(CMAKE_CXX_STANDARD 26)
 
 include(GNUInstallDirs)
 
+file(GLOB module_files
+        time.cppm
+)
 file(GLOB module_files "*.cppm")
 
 function(remove_opencv_modules)
@@ -54,7 +56,7 @@ target_sources(modforge
 target_link_libraries(modforge
         ${OpenCV_LIBS}
 )
-target_compile_features(modforge PUBLIC cxx_std_23)
+target_compile_features(modforge PUBLIC cxx_std_26)
 
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/modforgeConfig.cmake.in"

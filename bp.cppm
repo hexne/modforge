@@ -9,7 +9,7 @@ module;
 
 export module modforge.neural_network;
 
-import Matrix;
+import modforge.matrix;
 import NeuralNetworkTool;
 
 

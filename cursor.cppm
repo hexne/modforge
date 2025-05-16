@@ -15,7 +15,7 @@ module;
 #include <Windows.h>
 #endif
 
-export module modforge.mouse_event;
+export module modforge.cursor_event;
 
 struct CursorPos {
 	int x = 0;
