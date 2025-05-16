@@ -15,9 +15,7 @@ module;
 #include <Windows.h>
 #endif
 
-#include "tools.h"
-
-export module Mouse;
+export module modforge.mouse_event;
 
 struct CursorPos {
 	int x = 0;
@@ -194,13 +192,8 @@ public:
 };
 #endif
 
-export
-NAMESPACE_BEGIN(nl)
-
 #ifdef _WIN32
 using Mouse = MouseWindows;
 #elif __linux__
 using Mouse = MouseLinux;
 #endif
-
-NAMESPACE_END(nl)

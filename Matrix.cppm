@@ -9,16 +9,11 @@ module;
 #include <random>
 #include <memory>
 #include <mdspan>
-
-#include "tools.h"
-export module Matrix;
+export module modforge.matrix;
 
 static std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_real_distribution<> dis(-1.f, 1.f);
-
-export
-NAMESPACE_BEGIN(nl)
 
 template <typename T = float>
 class Matrix {

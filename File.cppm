@@ -14,8 +14,7 @@ module;
 #include <functional>
 #include <variant>
 #include <optional>
-#include "tools.h"
-export module File;
+export module modforge.encoding;
 
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -133,9 +132,6 @@ auto GetDeep(const std::filesystem::path& root_path, const std::filesystem::path
     auto path = cur_path.lexically_relative(root_path).generic_string();
     return std::ranges::count(path.begin(), path.end(), '/') + 1;
 }
-
-export
-NAMESPACE_BEGIN(nl)
 
 /*******************************************************************************
  * string <==> wstring
@@ -320,7 +316,4 @@ public:
     }
 
 };
-
-NAMESPACE_END(nl)
-
 

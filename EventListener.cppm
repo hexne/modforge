@@ -23,10 +23,8 @@ module;
 #include <X11/keysym.h>
 #endif
 
-#include "tools.h"
-export module KeyEventListener;
+export module modforge.keyevent;
 
-NAMESPACE_BEGIN(nl)
 #ifdef _WIN32
 
 using std::cout, std::endl;
@@ -435,5 +433,3 @@ public:
 // 
 // };
 #endif
-
-NAMESPACE_END(nl)

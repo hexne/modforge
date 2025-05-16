@@ -12,16 +12,11 @@ module;
 #include <ostream>
 #include <stdexcept>
 #include <string>
-
-#include "tools.h"
-export module Signal;
-
-export
-NAMESPACE_BEGIN(nl)
+export module modforge.signal;
 
 void Signal(const std::string &signal, const std::function<void(int)> &callback) {
     static std::map<std::string,int> signal_map {
-        {"Ctrl-C", SIGINT}
+        {"<Ctrl-C>", SIGINT}
     };
     if (signal_map.find(signal) == signal_map.end())
         throw std::invalid_argument("Signal not found");
@@ -29,7 +24,3 @@ void Signal(const std::string &signal, const std::function<void(int)> &callback)
     ::signal(signal_map[signal], callback.target<void(int)>());
     std::cout << "注册成功" << std::endl;
 }
-
-NAMESPACE_END(nl)
-
-

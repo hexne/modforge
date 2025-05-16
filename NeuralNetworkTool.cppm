@@ -6,14 +6,7 @@
 module;
 #include <cmath>
 #include <random>
-
-#include "tools.h"
-export module NeuralNetworkTool;
-
-
-export
-NAMESPACE_BEGIN(nl)
-
+export module modforge.neural_network_tool;
 
 /**************************************** 激活函数 ****************************************/
 struct Activation {
@@ -123,7 +116,3 @@ std::tuple<size_t, size_t, size_t, size_t, size_t, size_t>
         ret_max_z
     };
 }
-
-NAMESPACE_END(nl)
-
-

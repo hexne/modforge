@@ -4,11 +4,10 @@
 *******************************************************************************/
 
 module;
-#include <opencv2/opencv.hpp>
 #include <utility>
+#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h>
-#include "tools.h"
-export module Image;
+export module modforge.image;
 import MultArray;
 import Matrix;
 
@@ -19,9 +18,6 @@ std::tuple<nl::MultArray<T>,int,int> GetImageData(const cv::Mat &image) {
     nl::MultArray<T> data(reinterpret_cast<T *>(image.data), image.rows, image.cols);
     return { data, image.rows, image.cols };
 }
-
-export
-NAMESPACE_BEGIN(nl)
 
 class Image {
     cv::Mat image_;
@@ -749,7 +745,4 @@ public:
 //
 // };
 //
-
-NAMESPACE_END(nl)
-
 

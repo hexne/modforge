@@ -6,12 +6,8 @@
 module;
 #include <iostream>
 #include <string>
-#include "tools.h"
-export module StringEncrypt;
+export module modforge.string_encrypt;
 
-
-export
-NAMESPACE_BEGIN(nl)
 
 constexpr size_t GetKey() {
 #define TO_INT(ch1,ch2) (((ch1)-'0')*10 + ((ch2)-'0'))
@@ -51,13 +47,9 @@ struct StringEncrypt {
 	}
 };
 
-NAMESPACE_END(nl)
 
 
-export NAMESPACE_BEGIN(nl::string_encrypt_literals)
-
-template<nl::StringEncrypt se>
+template<StringEncrypt se>
 std::string operator""_crypt() {
 	return se;
 }
-NAMESPACE_END(nl::string_encrypt_literals)

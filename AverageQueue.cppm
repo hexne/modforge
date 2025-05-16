@@ -6,8 +6,7 @@
 module;
 #include <array>
 #include <stdexcept>
-#include "tools.h"
-export module AverageQueue;
+export module modforge.average_queue;
 
 template <typename T>
 concept AverageType = requires(T val1, T val2, T res, int count){
@@ -18,7 +17,6 @@ concept AverageType = requires(T val1, T val2, T res, int count){
 };
 
 
-NAMESPACE_BEGIN(nl)
 template <AverageType T, size_t MaxSize>
 class AverageQueue {
 	std::array<T, MaxSize + 1> data_{};
@@ -67,5 +65,3 @@ public:
 	}
 
 };
-
-NAMESPACE_END(nl)

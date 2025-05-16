@@ -10,17 +10,12 @@ module;
 
 #include <map>
 #include <functional>
-#include <iostream>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "tools.h"
-export module Param;
+export module modforge.param;
 
 
-export
-NAMESPACE_BEGIN(nl)
 class Param {
     std::vector<std::string> params_;
     std::map<std::string, std::function<void()>> support_params_;
@@ -117,5 +112,3 @@ public:
     }
 
 };
-
-NAMESPACE_END(nl)

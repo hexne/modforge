@@ -9,16 +9,13 @@ module;
 #include <algorithm>
 #include <mutex>
 #include <set>
-#include "tools.h"
-export module Timer;
+export module modforge.timer;
 
 time_t GetNowTimeCount() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
-export
-NAMESPACE_BEGIN(nl)
 
 class Timer {
 
@@ -103,7 +100,3 @@ public:
     }
 
 };
-
-
-NAMESPACE_END(nl)
-

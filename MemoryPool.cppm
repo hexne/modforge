@@ -11,11 +11,8 @@ module;
 #include <set>
 #include <vector>
 
-#include "tools.h"
-export module MemoryPool;
+export module modforge.memory_pool;
 
-export
-NAMESPACE_BEGIN(nl)
 template <typename T>
 class MemoryPool {
     struct MemoryNode {
@@ -139,4 +136,3 @@ public:
 
 template <>
 class MemoryPool<void> {  };
-NAMESPACE_END(nl)

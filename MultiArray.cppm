@@ -9,12 +9,8 @@ module;
 #include <cassert>
 #include <utility>
 #include <vector>
+export module modforge.multi_array;
 
-#include "tools.h"
-export module MultArray;
-
-export
-NAMESPACE_BEGIN(nl)
 
 template<typename T,size_t N = 2>
 class
@@ -22,12 +18,12 @@ class
 #if __cplusplus >= 202302L
 [[deprecated("plase use mdspan")]]
 #endif
-MultArray {
+MultiArray {
     T* data_;
     size_t count_;
     std::vector<size_t> dimensions_;
 public:
-    MultArray(T* p,const std::vector<size_t> &dims) : data_(p), dimensions_(std::move(dims)) {
+    MultiArray(T* p,const std::vector<size_t> &dims) : data_(p), dimensions_(std::move(dims)) {
         count_ = 1;
         for (const int val : dimensions_)
             count_ *= val;
@@ -45,7 +41,7 @@ public:
         return dimensions_[0];
     }
 
-    MultArray operator[] (const size_t index) {
+    MultiArray operator[] (const size_t index) {
         return MultArray(data_ + index * count_ / dimensions_[0],std::vector(dimensions_.begin() + 1,dimensions_.end()));
     }
 
@@ -57,23 +53,23 @@ public:
 
 
 template<typename T>
-class MultArray<T,2> {
+class MultiArray<T,2> {
     T* data_{};
     int row_{}, col_{};
     size_t count_{};
 public:
-    MultArray() {  }
+    MultiArray() {  }
 
-    MultArray(T* p, int row, int col) : data_(p) , row_(row), col_(col) , count_(row * col) {  }
+    MultiArray(T* p, int row, int col) : data_(p) , row_(row), col_(col) , count_(row * col) {  }
 
-    MultArray(const MultArray &arr) {
+    MultiArray(const MultiArray &arr) {
         data_ = arr.data_;
         row_ = arr.row_;
         col_ = arr.col_;
         count_ = arr.count_;
     }
-    MultArray& operator= (const MultArray &arr) {
-        new (this) MultArray(arr);
+    MultiArray& operator= (const MultiArray &arr) {
+        new (this) MultiArray(arr);
         return *this;
     }
 
@@ -93,7 +89,3 @@ public:
     }
 
 };
-
-
-
-NAMESPACE_END(nl)

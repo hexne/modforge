@@ -5,13 +5,10 @@
 
 module;
 #include <opencv2/opencv.hpp>
-#include "tools.h"
-export module Video;
+export module modforge.video;
 import Image;
 import Camera;
 
-export
-NAMESPACE_BEGIN(nl)
 
 class Video {
     cv::VideoWriter video_;
@@ -44,6 +41,3 @@ public:
     }
 
 };
-
-
-NAMESPACE_END(nl)

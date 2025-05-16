@@ -12,12 +12,9 @@ module;
 #include <mutex>
 #include <future>
 #include <condition_variable>
-#include "tools.h"
-export module ThreadPool;
+export module modforge.thread_pool;
 
 
-export
-NAMESPACE_BEGIN(nl)
 class ThreadPool {
     std::vector<std::thread> work_;
     std::queue<std::function<void()>> tasks_; // 任务队列
@@ -84,6 +81,3 @@ public:
         return res;
     }
 };
-
-NAMESPACE_END(nl)
-

@@ -6,16 +6,12 @@
 module;
 #include <memory>
 #include <vector>
-#include <random>
-#include "tools.h"
 
-export module NeuralNetwork;
+export module modforge.neural_network;
 
 import Matrix;
 import NeuralNetworkTool;
 
-export
-NAMESPACE_BEGIN(nl)
 
 // ========================================层、隐藏层、输出层
 struct Layout {
@@ -171,6 +167,3 @@ public:
     }
 
 };
-
-NAMESPACE_END(nl)
-

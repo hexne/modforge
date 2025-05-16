@@ -10,13 +10,8 @@ module;
 #include <string>
 #include <thread>
 #include <vector>
+export module modforge.terminal_menu;
 
-#include "tools.h"
-export module TerminalMenu;
-
-
-export
-NAMESPACE_BEGIN(nl)
 
 class TerminalMenu {
     struct Options {
@@ -53,9 +48,3 @@ public:
         }
     }
 };
-
-
-NAMESPACE_END(nl)
-
-
-

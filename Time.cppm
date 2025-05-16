@@ -11,8 +11,7 @@ module;
 #include <mutex>
 #include <ranges>
 #include <thread>
-#include "tools.h"
-export module Time;
+export module modforge.time;
 
 template<class T>
 concept CountType = std::is_same_v<T, std::chrono::nanoseconds>
@@ -25,9 +24,6 @@ concept CountType = std::is_same_v<T, std::chrono::nanoseconds>
     || std::is_same_v<T, std::chrono::months>
     || std::is_same_v<T, std::chrono::years>
     || std::is_same_v<T, std::chrono::weeks>;
-
-export
-NAMESPACE_BEGIN(nl)
 
 class Time {
     std::chrono::zoned_time<std::chrono::system_clock::duration> time_;
@@ -232,13 +228,9 @@ public:
 
 };
 
-
-
-NAMESPACE_END(nl)
-
 // use demo, std::format("{:*^30c}",time), 支持 c，d, t, 和 空'{:*^30}'
 template <>
-struct std::formatter<nl::Time> {
+struct std::formatter<Time> {
     constexpr auto parse(auto& context) {
         auto d_it = std::find_if( context.begin(), context.end(),[](auto ch) {
             return ch == 'd';
@@ -274,7 +266,7 @@ struct std::formatter<nl::Time> {
         return end;
     }
 
-    constexpr auto format(const nl::Time& time, auto& context) const {
+    constexpr auto format(const Time& time, auto& context) const {
         std::string time_str {};
         switch (format_type_) {
             case FormatType::None:

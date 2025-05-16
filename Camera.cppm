@@ -5,12 +5,8 @@
 
 module;
 #include <opencv2/opencv.hpp>
-#include "tools.h"
-export module Camera;
+export module modforge.camera;
 import Image;
-
-export
-NAMESPACE_BEGIN(nl)
 
 class Camera {
     cv::VideoCapture camera_;
@@ -143,6 +139,3 @@ public:
     }
 
 };
-
-
-NAMESPACE_END(nl)

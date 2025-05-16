@@ -5,11 +5,7 @@
 module;
 #include <iostream>
 #include <string>
-#include "tools.h"
-export module ProgressBar;
-
-export
-NAMESPACE_BEGIN(nl)
+export module modforge.progressbar;
 
 
 class ProgressBar {
@@ -62,7 +58,3 @@ std::ostream& operator << (std::ostream& out, const ProgressBar &pb) {
     out.flush();
     return out;
 }
-
-
-
-NAMESPACE_END(nl)

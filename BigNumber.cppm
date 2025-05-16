@@ -4,13 +4,12 @@
 *******************************************************************************/
 
 module;
-#include "tools.h"
 #include <iostream>
 #include <vector>
 #include <string>
 #include <tuple>
 #include <algorithm>
-export module BigNumber;
+export module modforge.big_number;
 
 template<typename T>
 concept StringType =
@@ -19,9 +18,6 @@ concept StringType =
     std::is_same_v<T,char *> ||
     std::is_same_v<T,const char *>;
 
-
-export
-NAMESPACE_BEGIN(nl)
 
 
 class BigNumber {
@@ -309,10 +305,6 @@ public:
 };
 
 
-NAMESPACE_BEGIN(big_number_literals)
-    BigNumber operator ""_big_number (const char *str,std::size_t len) {
-        return {str};
-    }
-NAMESPACE_END(big_number_literals)
-
-NAMESPACE_END(nl)
+BigNumber operator ""_big_number (const char *str,std::size_t len) {
+    return {str};
+}

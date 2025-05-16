@@ -6,9 +6,7 @@ module;
 #include <cmath>
 #include <memory>
 #include <vector>
-
-#include "tools.h"
-export module CNN;
+export module modforge.cnn;
 
 import Matrix;
 import Image;
@@ -28,8 +26,6 @@ struct Layout {
     virtual ~Layout() = default;
 };
 
-export
-NAMESPACE_BEGIN(nl)
 
 class ConvLayer : public Layout {
     size_t kernel_count_{};
@@ -372,10 +368,3 @@ public:
 
 
 };
-
-
-
-
-NAMESPACE_END(nl)
-
-
