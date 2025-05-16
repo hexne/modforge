@@ -4,10 +4,6 @@
 *******************************************************************************/
 
 module;
-#ifdef Debug
-#include <iostream>
-#endif
-
 #include <map>
 #include <functional>
 #include <ostream>
@@ -85,7 +81,7 @@ public:
         });
     }
     */
-    void analyze() {
+    void analyze() const {
 
         for (auto arg : params_) {
             if (!support_params_.contains(arg)  ) {
@@ -93,10 +89,9 @@ public:
             }
             support_params_.find(arg)->second();
         }
-
-
     }
 
+    // 前面的参数为字符串，最后一个参数为callback函数
     void add_param(auto &&... args) {
         auto tuple = std::forward_as_tuple(args...);
         auto callback = std::get<sizeof ...(args) - 1>(tuple);
