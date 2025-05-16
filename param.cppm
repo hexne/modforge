@@ -12,7 +12,7 @@ module;
 export module modforge.param;
 
 
-class Param {
+export class Param {
     std::vector<std::string> params_;
     std::map<std::string, std::function<void()>> support_params_;
     // 方案2 :
