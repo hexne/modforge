@@ -33,8 +33,8 @@
 
 # 安装
 ```
-git clone https://github.com/hexne/NeLib.git  
-cd NeLib  
+git clone https://github.com/hexne/modforge.git  
+cd modforge  
 mkdir build && cd build  
 cmake -G Ninja\  
     -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
@@ -52,7 +52,7 @@ project(untitled)
 
 set(CMAKE_CXX_STANDARD 23)
 
-find_package(NeLib REQUIRED)
+find_package(modforge REQUIRED)
 
 
 add_executable(untitled
@@ -60,7 +60,7 @@ add_executable(untitled
 )
 
 target_link_libraries(untitled
-    NeLib
+    modforge
 )
 
 ```
@@ -68,14 +68,14 @@ target_link_libraries(untitled
 ```
 add_rules("mode.release", "mode.debug")
 
-add_repositories("nelib ~/Projects/xmake-repo")
+add_repositories("modforge ~/Projects/xmake-repo")
 
 set_languages("c++2b")
-add_requires("nelib 2024.11.15", {configs = {modules = true}})
+add_requires("modforge 2024.11.15", {configs = {modules = true}})
 
 target("test")
     set_kind("binary")
     add_files("src/*.cpp")
-    add_packages("nelib")
+    add_packages("modforge")
     set_policy("build.c++.modules", true)
 ```
