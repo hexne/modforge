@@ -35,6 +35,8 @@ public:
     void show_titlebar();
     void hide_titlebar();
 
+    void set_attributes(float attributes);
+
     void resize(int w, int h);
     void move_to(int x, int y);
 
@@ -48,6 +50,7 @@ module :private;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
@@ -96,7 +99,6 @@ Window::Window(int w, int h, const std::string &title) : width_(w), height_(h) {
 
     while (!create_finish_)
         ;
-    std::cout << "create_finish" << std::endl;
 }
 Window::~Window() {
     if (hwnd_) {
@@ -138,49 +140,24 @@ void Window::hide_titlebar() {
         SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
 }
 
-
-
-void Window::resize(int w, int h) {
-    if (!hwnd_)
+void Window::set_attributes(float attributes) {
+    if (attributes < 0 || attributes > 1)
         return;
 
-    width_ = w;
-    height_ = h;
+    // 必须设置窗口为分层窗口才能使用透明度
+    SetWindowLong(hwnd_, GWL_EXSTYLE,
+                 GetWindowLong(hwnd_, GWL_EXSTYLE) | WS_EX_LAYERED);
 
-    // Windows 实现
-    RECT rc = {0, 0, w, h};
+    // 设置透明度 (0-255)
+    BYTE alpha = static_cast<BYTE>(attributes * 255);
+    SetLayeredWindowAttributes(hwnd_, 0, alpha, LWA_ALPHA);}
 
-    // 计算需要调整的窗口尺寸（包含边框）
-    AdjustWindowRectEx(&rc,
-                     GetWindowLongPtr(hwnd_, GWL_STYLE),
-                     FALSE,
-                     GetWindowLongPtr(hwnd_, GWL_EXSTYLE));
-
-    SetWindowPos(hwnd_,
-                nullptr,
-                0, 0,
-                rc.right - rc.left,  // 实际窗口宽度
-                rc.bottom - rc.top,  // 实际窗口高度
-                SWP_NOZORDER | SWP_NOMOVE);
-
-    // 触发重绘
-    InvalidateRect(hwnd_, nullptr, TRUE);
-
-    if (resize_callback)
-        resize_callback();
+void Window::resize(int w, int h) {
+    SetWindowPos(hwnd_, nullptr, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER);
 }
+
 void Window::move_to(int x, int y) {
-    if (!hwnd_)
-        return ;
-
-    SetWindowPos(hwnd_,
-                nullptr,
-                x, y,
-                0, 0,  // 保持当前尺寸
-                SWP_NOZORDER | SWP_NOSIZE);
-
-    if (move_callback)
-        move_callback();
+    SetWindowPos(hwnd_, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 }
 
 void Window::draw_line(std::tuple<int, int> pos1, std::tuple<int, int> pos2) {
