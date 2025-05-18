@@ -14,3 +14,8 @@ target_sources(modforge
 )
 
 target_compile_features(modforge PUBLIC cxx_std_26)
+
+target_link_libraries(
+        modforge
+        X11
+)

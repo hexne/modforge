@@ -5,6 +5,7 @@
 module;
 #include <iostream>
 #include <thread>
+#include <future>
 #include <functional>
 #include <string>
 
@@ -12,18 +13,30 @@ module;
 #include <windows.h>
 #include <windowsx.h>
 #elif __linux__
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
 #endif
+
+#define GUI_BEGIN namespace GUI {
+#define GUI_END }
 
 export module modforge.window;
 
-export class Window {
+export GUI_BEGIN
+class Window {
     int width_ = 800, height_ = 600;
     bool create_finish_{};
-    HWND hwnd_;
 
     std::jthread thread_;
 
+#ifdef _WIN32
+    HWND hwnd_;
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+#elif __linux__
+    Display *display_;
+    ::Window xwindow_;
+#endif
+
 public:
     std::function<void()> move_callback, action_callback, resize_callback;
     Window(const std::string &title);
@@ -46,6 +59,7 @@ public:
     void draw_text(std::tuple<int, int> pos, int pt, const std::string &text, std::tuple<int, int, int> = { 0, 0, 0 });
 
 };
+GUI_END
 
 module :private;
 #ifdef _WIN32
@@ -252,5 +266,203 @@ void Window::draw_text(std::tuple<int, int> pos, int pt, const std::string& text
 }
 #elif __linux__
 
+GUI::Window::Window(const std::string &title) : Window(600, 400, title) { }
 
+GUI::Window::Window(int w, int h, const std::string &title) : width_(w), height_(h) {
+    thread_ = std::jthread([this, title](std::stop_token token) {
+        Display* display = XOpenDisplay(nullptr);
+        if (!display) {
+            throw std::runtime_error("Failed to open X display");
+        }
+
+        int screen = DefaultScreen(display);
+        ::Window root = RootWindow(display, screen);
+
+        XSetWindowAttributes attrs;
+        attrs.event_mask = StructureNotifyMask | ExposureMask;
+
+        xwindow_ = XCreateWindow(
+            display, root,
+            0, 0, width_, height_, 0,
+            CopyFromParent, InputOutput, CopyFromParent,
+            CWEventMask, &attrs
+        );
+
+        // 设置窗口标题
+        XStoreName(display, xwindow_, title.c_str());
+
+        // 设置窗口关闭协议
+        Atom wmDelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
+        XSetWMProtocols(display, xwindow_, &wmDelete, 1);
+
+        create_finish_ = true;
+
+        XEvent event;
+        while (!token.stop_requested()) {
+            XNextEvent(display, &event);
+
+            switch (event.type) {
+                case ConfigureNotify:
+                    if (event.xconfigure.width != width_ ||
+                        event.xconfigure.height != height_) {
+
+                        width_ = event.xconfigure.width;
+                        height_ = event.xconfigure.height;
+
+                        if (resize_callback)
+                            resize_callback();
+                    }
+                    break;
+
+                case ClientMessage:
+                    if (event.xclient.data.l[0] == wmDelete) {
+                        XDestroyWindow(display, xwindow_);
+                        XCloseDisplay(display);
+                        return;
+                    }
+                    break;
+
+                case Expose:
+                    if (action_callback)
+                        action_callback();
+                    break;
+            }
+        }
+
+        XDestroyWindow(display, xwindow_);
+        XCloseDisplay(display);
+    });
+
+    while (!create_finish_)
+        ;
+}
+
+GUI::Window::~Window() {
+    if (thread_.joinable()) {
+        thread_.request_stop();
+        hide();
+        thread_.join();
+    }
+}
+
+void GUI::Window::show() {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    XMapWindow(display, xwindow_);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::hide() {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    XUnmapWindow(display, xwindow_);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::show_titlebar() {
+    // X11下标题栏通常由窗口管理器控制，这里不做实现
+}
+
+void GUI::Window::hide_titlebar() {
+    // X11下标题栏通常由窗口管理器控制，这里不做实现
+}
+
+void GUI::Window::set_attributes(float attributes) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    if (attributes < 0) attributes = 0;
+    if (attributes > 1) attributes = 1;
+
+    unsigned long opacity = (unsigned long)(0xffffffff * attributes);
+    Atom atom = XInternAtom(display, "_NET_WM_WINDOW_OPACITY", False);
+    XChangeProperty(display, xwindow_, atom, XA_CARDINAL, 32,
+                   PropModeReplace, (unsigned char*)&opacity, 1);
+
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::resize(int w, int h) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    XResizeWindow(display, xwindow_, w, h);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::move_to(int x, int y) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    XMoveWindow(display, xwindow_, x, y);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::draw_line(std::tuple<int, int> pos1, std::tuple<int, int> pos2, std::tuple<int, int, int> rgb) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    GC gc = XCreateGC(display, xwindow_, 0, nullptr);
+    XSetForeground(display, gc,
+                  (std::get<0>(rgb) << 16) | (std::get<1>(rgb) << 8) | std::get<2>(rgb));
+
+    XDrawLine(display, xwindow_, gc,
+             std::get<0>(pos1), std::get<1>(pos1),
+             std::get<0>(pos2), std::get<1>(pos2));
+
+    XFreeGC(display, gc);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::draw_rect(std::tuple<int, int> pos1, std::tuple<int, int> pos2, std::tuple<int, int, int> rgb) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    GC gc = XCreateGC(display, xwindow_, 0, nullptr);
+    XSetForeground(display, gc,
+                  (std::get<0>(rgb) << 16) | (std::get<1>(rgb) << 8) | std::get<2>(rgb));
+
+    XDrawRectangle(display, xwindow_, gc,
+                  std::get<0>(pos1), std::get<1>(pos1),
+                  std::get<0>(pos2) - std::get<0>(pos1),
+                  std::get<1>(pos2) - std::get<1>(pos1));
+
+    XFreeGC(display, gc);
+    XFlush(display);
+    XCloseDisplay(display);
+}
+
+void GUI::Window::draw_text(std::tuple<int, int> pos, int pt, const std::string& text, std::tuple<int, int, int> rgb) {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    // 创建字体
+    XFontStruct* font = XLoadQueryFont(display, "fixed");
+    if (!font) {
+        XCloseDisplay(display);
+        return;
+    }
+
+    GC gc = XCreateGC(display, xwindow_, 0, nullptr);
+    XSetFont(display, gc, font->fid);
+    XSetForeground(display, gc,
+                  (std::get<0>(rgb) << 16) | (std::get<1>(rgb) << 8) | std::get<2>(rgb));
+
+    XDrawString(display, xwindow_, gc,
+               std::get<0>(pos), std::get<1>(pos),
+               text.c_str(), text.length());
+
+    XFreeFont(display, font);
+    XFreeGC(display, gc);
+    XFlush(display);
+    XCloseDisplay(display);
+}
 #endif
