@@ -172,6 +172,9 @@ std::ostream& operator << (std::ostream& out, const CursorPos& pos) {
 }
 #elif __linux__
 [[deprecated("linux is not supported.")]]
-Cursor::Cursor() = default;
+Cursor::Cursor() = delete;
+
+[[deprecated("linux is not supported.")]]
+Cursor::Cursor(CursorPos) = delete;
 #endif
 
