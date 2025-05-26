@@ -15,7 +15,7 @@ module;
 #include <Windows.h>
 #endif
 
-export module modforge.cursor_event;
+export module modforge.cursor;
 
 export
 struct CursorPos {
@@ -27,16 +27,34 @@ struct CursorPos {
 };
 
 export
-struct Cursor {
+class Cursor {
+    CursorPos old_cursor_pos_;
+    std::thread listen_click_thread_;
+    bool run_flag_ = true;
+    std::mutex thread_mutex_;
+    std::function<void()> left_click_callback_;
+    std::function<void()> right_click_callback_;
+    std::function<void()> move_callback_;
+    CursorPos cursor_pos;
+
+    bool get_key_state(int key);
+    void listen_event();
+public:
     Cursor();
+    Cursor(CursorPos);
+
     void click_left(int count);
+    void click_left(const CursorPos);
     void click_right(int count);
+    void click_right(const CursorPos);
 
     CursorPos get_cursor_pos();
     void set_click_left_callback(std::function<void()>);
     void set_click_right_callback(std::function<void()>);
     void set_move_callback(std::function<void()>);
     void move_to(const CursorPos&);
+    void wheel_up(int val = 100);
+    void wheel_down(int val = 100);
 
     ~Cursor();
 };
@@ -55,82 +73,69 @@ public:
     }
 };
 
-class MouseWindows : MouseBase {
-    CursorPos old_cursor_pos_;
-    std::thread listen_click_thread_;
-    bool run_flag_ = true;
-    std::mutex thread_mutex_;
-    std::function<void()> left_click_callback_;
-    std::function<void()> right_click_callback_;
-    std::function<void()> move_callback_;
 
+bool Cursor::get_key_state(int key) {
+	return GetKeyState(key) & 0x8000;
+}
 
-    bool get_key_state(int key) {
-        return GetKeyState(key) & 0x8000;
-    }
-    void listen_event();
+Cursor::Cursor() : Cursor(get_cursor_pos()) { }
 
-public:
-    CursorPos cursor_pos;
-    MouseWindows() : MouseWindows(get_cursor_pos()) {  }
-    explicit MouseWindows(const CursorPos cursor_pos) : cursor_pos(cursor_pos) {
-        old_cursor_pos_ = cursor_pos;
-        listen_click_thread_ = std::thread(&MouseWindows::listen_event, this);
-    }
-    ~MouseWindows() {
-        {
-            std::lock_guard<std::mutex> lock(thread_mutex_);
-            run_flag_ = false;
+Cursor::Cursor(const CursorPos cursor_pos) : cursor_pos(cursor_pos) {
+	old_cursor_pos_ = cursor_pos;
+	listen_click_thread_ = std::thread(&Cursor::listen_event, this);
+}
+Cursor::~Cursor() {
+	{
+		std::lock_guard<std::mutex> lock(thread_mutex_);
+		run_flag_ = false;
 
-        }
-        listen_click_thread_.detach();
+	}
+	listen_click_thread_.detach();
 
-    }
-    CursorPos get_cursor_pos() override {
-        POINT p;
-        GetCursorPos(&p);
-        return { p.x, p.y };
-    }
-    void move_to(const CursorPos &pos) override {
-        cursor_pos = pos;
-        SetCursorPos(pos.x, pos.y);
-    }
-    void click_left(const CursorPos pos) {
-        cursor_pos = pos;
-        mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-    }
-    void click_left(int count = 1) override {
-        while (count--)
-            click_left(cursor_pos);
-    }
-    void click_right(const CursorPos pos) {
-        cursor_pos = pos;
-        mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-    }
-    void click_right(int count = 1) override {
-        while (count--)
-            click_right(cursor_pos);
-    }
-    void wheel_up(int val = 100) {
-        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, val, 0);
-    }
-    void wheel_down(int val = -100) {
-        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, val, 0);
-    }
-    void set_click_left_callback(std::function<void()> callback) override {
-        left_click_callback_ = std::move(callback);
-    }
-    void set_click_right_callback(std::function<void()> callback) override {
-        right_click_callback_ = std::move(callback);
-    }
-    void set_move_callback(std::function<void()> callback) override {
-        move_callback_ = std::move(callback);
-    }
+}
 
+CursorPos Cursor::get_cursor_pos() {
+	POINT p;
+	GetCursorPos(&p);
+	return { p.x, p.y };
+}
+void Cursor::move_to(const CursorPos &pos) {
+	cursor_pos = pos;
+	SetCursorPos(pos.x, pos.y);
+}
+void Cursor::click_left(const CursorPos pos) {
+	cursor_pos = pos;
+	mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+}
+void Cursor::click_left(int count = 1) {
+	while (count--)
+		click_left(cursor_pos);
+}
+void Cursor::click_right(const CursorPos pos) {
+	cursor_pos = pos;
+	mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+}
+void Cursor::click_right(int count = 1) {
+	while (count--)
+		click_right(cursor_pos);
+}
+void Cursor::wheel_up(int val) {
+	mouse_event(MOUSEEVENTF_WHEEL, 0, 0, val, 0);
+}
+void Cursor::wheel_down(int val) {
+	mouse_event(MOUSEEVENTF_WHEEL, 0, 0, val, 0);
+}
+void Cursor::set_click_left_callback(std::function<void()> callback) {
+	left_click_callback_ = std::move(callback);
+}
+void Cursor::set_click_right_callback(std::function<void()> callback) {
+	right_click_callback_ = std::move(callback);
+}
+void Cursor::set_move_callback(std::function<void()> callback) {
+	move_callback_ = std::move(callback);
+}
 
-};
-
-void MouseWindows::listen_event() {
+void Cursor::listen_event() {
     ClickEvent right_click_event;
     ClickEvent left_click_event;
 
