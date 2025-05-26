@@ -264,7 +264,4 @@ Window::Window(const std::string &title) : Window(600, 400, title) {  }
 [[deprecated("linux is not supported.")]]
 Window::Window(int w, int h, const std::string &title) : width_(w), height_(h) {  }
 
-[[deprecated("linux is not supported.")]]
-Window::~Window() {  }
-
 #endif
