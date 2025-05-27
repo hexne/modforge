@@ -18,9 +18,6 @@ module;
 
 export module modforge.keyevent;
 
-
-
-// 普通按键和组合按键
 export
 struct Key {
 
@@ -131,6 +128,7 @@ struct Key {
 
     std::vector<int> keys;
     std::function<void()> call_back;
+    bool is_callbacked {};
 
 	std::vector<int> parse(const std::string &keys) {
 		auto split_keys = keys 
@@ -217,18 +215,22 @@ void KeyEvent::listen() {
             key_status[i] = true;
         }
 
-        for (const auto& key : keys) {
+        for (auto& key : keys) {
             bool flag = true;
             for (auto key_id : key.keys) {
-                if (!key_status[key_id]) 
+                if (!key_status[key_id]) {
                     flag = false;
+                    key.is_callbacked = false;
+                }
             }
-            if (!flag)
-                continue;
-            key.call_back();
+
+            if (flag && !key.is_callbacked) {
+                key.call_back();
+                key.is_callbacked = true;
+            }
         }
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	}
 
