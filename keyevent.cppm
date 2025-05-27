@@ -165,6 +165,25 @@ public:
 
 		this->keys = parse(keys);
 	}
+    
+    // 按下
+    void down() {
+        for (const auto &key : keys) 
+            keybd_event(key, 0, 0, 0);
+    }
+
+    // 抬起
+    void up() {
+        for (const auto &key : keys) 
+            keybd_event(key, 0, KEYEVENTF_KEYUP, 0);
+    }
+
+    // 按下并抬起
+    // 对于组合键，是全部按下后释放
+    void press() {
+        down();
+        up();
+    }
 
 };
 
