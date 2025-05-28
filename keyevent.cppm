@@ -130,7 +130,7 @@ struct Key {
     std::function<void()> call_back;
     bool is_callbacked {};
 
-	std::vector<int> parse(const std::string &keys) {
+	static std::vector<int> parse(const std::string &keys) {
 		auto split_keys = keys 
 				|   std::ranges::views::split('-')
 				|   std::ranges::views::transform([](auto&& range) {
@@ -146,8 +146,6 @@ struct Key {
 
 		return { split_keys.begin(), split_keys.end() };
 	}
-
-public:
 
     Key(const std::vector<int> &keys) : keys(keys) {  }
 
@@ -180,9 +178,12 @@ public:
 
     // 按下并抬起
     // 对于组合键，是全部按下后释放
-    void press() {
-        down();
-        up();
+    void press(int count = 1) {
+        while (count--) {
+			down();
+			up();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
     }
 
 };
