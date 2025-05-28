@@ -112,7 +112,7 @@ struct OutLayout : Layout {
 
 };
 
-
+export
 struct Backpropagation {
 public:
     std::vector<std::shared_ptr<Layout>> layouts;
