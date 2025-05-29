@@ -172,9 +172,13 @@ std::ostream& operator << (std::ostream& out, const CursorPos& pos) {
 }
 #elif __linux__
 [[deprecated("linux is not supported.")]]
-Cursor::Cursor() = delete;
+Cursor::Cursor() {
+    throw std::runtime_error("linux not supported");
+}
 
 [[deprecated("linux is not supported.")]]
-Cursor::Cursor(CursorPos) = delete;
+Cursor::Cursor(CursorPos) {
+    throw std::runtime_error("linux not supported");
+}
 #endif
 

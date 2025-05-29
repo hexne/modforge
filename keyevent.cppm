@@ -130,61 +130,24 @@ struct Key {
     std::function<void()> call_back;
     bool is_callbacked {};
 
-	static std::vector<int> parse(const std::string &keys) {
-		auto split_keys = keys 
-				|   std::ranges::views::split('-')
-				|   std::ranges::views::transform([](auto&& range) {
-						return std::string(range.begin(), range.end());
-					})
-				|   std::ranges::views::transform([](const std::string& str) {
-						auto pos = std::ranges::find(key_map, str);
-						if (pos == key_map.end())
-							throw std::runtime_error("Invalid key: " + str);
-						return pos - key_map.begin();
-					});
-		
-
-		return { split_keys.begin(), split_keys.end() };
-	}
+	static std::vector<int> parse(const std::string &keys);
 
     Key(const std::vector<int> &keys) : keys(keys) {  }
 
 
 	// <W>, <Ctrl-W>, <Ctrl-Shift-W>, <Ctrl-Alt-W>, <Ctrl-Shift-Alt-W>
 	// W, Ctrl-W, Ctrl-Shift-W, Ctrl-Alt-W, Ctrl-Shift-Alt-W
-	Key(std::string keys) {
+	Key(std::string keys);
 
-		for (auto& ch : keys) {
-			if (std::isupper(ch))
-				ch = std::tolower(ch);
-		}
-		if (keys.front() == '<' && keys.back() == '>')
-			keys = std::string(keys.begin() + 1, keys.end() - 1);
-
-		this->keys = parse(keys);
-	}
-    
     // 按下
-    void down() {
-        for (const auto &key : keys) 
-            keybd_event(key, 0, 0, 0);
-    }
+    void down();
 
     // 抬起
-    void up() {
-        for (const auto &key : keys) 
-            keybd_event(key, 0, KEYEVENTF_KEYUP, 0);
-    }
+    void up();
 
     // 按下并抬起
     // 对于组合键，是全部按下后释放
-    void press(int count = 1) {
-        while (count--) {
-			down();
-			up();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
+    void press(int count = 1);
 
 };
 
@@ -211,6 +174,61 @@ public:
 
 module : private;
 #ifdef _WIN32
+std::vector<int> Key::parse(const std::string &keys) {
+    auto split_keys = keys
+            |   std::ranges::views::split('-')
+            |   std::ranges::views::transform([](auto&& range) {
+                    return std::string(range.begin(), range.end());
+                })
+            |   std::ranges::views::transform([](const std::string& str) {
+                    auto pos = std::ranges::find(key_map, str);
+                    if (pos == key_map.end())
+                        throw std::runtime_error("Invalid key: " + str);
+                    return pos - key_map.begin();
+                });
+
+
+    return { split_keys.begin(), split_keys.end() };
+}
+
+
+Key::Key(std::string keys) {
+
+    for (auto& ch : keys) {
+        if (std::isupper(ch))
+            ch = std::tolower(ch);
+    }
+    if (keys.front() == '<' && keys.back() == '>')
+        keys = std::string(keys.begin() + 1, keys.end() - 1);
+
+    this->keys = parse(keys);
+}
+
+// 按下
+void Key::down() {
+    for (const auto &key : keys)
+        keybd_event(key, 0, 0, 0);
+}
+
+// 抬起
+void Key::up() {
+    for (const auto &key : keys)
+        keybd_event(key, 0, KEYEVENTF_KEYUP, 0);
+}
+
+// 按下并抬起
+// 对于组合键，是全部按下后释放
+void Key::press(int count = 1) {
+    while (count--) {
+        down();
+        up();
+        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+};
+
+
 
 KeyEvent::KeyEvent() {
 
@@ -260,6 +278,8 @@ void KeyEvent::listen() {
 #elif __linux__
 
 [[deprecated("linux is not supported.")]]
-KeyEvent::KeyEvent() = delete;
+KeyEvent::KeyEvent() {
+    throw std::runtime_error("linux is not supported.");
+}
 
 #endif

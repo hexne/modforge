@@ -8,6 +8,7 @@ module;
 #ifdef _WIN32
 #include <Windows.h>
 #elif __linux__
+#include <iostream>
 #endif
 export module modforge.console;
 
@@ -36,6 +37,12 @@ void Console::show_cursor() {
 
 #elif __linux__
 
+void Console::hind_cursor() {
+    std::cout << "\033[?25lm";
+}
+void Console::show_cursor() {
+    std::cout << "\033[?25hm";
+}
 
 
 
