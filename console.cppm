@@ -38,10 +38,10 @@ void Console::show_cursor() {
 #elif __linux__
 
 void Console::hind_cursor() {
-    std::cout << "\033[?25lm";
+    std::cout << "\033[?25l";
 }
 void Console::show_cursor() {
-    std::cout << "\033[?25hm";
+    std::cout << "\033[?25h";
 }
 
 

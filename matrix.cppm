@@ -45,6 +45,14 @@ public:
     size_t x{}, y{}, z{};
     Matrix() = default;
 
+    Matrix(const std::initializer_list<float> &nums) {
+        z = x = 1;
+        y = nums.size();
+        data_ptr_ = std::make_shared<T[]>(nums.size());
+        std::copy(nums.begin(), nums.end(), data_ptr_.get());
+        view_ = std::mdspan(data_ptr_.get(), z, x, y);
+    }
+
     Matrix(size_t x, size_t y, size_t z = 1) : Matrix(std::make_shared<T[]>(x * y * z), x, y, z) {  }
 
     Matrix(std::shared_ptr<T[]> ptr, size_t x, size_t y, size_t z = 1) : x(x), y(y), z(z) {

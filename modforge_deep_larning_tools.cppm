@@ -84,42 +84,6 @@ double GetRandom(const double min, const double max) {
     return dis(gen);
 }
 
-/**************************************** 获取受该点影响的元素们在输出中的范围 ****************************************/
-std::tuple<size_t, size_t, size_t, size_t, size_t, size_t>
-            GetRange(int x, int y, int kernel_size, int stride, int channels) {
-
-    int ret_min_x = (x - kernel_size + 1) / stride;
-    int ret_min_y = (y - kernel_size + 1) / stride;
-    int ret_min_z = 0;
-
-    int ret_max_x = x / stride;
-    int ret_max_y = y / stride;
-    int ret_max_z = channels - 1;
-
-    if (ret_min_x < 0)
-        ret_min_x = 0;
-
-    if (ret_min_y < 0)
-        ret_min_y = 0;
-
-    if (ret_max_x >= kernel_size) {
-        ret_max_x = kernel_size - 1;
-    }
-
-    if (ret_max_y >= kernel_size) {
-        ret_max_y = kernel_size - 1;
-    }
-
-    return {
-        ret_min_x,
-        ret_min_y,
-        ret_min_z,
-
-        ret_max_x,
-        ret_max_y,
-        ret_max_z
-    };
-}
 
 template <size_t N>
 struct OneHot {
