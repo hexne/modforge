@@ -9,6 +9,7 @@ module;
 #include <random>
 export module modforge.deep_learning.tools;
 
+import modforge.matrix;
 
 export {
 
@@ -52,6 +53,10 @@ struct Relu : Activation {
 struct LossFunction {
     virtual double action(double predicted_value, double true_value) = 0;
     virtual double deaction(double predicted_value, double true_value) = 0;
+
+    virtual Matrix<float> action(Matrix<float> &predicted_value, Matrix<float> &true_value) = 0;
+    virtual Matrix<float> deaction(Matrix<float> &predicted_value, Matrix<float> &true_value) = 0;
+
     virtual ~LossFunction() = default;
 };
 
@@ -63,6 +68,20 @@ struct MeanSquaredError : LossFunction {
     double deaction(double predicted_value, double true_value) override {
         return predicted_value - true_value;
     }
+
+    Matrix<float> action(Matrix<float> &predicted_value, Matrix<float> &true_value) override {
+        Matrix<float> result = predicted_value;
+        for (int i = 0;i < result.y; ++i)
+            result[0, i] = action(result[0, i], true_value[0, i]);
+        return result;
+    }
+    Matrix<float> deaction(Matrix<float> &predicted_value, Matrix<float> &true_value) override {
+        Matrix<float> result = predicted_value;
+        for (int i = 0;i < result.y; ++i)
+            result[0, i] = deaction(result[0, i], true_value[0, i]);
+        return result;
+    }
+
 
     ~MeanSquaredError() override = default;
 };
