@@ -21,110 +21,7 @@ export module modforge.keyevent;
 export
 struct Key {
 
-    inline static std::array<std::string, 256> key_map = {
-        "",
-
-        /*
-         * 0x01 (1) - VK_LBUTTON     鼠标左键
-         * 0x02 (2) - VK_RBUTTON     鼠标右键
-         * 0x03 (3) - VK_CANCEL      Break/Ctrl+Pause
-         * 0x04 (4) - VK_MBUTTON     鼠标中键
-         * 0x05 (5) - VK_XBUTTON1    鼠标X1键
-         * 0x06 (6) - VK_XBUTTON2    鼠标X2键
-         */
-        "leftmouse", "rightmouse", "cancel", "middlemouse", "mousebutton1", "mousebutton2", "", 
-
-        /*
-         * 0x07 (7) - 未定义
-         * 0x08 (8) - VK_BACK        Backspace键
-         * 0x09 (9) - VK_TAB         Tab键
-         * 0x0A (10)- 未定义
-         * 0x0B (11)- 未定义
-         * 0x0C (12)- VK_CLEAR       小键盘5 (NumLock关闭时)
-         * 0x0D (13)- VK_RETURN      Enter键
-         */
-        "backspace", "tab", "", "", "", "enter", "", "", 
-
-        /*
-         * 0x0E (14)- 未定义
-         * 0x0F (15)- 未定义
-         * 0x10 (16)- VK_SHIFT       Shift键
-         * 0x11 (17)- VK_CONTROL     Ctrl键
-         * 0x12 (18)- VK_MENU        Alt键
-         * 0x13 (19)- VK_PAUSE       Pause键
-         * 0x14 (20)- VK_CAPITAL     Caps Lock键
-         */
-        "shift", "ctrl", "alt", "pause", "capslock", "", "", "", "", "", "", 
-        /*
-         * 0x15 (21)- 未定义
-         * 0x16 (22)- 未定义
-         * 0x17 (23)- 未定义
-         * 0x18 (24)- 未定义
-         * 0x19 (25)- 未定义
-         * 0x1A (26)- 未定义
-         * 0x1B (27)- VK_ESCAPE      Esc键
-         */
-        "esc", "", "", "", "", 
-        /*
-         * 0x1C (28)- 未定义
-         * 0x1D (29)- 未定义
-         * 0x1E (30)- 未定义
-         * 0x1F (31)- 未定义
-         * 0x20 (32)- VK_SPACE       空格键
-         * 0x21 (33)- VK_PRIOR       Page Up键
-         * 0x22 (34)- VK_NEXT        Page Down键
-         * 0x23 (35)- VK_END         End键
-         * 0x24 (36)- VK_HOME        Home键
-         * 0x25 (37)- VK_LEFT        左箭头键
-         * 0x26 (38)- VK_UP          上箭头键
-         * 0x27 (39)- VK_RIGHT       右箭头键
-         * 0x28 (40)- VK_DOWN        下箭头键
-         */
-        "space", "pageup", "pagedown", "end", "home", "left", "up", "right", "down",
-
-        /*
-         * 0x29 (41)- VK_SELECT      Select键
-         * 0x2A (42)- VK_PRINT       Print键
-         * 0x2B (43)- VK_EXECUTE     Execute键
-         * 0x2C (44)- VK_SNAPSHOT    Print Screen键
-         * 0x2D (45)- VK_INSERT      Insert键
-         * 0x2E (46)- VK_DELETE      Delete键
-         * 0x2F (47)- VK_HELP        Help键
-         */
-        "select", "print", "execute", "printscreen", "insert", "delete", "help",
-
-        // 数字键0-9 (0x30-0x39)
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "", "",
-
-        // 字母键A-Z (0x41-0x5A)
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-        "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-
-        /*
-         * 0x5B (91)- VK_LWIN        左Windows键
-         * 0x5C (92)- VK_RWIN        右Windows键
-         * 0x5D (93)- VK_APPS        应用程序键
-         */
-        "leftwin", "rightwin", "apps", "", "",
-
-        // 小键盘键 (0x60-0x6F)
-        "num0", "num1", "num2", "num3", "num4", "num5", "num6", "num7", "num8", "num9",
-        "num*", "num+", "", "num-", "num.", "num/",
-
-        // 功能键F1-F24 (0x70-0x87)
-        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-        "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20",
-        "f21", "f22", "f23", "f24", "", "", "", "", "", "", "", "", 
-
-        /*
-         * 0x90 (144)- VK_NUMLOCK     Num Lock键
-         * 0x91 (145)- VK_SCROLL      Scroll Lock键
-         */
-        "numlock", "scrolllock", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-
-        // 左右修饰键 (0xA0-0xA5)
-        "leftshift", "rightshift", "leftctrl", "rightctrl", "leftalt", "rightalt",
-        };
+    static std::array<std::string, 256> key_map;
 
     std::vector<int> keys;
     std::function<void()> call_back;
@@ -172,7 +69,119 @@ public:
 
 };
 
+
+
+
+
 module : private;
+
+
+std::array<std::string, 256> Key::key_map = {
+    "",
+
+    /*
+     * 0x01 (1) - VK_LBUTTON     鼠标左键
+     * 0x02 (2) - VK_RBUTTON     鼠标右键
+     * 0x03 (3) - VK_CANCEL      Break/Ctrl+Pause
+     * 0x04 (4) - VK_MBUTTON     鼠标中键
+     * 0x05 (5) - VK_XBUTTON1    鼠标X1键
+     * 0x06 (6) - VK_XBUTTON2    鼠标X2键
+     */
+    "leftmouse", "rightmouse", "cancel", "middlemouse", "mousebutton1", "mousebutton2", "",
+
+    /*
+     * 0x07 (7) - 未定义
+     * 0x08 (8) - VK_BACK        Backspace键
+     * 0x09 (9) - VK_TAB         Tab键
+     * 0x0A (10)- 未定义
+     * 0x0B (11)- 未定义
+     * 0x0C (12)- VK_CLEAR       小键盘5 (NumLock关闭时)
+     * 0x0D (13)- VK_RETURN      Enter键
+     */
+    "backspace", "tab", "", "", "", "enter", "", "",
+
+    /*
+     * 0x0E (14)- 未定义
+     * 0x0F (15)- 未定义
+     * 0x10 (16)- VK_SHIFT       Shift键
+     * 0x11 (17)- VK_CONTROL     Ctrl键
+     * 0x12 (18)- VK_MENU        Alt键
+     * 0x13 (19)- VK_PAUSE       Pause键
+     * 0x14 (20)- VK_CAPITAL     Caps Lock键
+     */
+    "shift", "ctrl", "alt", "pause", "capslock", "", "", "", "", "", "",
+    /*
+     * 0x15 (21)- 未定义
+     * 0x16 (22)- 未定义
+     * 0x17 (23)- 未定义
+     * 0x18 (24)- 未定义
+     * 0x19 (25)- 未定义
+     * 0x1A (26)- 未定义
+     * 0x1B (27)- VK_ESCAPE      Esc键
+     */
+    "esc", "", "", "", "",
+    /*
+     * 0x1C (28)- 未定义
+     * 0x1D (29)- 未定义
+     * 0x1E (30)- 未定义
+     * 0x1F (31)- 未定义
+     * 0x20 (32)- VK_SPACE       空格键
+     * 0x21 (33)- VK_PRIOR       Page Up键
+     * 0x22 (34)- VK_NEXT        Page Down键
+     * 0x23 (35)- VK_END         End键
+     * 0x24 (36)- VK_HOME        Home键
+     * 0x25 (37)- VK_LEFT        左箭头键
+     * 0x26 (38)- VK_UP          上箭头键
+     * 0x27 (39)- VK_RIGHT       右箭头键
+     * 0x28 (40)- VK_DOWN        下箭头键
+     */
+    "space", "pageup", "pagedown", "end", "home", "left", "up", "right", "down",
+
+    /*
+     * 0x29 (41)- VK_SELECT      Select键
+     * 0x2A (42)- VK_PRINT       Print键
+     * 0x2B (43)- VK_EXECUTE     Execute键
+     * 0x2C (44)- VK_SNAPSHOT    Print Screen键
+     * 0x2D (45)- VK_INSERT      Insert键
+     * 0x2E (46)- VK_DELETE      Delete键
+     * 0x2F (47)- VK_HELP        Help键
+     */
+    "select", "print", "execute", "printscreen", "insert", "delete", "help",
+
+    // 数字键0-9 (0x30-0x39)
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "", "",
+
+    // 字母键A-Z (0x41-0x5A)
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+
+    /*
+     * 0x5B (91)- VK_LWIN        左Windows键
+     * 0x5C (92)- VK_RWIN        右Windows键
+     * 0x5D (93)- VK_APPS        应用程序键
+     */
+    "leftwin", "rightwin", "apps", "", "",
+
+    // 小键盘键 (0x60-0x6F)
+    "num0", "num1", "num2", "num3", "num4", "num5", "num6", "num7", "num8", "num9",
+    "num*", "num+", "", "num-", "num.", "num/",
+
+    // 功能键F1-F24 (0x70-0x87)
+    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
+    "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20",
+    "f21", "f22", "f23", "f24", "", "", "", "", "", "", "", "",
+
+    /*
+     * 0x90 (144)- VK_NUMLOCK     Num Lock键
+     * 0x91 (145)- VK_SCROLL      Scroll Lock键
+     */
+    "numlock", "scrolllock", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+
+    // 左右修饰键 (0xA0-0xA5)
+    "leftshift", "rightshift", "leftctrl", "rightctrl", "leftalt", "rightalt",
+    };
+
+
 #ifdef _WIN32
 std::vector<int> Key::parse(const std::string &keys) {
     auto split_keys = keys
