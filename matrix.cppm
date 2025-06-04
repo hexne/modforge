@@ -150,7 +150,7 @@ public:
                 for (int j = 0;j < extent(1);j++) {
                     for (int k = 0;k < extent(2);k++) {
                         for (int l = 0;k < extent(3);k++) {
-                            vector[i][j][k] = view_[i, j, k, l];
+                            vector[i][j][k][l] = view_[i, j, k, l];
                         }
                     }
                 }
