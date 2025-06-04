@@ -24,13 +24,37 @@ class Matrix {
 
     template<size_t size>
     auto to_vector_impl() {
-        return std::vector(view_.extent(extents - size), to_vector_impl<size - 1>());
+        if constexpr (size == 1) {
+            return std::vector<T>(view_.extent(extents - 1));
+        }
+        else {
+            return std::vector(view_.extent(extents - size), to_vector_impl<size - 1>());
+        }
     }
 
-    template<>
-    auto to_vector_impl<1>() {
-        return std::vector<T>(view_.extent(extents - 1));
+
+    template<typename U, typename ... Args>
+    [[nodiscard]]
+    auto& access_vector(std::vector<U>& vec, int first, Args &&...args) {
+        if constexpr (sizeof ...(args) >= 1)
+            return access_vector(vec[first], args ...);
+        else
+            return vec[first];
     }
+
+    template<typename Vector,typename ... Index>
+    void copy_impl(Vector &vec, Index &&...index) {
+        if constexpr (sizeof...(index) == extents) {
+            access_vector(vec, index...) = view_[index ...];
+        }
+        else {
+            for (int i = 0; i < view_.extent(sizeof...(index)); i++) {
+                copy_impl(vec, index..., i);
+            }
+        }
+    }
+
+
 public:
     int x{}, y{}, z{};
 
@@ -110,7 +134,6 @@ public:
     Matrix& operator = (const Matrix & matrix) = default;
     Matrix& operator = (Matrix && matrix) = default;
 
-
     auto extent(int extent) {
         return view_.extent(extent);
     }
@@ -122,46 +145,10 @@ public:
 
 
     auto to_vector() {
-        auto vector = to_vector_impl<extents>();
-        // @TODO， 从mdspan里向vector<...> 中拷贝数据
-        if constexpr (extents == 1) {
-            for (int i = 0;i < extents;i++) {
-                vector[i] = view_[i];
-            }
-        }
-        else if constexpr (extents == 2) {
-            for (int i = 0;i < extent(0);i++) {
-                for (int j = 0;j < extent(1);j++) {
-                    vector[i][j] = view_[i, j];
-                }
-            }
-        }
-        else if constexpr (extents == 3) {
-            for (int i = 0;i < extent(0);i++) {
-                for (int j = 0;j < extent(1);j++) {
-                    for (int k = 0;k < extent(2);k++) {
-                        vector[i][j][k] = view_[i, j, k];
-                    }
-                }
-            }
-        }
-        else if constexpr (extents == 4) {
-            for (int i = 0;i < extent(0);i++) {
-                for (int j = 0;j < extent(1);j++) {
-                    for (int k = 0;k < extent(2);k++) {
-                        for (int l = 0;k < extent(3);k++) {
-                            vector[i][j][k][l] = view_[i, j, k, l];
-                        }
-                    }
-                }
-            }
-        }
-        return vector;
-
-
+        auto vec = to_vector_impl<extents>();
+        copy_impl(vec);
+        return vec;
     }
-
-
 
 };
 //
