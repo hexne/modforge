@@ -145,6 +145,17 @@ public:
                 }
             }
         }
+        else if constexpr (extents == 4) {
+            for (int i = 0;i < extent(0);i++) {
+                for (int j = 0;j < extent(1);j++) {
+                    for (int k = 0;k < extent(2);k++) {
+                        for (int l = 0;k < extent(3);k++) {
+                            vector[i][j][k] = view_[i, j, k, l];
+                        }
+                    }
+                }
+            }
+        }
         return vector;
 
 
