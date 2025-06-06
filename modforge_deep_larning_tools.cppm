@@ -9,7 +9,7 @@ module;
 #include <random>
 export module modforge.deep_learning.tools;
 
-import modforge.matrix;
+import modforge.tensor;
 
 export {
 

@@ -11,7 +11,7 @@ module;
 #include <vector>
 export module modforge.deep_learning.bp;
 
-import modforge.matrix;
+import modforge.tensor;
 import modforge.deep_learning.tools;
 import modforge.average_queue;
 

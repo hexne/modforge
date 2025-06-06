@@ -9,4 +9,4 @@ export module modforge.core;
 export import modforge.param;
 export import modforge.time;
 export import modforge.timer;
-export import modforge.matrix;
+export import modforge.tensor;
