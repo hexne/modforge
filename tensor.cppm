@@ -7,6 +7,7 @@ module;
 #include <vector>
 #include <memory>
 #include <mdspan>
+#include <stdexcept>
 export module modforge.tensor;
 
 export

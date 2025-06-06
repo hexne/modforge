@@ -10,8 +10,7 @@ module;
 #include <string>
 #include <functional>
 #include <vector>
-#include <iostream>
-
+#include <stdexcept>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -227,16 +226,13 @@ void Key::up() {
 
 // 按下并抬起
 // 对于组合键，是全部按下后释放
-void Key::press(int count = 1) {
+void Key::press(int count) {
     while (count--) {
         down();
         up();
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
-
-};
-
 
 
 KeyEvent::KeyEvent() {
