@@ -10,39 +10,39 @@ module;
 export module modforge.tensor;
 
 export
-template<typename T, size_t extents>
+template <typename T,size_t Extents>
 class Tensor {
-    std::shared_ptr<T[]> data_;
-    std::mdspan<T, std::dextents<size_t, extents>, std::layout_stride> view_;
+    std::shared_ptr<std::vector<T>> data_;
+    std::mdspan<T, std::dextents<size_t, Extents>, std::layout_stride> view_;
 
     template<typename ... Args>
     constexpr int mul(Args && ...args) {
         return (... * args);
     }
 
-    template<size_t size>
-    auto to_vector_impl() {
-        if constexpr (size == 1) {
-            return std::vector<T>(view_.extent(extents - 1));
-        }
-        else {
-            return std::vector(view_.extent(extents - size), to_vector_impl<size - 1>());
-        }
-    }
-
 
     template<typename U, typename ... Args>
     [[nodiscard]]
-    auto& access_vector(std::vector<U>& vec, int first, Args &&...args) {
-        if constexpr (sizeof ...(args) >= 1)
-            return access_vector(vec[first], args ...);
+    auto& access_vector(std::vector<U>& vec, size_t first, Args &&...index) {
+        if constexpr (sizeof ...(index) >= 1)
+            return access_vector(vec[first], index ...);
         else
             return vec[first];
     }
 
+    template<size_t extent>
+    auto to_vector_impl() {
+        if constexpr (extent == 1) {
+            return std::vector<T>(view_.extent(Extents - 1));
+        }
+        else {
+            return std::vector(view_.extent(Extents - extent), to_vector_impl<extent - 1>());
+        }
+    }
+
     template<typename Vector,typename ... Index>
     void copy_to_vector_impl(Vector &vec, Index &&...index) {
-        if constexpr (sizeof...(index) == extents) {
+        if constexpr (sizeof...(index) == Extents) {
             access_vector(vec, index...) = view_[index ...];
         }
         else {
@@ -51,170 +51,163 @@ class Tensor {
             }
         }
     }
+
     template<typename Mdspan,typename OP, typename ... Index>
-    void traversal_mdspan_impl(Mdspan &other, OP &&op, Index &&...index) {
-        if constexpr (sizeof...(index) == extents) {
-            view_[index ...] = op(view_[index ...], other.view_[index ...]);
+    void traversal_mdspan_impl(Mdspan &mdspan1, Mdspan &mdspan2, OP &&op, Index &&...index) {
+        if constexpr (sizeof...(index) == Extents) {
+            view_[index ...] = op(mdspan1[index ...], mdspan2[index ...]);
         }
         else {
             for (int i = 0; i < view_.extent(sizeof...(index)); i++) {
-                traversal_mdspan_impl(other, op, index..., i);
+                traversal_mdspan_impl(mdspan1, mdspan2, op, index..., i);
+            }
+        }
+    }
+    template<typename Mdspan,typename OP, typename ... Index>
+    void traversal_mdspan_impl(Mdspan &mdspan, OP &&op, Index &&...index) {
+        if constexpr (sizeof...(index) == Extents) {
+            op(view_[index ...], mdspan[index ...]);
+        }
+        else {
+            for (int i = 0; i < view_.extent(sizeof...(index)); i++) {
+                traversal_mdspan_impl(mdspan, op, index..., i);
             }
         }
     }
 
 public:
-    int x{}, y{}, z{};
-
-    Tensor() = default;
-    ~Tensor() = default;
-
-    Tensor(T *ptr, size_t count, auto &&... args) requires (sizeof ...(args) == extents) {
-
-        data_ = std::make_shared<T[]>(count);
-        std::copy(ptr, ptr + count, data_.get());
-        view_ = std::mdspan(data_.get(), args ...);
-
-        if constexpr (sizeof...(args) == 1) {
-            y = view_.extent(0);
-        }
-        else if constexpr (sizeof...(args) == 2) {
-            x = view_.extent(0);
-            y = view_.extent(1);
-        }
-        else if constexpr (sizeof...(args) == 3) {
-            z = view_.extent(0);
-            x = view_.extent(1);
-            y = view_.extent(2);
-        }
+    Tensor(auto && ...args) requires (sizeof ...(args) == Extents) {
+        data_ = std::make_shared<std::vector<T>>(mul(args ...));
+        view_ = std::mdspan(data_->data(), args ...);
+    }
+    Tensor(const T *data, size_t count, auto && ...args) requires (sizeof ...(args) == Extents) {
+        data_ = std::make_shared<std::vector<T>>(count);
+        std::copy(data, data + count, data_->begin());
+        view_ = std::mdspan(data_->data(), args ...);
     }
 
-    Tensor(T *ptr, size_t count, std::layout_stride::mapping<std::dextents<size_t, extents>> mapping) {
+    Tensor(std::shared_ptr<T[]> ptr,size_t count, auto && ...args) requires (sizeof ...(args) == Extents)
+                : Tensor(ptr.get(), count, std::forward<decltype(args)>(args) ...) {
 
-        data_ = std::make_shared<T[]>(count);
-        std::copy(ptr, ptr + count, data_.get());
-        view_ = std::mdspan(data_.get(), mapping);
-
-        if constexpr (extents == 1) {
-            y = view_.extent(0);
-        }
-        else if constexpr (extents == 2) {
-            x = view_.extent(0);
-            y = view_.extent(1);
-        }
-        else if constexpr (extents == 3) {
-            z = view_.extent(0);
-            x = view_.extent(1);
-            y = view_.extent(2);
-        }
     }
-    Tensor(std::shared_ptr<T[]> ptr, std::layout_stride::mapping<std::dextents<size_t, extents>> mapping) : data_(ptr), view_(ptr, mapping) {
-        if constexpr (extents == 1) {
-            y = view_.extent(0);
-        }
-        else if constexpr (extents == 2) {
-            x = view_.extent(0);
-            y = view_.extent(1);
-        }
-        else if constexpr (extents == 3) {
-            z = view_.extent(0);
-            x = view_.extent(1);
-            y = view_.extent(2);
-        }
+    explicit Tensor(const std::vector<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
+    Tensor(std::shared_ptr<std::vector<T>> vec, std::layout_stride::mapping<std::dextents<size_t, Extents>> mapping) : data_(vec), view_(data_->data(), mapping) {  }
+    Tensor(const std::initializer_list<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
+
+    Tensor(const Tensor &) = default;
+    Tensor& operator = (const Tensor &) = default;
+
+    Tensor(Tensor &&) = default;
+    Tensor& operator = (Tensor &&) = default;
+
+
+    Tensor copy() const {
+        auto ptr = std::make_shared<std::vector<T>>(data_->size());
+        std::copy(data_->begin(), data_->end(), ptr->begin());
+        return Tensor(ptr, view_.mapping());
     }
 
-    Tensor(std::shared_ptr<T[]> ptr, auto &&... args) requires (sizeof ...(args) == extents)
-                            : Tensor(ptr.get(), args ...) {
-        data_ = ptr;
+    Tensor copy_size() const {
+        auto ptr = std::make_shared<std::vector<T>>(data_->size());
+        return Tensor(ptr, view_.mapping());
     }
 
-
-    /*******************************************************************************
-     * 拥有数据的构造函数
-    *******************************************************************************/
-    Tensor(auto &&... args) requires (sizeof...(args) == extents)
-                            : Tensor(std::make_shared<T[]>(mul(args ...)), args ...) {  }
-
-    Tensor(const std::vector<T> & nums, auto && ...args) requires (sizeof...(args) == extents)
-                            : Tensor(std::make_shared<T[]>(nums.size()), args ...) {
-        std::copy(nums.begin(), nums.end(), data_.get());
-    }
-
-    Tensor(const std::initializer_list<T> & nums, auto && ...args) requires (sizeof...(args) == extents)
-                            : Tensor(std::vector<T>{nums}, args ...) {  }
-
-    // 对于拷贝构造函数, 不构造数据
-    Tensor(const Tensor &tensor) = default;
-    Tensor& operator = (const Tensor & Tensor) = default;
-
-    Tensor(Tensor && Tensor) = default;
-    Tensor& operator = (Tensor && Tensor) = default;
-
-
-    Tensor copy() {
-
-        auto data = std::make_shared<T[]>(data_.use_count());
-        std::copy(data_.get(), data_.get() + data_.use_count(), data.get());
-
-        return Tensor(data, view_.mapping());
-    }
-
-
-    auto extent(int extent) {
+    size_t extent(size_t extent) {
         return view_.extent(extent);
     }
 
-    T& operator[](auto && ...args) requires (std::is_same_v<std::remove_cvref_t<decltype(args)>, int> && ...) {
-        return view_[std::forward<decltype(args)>(args)...];
-    }
-
-    auto to_vector() {
-        auto vec = to_vector_impl<extents>();
-        copy_to_vector_impl(vec);
+    auto to_vector(bool only_size = false) {
+        auto vec = to_vector_impl<Extents>();
+        if (!only_size)
+            copy_to_vector_impl(vec);
         return vec;
     }
 
-    Tensor operator + (const Tensor &tensor) {
+    T& operator [] (auto && ...index) requires (sizeof ...(index) == Extents) {
+        return view_[index ...];
+    }
 
-        if (view_.rank() != tensor.view_.rank() || view_.extents() != tensor.view_.extents()) {
-            throw std::runtime_error("Tensor::operator +");
-        }
 
-        Tensor ret(*this);
+    constexpr bool check_size(const Tensor &other) const {
+        for (int i = 0;i < view_.rank(); ++i)
+            if (view_.extent(i) != other.view_.extent(i))
+                return false;
+        return true;
+    }
+    Tensor operator + (const Tensor &other) const {
+        if (!check_size(other))
+            throw std::runtime_error("Tensor size is different");
 
-        traversal_mdspan_impl(tensor, [](T& val1, T& val2) {
+        auto ret = other.copy_size();
+        ret.traversal_mdspan_impl(view_, other.view_, [] (auto val1, auto val2){
             return val1 + val2;
         });
-
         return ret;
     }
-    Tensor operator - (const Tensor &tensor) {
-        return {};
+    Tensor operator - (const Tensor &other) const {
+        if (!check_size(other))
+            throw std::runtime_error("Tensor size is different");
+
+        auto ret = other.copy_size();
+        ret.traversal_mdspan_impl(view_, other.view_, [] (auto val1, auto val2){
+            return val1 - val2;
+        });
+        return ret;
     }
-    Tensor operator * (const Tensor &tensor) {
-        return {};
-    }
-    Tensor& operator += (const Tensor &tensor) {
 
+    Tensor &operator += (const Tensor &other) {
+        if (!check_size(other))
+            throw std::runtime_error("Tensor size is different");
 
-
-
-
+        traversal_mdspan_impl(other.view_, [] (auto &val1, auto &val2){
+            return val1 += val2;
+        });
         return *this;
     }
-    Tensor& operator -= (const Tensor &tensor) {
+    Tensor &operator -= (const Tensor &other) {
+        if (!check_size(other))
+            throw std::runtime_error("Tensor size is different");
+
+        traversal_mdspan_impl(other.view_, [] (auto &val1, auto &val2){
+            return val1 -= val2;
+        });
         return *this;
     }
-    Tensor& operator *= (const Tensor &tensor) {
-        return *this;
+    Tensor operator * (const Tensor &other) const {
+
     }
+    Tensor operator *= (const Tensor &other) const {
+
+    }
+
 
 
 };
 
 
-template<typename T, typename ... Extents>
-Tensor(T *, size_t, Extents ... extents) -> Tensor<T, sizeof ...(Extents)>;
+template <typename T, typename ...Args>
+Tensor(T *, size_t, Args ...) -> Tensor<T, sizeof...(Args)>;
 
-template<typename T, typename ... Extents>
-Tensor(std::shared_ptr<T[]> ptr, Extents ... extents) -> Tensor<T, extents...>;
+template <typename T, typename ...Args>
+Tensor(const std::vector<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
+template <typename T, typename ...Args>
+Tensor(const std::initializer_list<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
+
+
+
+export
+template <typename T, size_t Extents>
+class TensorView {
+    std::mdspan<T, std::dextents<size_t, Extents>, std::layout_stride> view_;
+public:
+    explicit TensorView(Tensor<T, Extents> & tensor) : view_(tensor.view_) {  }
+
+    size_t extent(size_t extent) {
+        return view_.extent(extent);
+    }
+
+    T& operator[](auto && ...index) requires (sizeof ...(index) == Extents) {
+        return view_[index ...];
+    }
+
+};
