@@ -11,6 +11,43 @@ module;
 export module modforge.tensor;
 
 export
+template <typename T, size_t Extents>
+class Tensor;
+
+template<typename T>
+class Vector {
+    std::shared_ptr<std::vector<T>> data_;
+
+public:
+    explicit Vector(int n) :data_(std::make_shared<std::vector<T>>(n)) {  }
+    Vector(T *ptr, size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
+    Vector(const Vector &) = default;
+    Vector(Vector &&) = default;
+
+    Vector<T> operator *(const Tensor<T, 2> &tensor) {
+        if (data_.size() != tensor.extent(0))
+            throw std::runtime_error("can't *");
+
+        Vector<T> ret(tensor.extent(1));
+
+        for (int y = 0; y < tensor.extent(1); ++y) {
+            T res{};
+            for (int x = 0; x < tensor.extent(0); ++x) {
+                res += data_[x] * tensor[x, y];
+            }
+            ret[y] = res;
+        }
+        return ret;
+    }
+    Vector &operator *=(const Tensor<T, 2> &tensor) {
+        auto ret = operator*(tensor);
+        *this = ret;
+        return *this;
+    }
+
+};
+
+export
 template <typename T,size_t Extents>
 class Tensor {
     std::shared_ptr<std::vector<T>> data_;
@@ -77,6 +114,7 @@ class Tensor {
     }
 
 public:
+
     Tensor(auto && ...args) requires (sizeof ...(args) == Extents) {
         data_ = std::make_shared<std::vector<T>>(mul(args ...));
         view_ = std::mdspan(data_->data(), args ...);
@@ -113,11 +151,11 @@ public:
         return Tensor(ptr, view_.mapping());
     }
 
-    size_t extent(size_t extent) {
+    size_t extent(size_t extent) const {
         return view_.extent(extent);
     }
 
-    auto to_vector(bool only_size = false) {
+    auto to_vector(bool only_size = false) const {
         auto vec = to_vector_impl<Extents>();
         if (!only_size)
             copy_to_vector_impl(vec);
@@ -174,7 +212,10 @@ public:
         });
         return *this;
     }
+
+
     Tensor operator * (const Tensor &other) const {
+        
 
     }
     Tensor operator *= (const Tensor &other) const {
