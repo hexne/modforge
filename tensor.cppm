@@ -45,6 +45,10 @@ public:
         return *this;
     }
 
+	T& operator[](size_t index) {
+		return (*data_)[index];
+	}
+
 };
 
 export
@@ -112,6 +116,34 @@ class Tensor {
             }
         }
     }
+    
+    template <size_t N, typename ... Index>
+    void mul_impl(Tensor &result, const Tensor &other, Index ...index) const {
+        // 此处计算乘法
+        if constexpr (N == Extents - 2) {
+            const size_t n = view_.extent(Extents - 2); // 结果行数
+            const size_t p = other.view_.extent(Extents - 1); // 结果列数
+            const size_t k = view_.extent(Extents - 1); // 内积维度
+
+            for (size_t i = 0; i < n; ++i) {
+                for (size_t j = 0; j < p; ++j) {
+                    T sum{};
+                    for (size_t l = 0; l < k; ++l) {
+                        sum += view_[index..., i, l] * other.view_[index..., l, j];
+                    }
+                    result.view_[index..., i, j] = sum;
+                }
+            }
+        }
+        else {
+            for (int i = 0;i < view_.extent(N); ++i) {
+				mul_impl<N + 1>(result, other, index..., i);
+            }
+
+        }
+
+
+    }
 
 public:
 
@@ -166,6 +198,9 @@ public:
         return view_[index ...];
     }
 
+    T operator [] (auto && ...index) const requires (sizeof ...(index) == Extents) {
+        return view_[index ...];
+    }
 
     constexpr bool check_size(const Tensor &other) const {
         for (int i = 0;i < view_.rank(); ++i)
@@ -215,11 +250,36 @@ public:
 
 
     Tensor operator * (const Tensor &other) const {
-        
+        if (view_.rank() != other.view_.rank())
+			throw std::runtime_error("Tensor rank is different");
 
+        for (int i = 0;i < view_.rank() - 2; ++i) {
+			if (view_.extent(i) != other.view_.extent(i))
+				throw std::runtime_error("Tensor size is different");
+        }
+
+		if (view_.extent(Extents - 1) != other.view_.extent(Extents - 2))
+			throw std::runtime_error("Tensor size is different");
+
+
+        // @TODO 乘法
+        std::array<size_t, Extents> new_extents;
+        for (int i = 0;i < Extents - 2; ++i) 
+            new_extents[i] = view_.extent(i);
+		new_extents[Extents - 2] = view_.extent(Extents - 2);
+		new_extents[Extents - 1] = other.view_.extent(Extents - 1);
+		auto create = [&]<size_t ...Index>(std::index_sequence<Index...>) {
+			return Tensor<T, Extents>(new_extents[Index]...);
+		};
+        auto result = create(std::make_index_sequence<Extents>());
+
+        mul_impl<0>(result, other);
+        return result;
     }
-    Tensor operator *= (const Tensor &other) const {
+    Tensor& operator *= (const Tensor &other) const {
+        // @TODO 乘法
 
+        return *this;
     }
 
 
