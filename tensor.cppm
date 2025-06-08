@@ -24,11 +24,11 @@ public:
     Vector(const Vector &) = default;
     Vector(Vector &&) = default;
 
-    Vector<T> operator *(const Tensor<T, 2> &tensor) {
+    Vector operator *(const Tensor<T, 2> &tensor) {
         if (data_.size() != tensor.extent(0))
             throw std::runtime_error("can't *");
 
-        Vector<T> ret(tensor.extent(1));
+        Vector ret(tensor.extent(1));
 
         for (int y = 0; y < tensor.extent(1); ++y) {
             T res{};
@@ -262,7 +262,6 @@ public:
 			throw std::runtime_error("Tensor size is different");
 
 
-        // @TODO 乘法
         std::array<size_t, Extents> new_extents;
         for (int i = 0;i < Extents - 2; ++i) 
             new_extents[i] = view_.extent(i);
@@ -277,8 +276,8 @@ public:
         return result;
     }
     Tensor& operator *= (const Tensor &other) const {
-        // @TODO 乘法
-
+        auto res = operator*(other);
+        *this = std::move(res);
         return *this;
     }
 
