@@ -275,7 +275,7 @@ public:
         mul_impl<0>(result, other);
         return result;
     }
-    Tensor& operator *= (const Tensor &other) const {
+    Tensor& operator *= (const Tensor &other) {
         auto res = operator*(other);
         *this = std::move(res);
         return *this;
