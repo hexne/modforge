@@ -54,9 +54,6 @@ struct LossFunction {
     virtual double action(double predicted_value, double true_value) = 0;
     virtual double deaction(double predicted_value, double true_value) = 0;
 
-    // virtual Matrix<float> action(Matrix<float> &predicted_value, Matrix<float> &true_value) = 0;
-    // virtual Matrix<float> deaction(Matrix<float> &predicted_value, Matrix<float> &true_value) = 0;
-
     virtual ~LossFunction() = default;
 };
 
@@ -68,20 +65,6 @@ struct MeanSquaredError : LossFunction {
     double deaction(double predicted_value, double true_value) override {
         return predicted_value - true_value;
     }
-
-    // Matrix<float> action(Matrix<float> &predicted_value, Matrix<float> &true_value) override {
-    //     Matrix<float> result = predicted_value;
-    //     for (int i = 0;i < result.y; ++i)
-    //         result[0, i] = action(result[0, i], true_value[0, i]);
-    //     return result;
-    // }
-    // Matrix<float> deaction(Matrix<float> &predicted_value, Matrix<float> &true_value) override {
-    //     Matrix<float> result = predicted_value;
-    //     for (int i = 0;i < result.y; ++i)
-    //         result[0, i] = deaction(result[0, i], true_value[0, i]);
-    //     return result;
-    // }
-
 
     ~MeanSquaredError() override = default;
 };
@@ -95,12 +78,19 @@ struct Normalization {
     virtual ~Normalization() = default;
 };
 
-
+/****************************** 获取随机值 ******************************/
 double GetRandom(const double min, const double max) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(min, max);
     return dis(gen);
+}
+template<typename T>
+void random_tensor(Tensor<T, 2>tensor, double min, double max) {
+    tensor.foreach([&](T &val) {
+        val = GetRandom(min, max);
+    });
+
 }
 
 

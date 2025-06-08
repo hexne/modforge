@@ -4,6 +4,7 @@
 *******************************************************************************/
 
 module;
+#include <functional>
 #include <vector>
 #include <memory>
 #include <mdspan>
@@ -14,18 +15,24 @@ export
 template <typename T, size_t Extents>
 class Tensor;
 
+export
 template<typename T>
 class Vector {
     std::shared_ptr<std::vector<T>> data_;
 
 public:
+    Vector() = default;
     explicit Vector(int n) :data_(std::make_shared<std::vector<T>>(n)) {  }
     Vector(T *ptr, size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
+
     Vector(const Vector &) = default;
     Vector(Vector &&) = default;
 
+    Vector &operator = (const Vector &) = default;
+    Vector &operator = (Vector &&) = default;
+
     Vector operator *(const Tensor<T, 2> &tensor) {
-        if (data_.size() != tensor.extent(0))
+        if (data_->size() != tensor.extent(0))
             throw std::runtime_error("can't *");
 
         Vector ret(tensor.extent(1));
@@ -33,7 +40,7 @@ public:
         for (int y = 0; y < tensor.extent(1); ++y) {
             T res{};
             for (int x = 0; x < tensor.extent(0); ++x) {
-                res += data_[x] * tensor[x, y];
+                res += (*data_)[x] * tensor[x, y];
             }
             ret[y] = res;
         }
@@ -48,6 +55,18 @@ public:
 	T& operator[](size_t index) {
 		return (*data_)[index];
 	}
+    T operator[](size_t index) const {
+        return (*data_)[index];
+    }
+
+    size_t size() const {
+        return data_->size();
+    }
+
+    void foreach(std::function<void(T &)> func) {
+        for (auto &val : data_)
+            func(val);
+    }
 
 };
 
@@ -93,7 +112,7 @@ class Tensor {
             }
         }
     }
-
+    // - +
     template<typename Mdspan,typename OP, typename ... Index>
     void traversal_mdspan_impl(Mdspan &mdspan1, Mdspan &mdspan2, OP &&op, Index &&...index) {
         if constexpr (sizeof...(index) == Extents) {
@@ -105,6 +124,7 @@ class Tensor {
             }
         }
     }
+    // -= +=
     template<typename Mdspan,typename OP, typename ... Index>
     void traversal_mdspan_impl(Mdspan &mdspan, OP &&op, Index &&...index) {
         if constexpr (sizeof...(index) == Extents) {
@@ -115,6 +135,20 @@ class Tensor {
                 traversal_mdspan_impl(mdspan, op, index..., i);
             }
         }
+    }
+
+    // foreach
+    template <typename Mdspan, typename OP, typename ... Index>
+    void foreach_impl(Mdspan &mdspan, OP &&op, Index &&...index) {
+        if constexpr (sizeof...(index) == Extents) {
+            op(view_[index ...]);
+        }
+        else {
+            for (int i = 0; i < view_.extent(sizeof...(index)); i++) {
+                foreach_impl(mdspan, op, index..., i);
+            }
+        }
+
     }
     
     template <size_t N, typename ... Index>
@@ -146,11 +180,13 @@ class Tensor {
     }
 
 public:
+    Tensor() = default;
 
     Tensor(auto && ...args) requires (sizeof ...(args) == Extents) {
         data_ = std::make_shared<std::vector<T>>(mul(args ...));
         view_ = std::mdspan(data_->data(), args ...);
     }
+
     Tensor(const T *data, size_t count, auto && ...args) requires (sizeof ...(args) == Extents) {
         data_ = std::make_shared<std::vector<T>>(count);
         std::copy(data, data + count, data_->begin());
@@ -161,8 +197,11 @@ public:
                 : Tensor(ptr.get(), count, std::forward<decltype(args)>(args) ...) {
 
     }
+
     explicit Tensor(const std::vector<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
+
     Tensor(std::shared_ptr<std::vector<T>> vec, std::layout_stride::mapping<std::dextents<size_t, Extents>> mapping) : data_(vec), view_(data_->data(), mapping) {  }
+
     Tensor(const std::initializer_list<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
 
     Tensor(const Tensor &) = default;
@@ -170,7 +209,6 @@ public:
 
     Tensor(Tensor &&) = default;
     Tensor& operator = (Tensor &&) = default;
-
 
     Tensor copy() const {
         auto ptr = std::make_shared<std::vector<T>>(data_->size());
@@ -183,8 +221,16 @@ public:
         return Tensor(ptr, view_.mapping());
     }
 
-    size_t extent(size_t extent) const {
+    [[nodiscard]] size_t extent(size_t extent) const {
         return view_.extent(extent);
+    }
+
+    [[nodiscard]] size_t rank() const {
+        return view_.rank();
+    }
+
+    void foreach(std::function<void (T &)> func) {
+        foreach_impl(view_, func);
     }
 
     auto to_vector(bool only_size = false) const {
@@ -291,9 +337,9 @@ Tensor(T *, size_t, Args ...) -> Tensor<T, sizeof...(Args)>;
 
 template <typename T, typename ...Args>
 Tensor(const std::vector<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
+
 template <typename T, typename ...Args>
 Tensor(const std::initializer_list<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
-
 
 
 export

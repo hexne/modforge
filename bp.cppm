@@ -4,7 +4,6 @@
 *******************************************************************************/
 
 module;
-#include <iostream>
 #include <memory>
 #include <random>
 #include <type_traits>
@@ -15,123 +14,139 @@ import modforge.tensor;
 import modforge.deep_learning.tools;
 import modforge.average_queue;
 
-// export
-// struct Layout {
-//
-//     size_t size;
-//     Matrix<float> in, out, next_in;
-//     Matrix<float> weight, gradient;
-//     bool have_next{};
-//
-//     std::shared_ptr<Activation> action;
-//
-//
-//     explicit Layout(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Sigmoid>())
-//             : size(size), in(1, size), out(1, size) , action(action) {  }
-//
-//
-//     void forward(const Matrix<float> &pre_in) {
-//         in = pre_in;
-//
-//         // 直接应用激活函数，没有应用线性变换
-//         for (int i = 0;i < in.y; ++i)
-//             out[0, i] = action->action(in[0, i]);
-//
-//         if (have_next)
-//             next_in = out * weight;
-//     }
-//
-//     void backward(const Matrix<float> &next_gradient) {
-//         if (!have_next)
-//             gradient = next_gradient;
-//         else
-//             gradient = weight * next_gradient;
-//
-//         // 下一层要用的梯度
-//         for (int i = 0;i < gradient.y; ++i)
-//             gradient[0, i] *= action->deaction(in[0, i]);
-//
-//         // 如果是最后一层，只需要求出梯度即可
-//         if (!have_next)
-//             return;
-//
-//         constexpr float speed = 0.001;
-//
-//         for (int i = 0;i < weight.x; ++i) {
-//             for (int j = 0;j < weight.y; ++j) {
-//                 weight[i, j] -= speed * gradient[0, j] * out[0, i];
-//             }
-//         }
-//
-//     }
+
+
+export
+struct Layout {
+    size_t size;
+    Vector<float> in, out, next_in{};
+    Tensor<float, 2> weight{}, gradient{};
+    bool have_next{};
+
+    std::shared_ptr<Activation> action;
+
+
+    Layout(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Sigmoid>())
+        : size(size), in(size), out(size) , action(action) {  }
+
+    void forward(const Vector<float> &pre_in) {
+        in = pre_in;
+
+        for (int i = 0;i < in.size(); ++i)
+            out[i] = action->action(in[i]);
+
+        if (have_next)
+            next_in = out * weight;
+    }
+    void backward(const Tensor<float, 2> &next_gradient) {
+        // 如果是最后一层
+        if (!have_next)
+            gradient = next_gradient;
+        else
+            gradient = weight * next_gradient;
+
+    }
+    //     void backward(const Matrix<float> &next_gradient) {
+    //         if (!have_next)
+    //             gradient = next_gradient;
+    //         else
+    //             gradient = weight * next_gradient;
+    //
+    //         // 下一层要用的梯度
+    //         for (int i = 0;i < gradient.y; ++i)
+    //             gradient[0, i] *= action->deaction(in[0, i]);
+    //
+    //         // 如果是最后一层，只需要求出梯度即可
+    //         if (!have_next)
+    //             return;
+    //
+    //         constexpr float speed = 0.001;
+    //
+    //         for (int i = 0;i < weight.x; ++i) {
+    //             for (int j = 0;j < weight.y; ++j) {
+    //                 weight[i, j] -= speed * gradient[0, j] * out[0, i];
+    //             }
+    //         }
+    //
+    //     }
+
+};
 //
 //
 // };
+
+
+export
+class BP {
+    std::vector<std::shared_ptr<Layout>> layouts_;
+    std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
+    float speed = 0.001;
+
+    std::vector<std::pair<std::initializer_list<float>, std::initializer_list<float>>> train_set_, test_set_;
+
+public:
+
+    BP() {  }
+
+    template <typename ... Args>
+    BP(Args &&... args) requires (sizeof ...(args) >= 2 && (std::is_same_v<Args, int> && ...)) {
+        for (auto size : {args...})
+            add_layout(size);
+    }
+
+
+    void add_layout(size_t size) {
+        add_layout(std::make_shared<Layout>(size));
+    }
+    void add_layout(Layout *layout) {
+        add_layout(std::shared_ptr<Layout>(layout));
+    }
+    void add_layout(std::shared_ptr<Layout> layout) {
+
+        if (!layouts_.empty()) {
+            auto pre_layout = layouts_.back();
+            pre_layout->have_next = true;
+            pre_layout->weight = Tensor<float, 2>(pre_layout->size, layout->size);
+            random_tensor(pre_layout->weight, -1, 1);
+        }
+        layouts_.push_back(std::move(layout));
+
+    }
+
+    void forward(const Vector<float> &in, const Vector<float> &out) {
+
+        auto in_layout = layouts_.front();
+        in_layout->forward(in);
+        for (int i = 1;i < layouts_.size(); ++i)
+            layouts_[i]->forward(layouts_[i-1]->next_in);
+
+    }
+    void train(const Vector<float> &in, const Vector<float> &out) {
+
+        // 前向传播
+        auto in_layout = layouts_.front();
+        in_layout->forward(in);
+        for (int i = 1;i < layouts_.size(); ++i)
+            layouts_[i]->forward(layouts_[i-1]->next_in);
+
+
+        // 反向传播
+        auto out_layout = layouts_.back();
+        Tensor<float, 2> gradient(1, out.size());
+        for (int i = 0;i < gradient.extent(1); ++i)
+            gradient[0, i] = loss_->deaction(out_layout->out[i], out[i]);
+
+        out_layout->backward(gradient);
+
+        for (int i = layouts_.size() - 2;i > 0; --i)
+            layouts_[i]->backward(out_layout->gradient);
+    }
+};
 //
-// export
-// struct BP {
-//     std::vector<std::shared_ptr<Layout>> layouts_;
-//     std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
-//     float speed = 0.001;
-//
-//     std::vector<std::pair<std::initializer_list<float>, std::initializer_list<float>>> train_set_, test_set_;
-//
-// public:
-//
-//     BP() {
-//
-//     }
 //
 //
-//     template <typename ... Args>
-//     BP(Args &&... args) requires (sizeof ...(args) >= 2 && (std::is_same_v<Args, int> && ...)) {
-//         for (auto size : {args...})
-//             add_layout(size);
-//     }
-//
-//     void add_layout(size_t size) {
-//         add_layout(std::make_shared<Layout>(size));
-//     }
-//     void add_layout(Layout *layout) {
-//         add_layout(std::shared_ptr<Layout>(layout));
-//     }
-//     void add_layout(std::shared_ptr<Layout> layout) {
-//
-//         if (!layouts_.empty()) {
-//             auto pre_layout = layouts_.back();
-//             pre_layout->have_next = true;
-//             pre_layout->weight = Matrix<float>(pre_layout->size, layout->size);
-//             pre_layout->weight.random_init();
-//         }
-//         layouts_.push_back(std::move(layout));
-//
-//     }
-//
-//     void forward(const std::initializer_list<float> &in, const std::initializer_list<float> &out) {
-//
-//         auto in_layout = layouts_.front();
-//         in_layout->forward(in);
-//         for (int i = 1;i < layouts_.size(); ++i)
-//             layouts_[i]->forward(layouts_[i-1]->next_in);
-//
-//     }
-//
-//     void train(const std::initializer_list<float> &in, const std::initializer_list<float> &out) {
-//
-//         // 前向传播
-//         auto in_layout = layouts_.front();
-//         in_layout->forward(in);
-//         for (int i = 1;i < layouts_.size(); ++i)
-//             layouts_[i]->forward(layouts_[i-1]->next_in);
 //
 //
-//         // 反向传播
-//         auto out_layout = layouts_.back();
-//         Matrix<float> predicted(out);
-//         out_layout->backward(loss_->deaction(out_layout->out, predicted));
-//         for (int i = layouts_.size() - 2;i > 0; --i)
-//             layouts_[i]->backward(out_layout->gradient);
-//     }
 //     void train(std::vector<std::pair<std::initializer_list<float> , std::initializer_list<float>>>dataset,
 //         float train_proportion, size_t train_count, int seed) {
 //
