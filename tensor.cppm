@@ -150,7 +150,7 @@ class Tensor {
         }
 
     }
-    
+
     template <size_t N, typename ... Index>
     void mul_impl(Tensor &result, const Tensor &other, Index ...index) const {
         // 此处计算乘法
@@ -171,7 +171,7 @@ class Tensor {
         }
         else {
             for (int i = 0;i < view_.extent(N); ++i) {
-				mul_impl<N + 1>(result, other, index..., i);
+                mul_impl<N + 1>(result, other, index..., i);
             }
 
         }
@@ -185,6 +185,23 @@ public:
     Tensor(auto && ...args) requires (sizeof ...(args) == Extents) {
         data_ = std::make_shared<std::vector<T>>(mul(args ...));
         view_ = std::mdspan(data_->data(), args ...);
+    }
+
+    // 不拥有数据的所有权，为了让view使用更方便，该接口留给view使用
+    static Tensor from_view(const T* data, auto && ...args) requires (sizeof ...(args) == Extents) {
+        Tensor<T, sizeof ...(args)> ret;
+        ret.view_ = std::mdspan(data, args ...);
+        return ret;
+    }
+    static Tensor from_view(const T* data, std::layout_stride::mapping<std::dextents<size_t, Extents>> mapping) {
+        Tensor ret;
+        ret.view_ = std::mdspan(data, mapping);
+        return ret;
+    }
+    static Tensor<T, Extents> from_view(Tensor<T, Extents> &tensor) {
+        Tensor ret;
+        ret.view_ = tensor.view_;
+        return ret;
     }
 
     Tensor(const T *data, size_t count, auto && ...args) requires (sizeof ...(args) == Extents) {
@@ -297,25 +314,25 @@ public:
 
     Tensor operator * (const Tensor &other) const {
         if (view_.rank() != other.view_.rank())
-			throw std::runtime_error("Tensor rank is different");
+            throw std::runtime_error("Tensor rank is different");
 
         for (int i = 0;i < view_.rank() - 2; ++i) {
-			if (view_.extent(i) != other.view_.extent(i))
-				throw std::runtime_error("Tensor size is different");
+            if (view_.extent(i) != other.view_.extent(i))
+                throw std::runtime_error("Tensor size is different");
         }
 
-		if (view_.extent(Extents - 1) != other.view_.extent(Extents - 2))
-			throw std::runtime_error("Tensor size is different");
+        if (view_.extent(Extents - 1) != other.view_.extent(Extents - 2))
+            throw std::runtime_error("Tensor size is different");
 
 
         std::array<size_t, Extents> new_extents;
-        for (int i = 0;i < Extents - 2; ++i) 
+        for (int i = 0;i < Extents - 2; ++i)
             new_extents[i] = view_.extent(i);
-		new_extents[Extents - 2] = view_.extent(Extents - 2);
-		new_extents[Extents - 1] = other.view_.extent(Extents - 1);
-		auto create = [&]<size_t ...Index>(std::index_sequence<Index...>) {
-			return Tensor<T, Extents>(new_extents[Index]...);
-		};
+        new_extents[Extents - 2] = view_.extent(Extents - 2);
+        new_extents[Extents - 1] = other.view_.extent(Extents - 1);
+        auto create = [&]<size_t ...Index>(std::index_sequence<Index...>) {
+            return Tensor<T, Extents>(new_extents[Index]...);
+        };
         auto result = create(std::make_index_sequence<Extents>());
 
         mul_impl<0>(result, other);
@@ -327,10 +344,44 @@ public:
         return *this;
     }
 
+    // 转置
+    Tensor& transpose() {
+        static_assert(Extents >= 2, "Transpose requires at least 2 dimensions");
+
+        // 新的步长
+        std::array<size_t, Extents> strides;
+        for (size_t i = 0; i < Extents - 2; ++i)
+            strides[i] = view_.mapping().stride(i);
+        strides[Extents - 2] = view_.mapping().stride(Extents - 1);
+        strides[Extents - 1] = view_.mapping().stride(Extents - 2);
+
+        // 新的维度
+        std::array<size_t, Extents> extents;
+        for (size_t i = 0; i < Extents; ++i)
+            extents[i] = view_.extent(i);
+        std::swap(extents[Extents - 2], extents[Extents - 1]);
+
+        // 构造 extents 对象
+        auto new_extents = [&]{
+            if constexpr (Extents == 1) {
+                return std::dextents<size_t, 1>{extents[0]};
+            } else if constexpr (Extents == 2) {
+                return std::dextents<size_t, 2>{extents[0], extents[1]};
+            } else if constexpr (Extents == 3) {
+                return std::dextents<size_t, 3>{extents[0], extents[1], extents[2]};
+            } else {
+                static_assert(Extents <= 3, "Only support up to 3 dimensions");
+                return std::dextents<size_t, Extents>{};
+            }
+        }();
+
+        view_ = std::mdspan(view_.data_handle(),
+                           std::layout_stride::mapping(new_extents, strides));
+        return *this;
+    }
 
 
 };
-
 
 template <typename T, typename ...Args>
 Tensor(T *, size_t, Args ...) -> Tensor<T, sizeof...(Args)>;
@@ -340,21 +391,3 @@ Tensor(const std::vector<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
 
 template <typename T, typename ...Args>
 Tensor(const std::initializer_list<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
-
-
-export
-template <typename T, size_t Extents>
-class TensorView {
-    std::mdspan<T, std::dextents<size_t, Extents>, std::layout_stride> view_;
-public:
-    explicit TensorView(Tensor<T, Extents> & tensor) : view_(tensor.view_) {  }
-
-    size_t extent(size_t extent) {
-        return view_.extent(extent);
-    }
-
-    T& operator[](auto && ...index) requires (sizeof ...(index) == Extents) {
-        return view_[index ...];
-    }
-
-};

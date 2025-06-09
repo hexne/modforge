@@ -2,8 +2,8 @@
  * @Author : hexne
  * @Data   : 2024/12/06 22:51
 *******************************************************************************/
-
 module;
+#include <iostream>
 #include <memory>
 #include <random>
 #include <type_traits>
@@ -13,14 +13,15 @@ export module modforge.deep_learning.bp;
 import modforge.tensor;
 import modforge.deep_learning.tools;
 import modforge.average_queue;
+import modforge.console;
 
 
 
 export
 struct Layout {
     size_t size;
-    Vector<float> in, out, next_in{};
-    Tensor<float, 2> weight{}, gradient{};
+    Vector<float> in, out, next_in{}, gradient{};
+    Tensor<float, 2> weight{};
     bool have_next{};
 
     std::shared_ptr<Activation> action;
@@ -38,51 +39,50 @@ struct Layout {
         if (have_next)
             next_in = out * weight;
     }
-    void backward(const Tensor<float, 2> &next_gradient) {
-        // 如果是最后一层
-        if (!have_next)
-            gradient = next_gradient;
-        else
-            gradient = weight * next_gradient;
+    void backward(const Vector<float> &next_gradient) {
+        gradient = next_gradient;
+
+        // 如果不是最后一层
+        if (have_next) {
+
+            // 更新权值
+            float speed = 0.001;
+            for (int i = 0;i < weight.extent(0); ++i)
+                for (int j = 0;j < weight.extent(1); ++j)
+                    weight[i, j] -= speed * gradient[j] * out[i];
+
+
+            auto t = Tensor<float, 2>::from_view(weight);
+            t.transpose();
+            gradient = gradient * t;
+        }
+
+        for (int i = 0;i < out.size(); ++i)
+            gradient[i] *= action->deaction(in[i]);
 
     }
-    //     void backward(const Matrix<float> &next_gradient) {
-    //         if (!have_next)
-    //             gradient = next_gradient;
-    //         else
-    //             gradient = weight * next_gradient;
-    //
-    //         // 下一层要用的梯度
-    //         for (int i = 0;i < gradient.y; ++i)
-    //             gradient[0, i] *= action->deaction(in[0, i]);
-    //
-    //         // 如果是最后一层，只需要求出梯度即可
-    //         if (!have_next)
-    //             return;
-    //
-    //         constexpr float speed = 0.001;
-    //
-    //         for (int i = 0;i < weight.x; ++i) {
-    //             for (int j = 0;j < weight.y; ++j) {
-    //                 weight[i, j] -= speed * gradient[0, j] * out[0, i];
-    //             }
-    //         }
-    //
-    //     }
 
 };
-//
-//
-// };
 
+template<typename T>
+double mean_relative_error(Vector<T>& output, Vector<T>& target) {
+    double error = 0.0;
+    int count = 0;
+    for(int i = 0; i < output.size(); ++i) {
+        if(target[i] != 0) {  // 避免除以0
+            error += std::abs(output[i] - target[i]) / std::abs(target[i]);
+            count++;
+        }
+    }
+    return count > 0 ? error / count : 0.0;
+}
 
 export
 class BP {
     std::vector<std::shared_ptr<Layout>> layouts_;
     std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
-    float speed = 0.001;
 
-    std::vector<std::pair<std::initializer_list<float>, std::initializer_list<float>>> train_set_, test_set_;
+    std::vector<std::pair<Vector<float>, Vector<float>>> train_set_, test_set_;
 
 public:
 
@@ -113,76 +113,74 @@ public:
 
     }
 
-    void forward(const Vector<float> &in, const Vector<float> &out) {
-
+    void forward(const Vector<float> &in) {
         auto in_layout = layouts_.front();
         in_layout->forward(in);
         for (int i = 1;i < layouts_.size(); ++i)
             layouts_[i]->forward(layouts_[i-1]->next_in);
-
     }
-    void train(const Vector<float> &in, const Vector<float> &out) {
 
-        // 前向传播
-        auto in_layout = layouts_.front();
-        in_layout->forward(in);
-        for (int i = 1;i < layouts_.size(); ++i)
-            layouts_[i]->forward(layouts_[i-1]->next_in);
-
-
-        // 反向传播
+    void backward(const Vector<float> &out) {
         auto out_layout = layouts_.back();
-        Tensor<float, 2> gradient(1, out.size());
-        for (int i = 0;i < gradient.extent(1); ++i)
-            gradient[0, i] = loss_->deaction(out_layout->out[i], out[i]);
+        Vector<float> gradient(out.size());
+        for (int i = 0;i < gradient.size(); ++i)
+            gradient[i] = loss_->deaction(out_layout->out[i], out[i]);
 
         out_layout->backward(gradient);
 
-        for (int i = layouts_.size() - 2;i > 0; --i)
+        for (int i = layouts_.size() - 2; i > 0; --i)
             layouts_[i]->backward(out_layout->gradient);
     }
+
+    void train(const Vector<float> &in, const Vector<float> &out) {
+        forward(in);
+        backward(out);
+    }
+
+
+    void train(const std::vector<std::pair<Vector<float>, Vector<float>>> &dataset,
+                float train_proportion, size_t train_count, int seed) {
+
+        int train_size = dataset.size() * train_proportion;
+
+        train_set_ = std::vector(dataset.begin(), dataset.begin() + train_size);
+        test_set_ = std::vector(dataset.begin() + train_size, dataset.end());
+
+        // 随机打乱训练集
+        int count = 1000;
+        std::default_random_engine engine(seed);
+        std::uniform_int_distribution<> dis(0, train_size - 1);
+        for (int i = 0; i < count; ++i)
+            std::swap(train_set_[dis(engine)], train_set_[dis(engine)]);
+
+        Console::hind_cursor();
+        for (int i = 0;i < train_count; ++i) {
+            // 开始训练
+            for (auto &[in, out] : train_set_)
+                train(in, out);
+
+            // 开始测试
+            float error{};
+            for (auto &[in, out] : test_set_) {
+                forward(in);
+                error += mean_relative_error(layouts_.back()->out, out);
+            }
+            error /= test_set_.size();
+
+            std::cout << std::format("{}/{} {:.2f}% , error is {:.6f}", i, train_count, i * 100.f / train_count, error) << '\r';
+            std::fflush(stdout);
+        }
+
+
+
+        std::endl(std::cout);
+    }
+
+    const Vector<float>& forecast(Vector<float> &in) const {
+        layouts_.front()->forward(in);
+        for (int i = 1;i < in.size(); ++i)
+            layouts_[i]->forward(layouts_[i-1]->next_in);
+
+        return layouts_.back()->out;
+    }
 };
-//
-//
-//
-//
-//
-//     void train(std::vector<std::pair<std::initializer_list<float> , std::initializer_list<float>>>dataset,
-//         float train_proportion, size_t train_count, int seed) {
-//
-//         int train_size = dataset.size() * train_proportion;
-//
-//
-//         train_set_ = std::vector(dataset.begin(), dataset.begin() + train_size);
-//         test_set_ = std::vector(dataset.begin() + train_size, dataset.end());
-//
-//         // 随机打乱训练集
-//         int count = 1000;
-//         std::default_random_engine engine(seed);
-//         std::uniform_int_distribution<> dis(0, train_size - 1);
-//         for (int i = 0; i < count; ++i)
-//             std::swap(train_set_[dis(engine)], train_set_[dis(engine)]);
-//
-//         // 开始训练
-//
-//         AverageQueue<float, 20> aver_que;
-//         for (int i = 0;i < train_count; ++i) {
-//             float acc{};
-//             for (const auto &[in, res] : train_set_) {
-//                 // 训练一对数据
-//                 train(in, res);
-//
-//                 float acc{};
-//                 std::vector res_vec = res;
-//                 std::vector<float> forward_vec = layouts_.back()->out;
-//                 for (int _ = 0; _ < res_vec.size(); ++_) {
-//                     acc += std::abs(res_vec[_] - forward_vec[_]) / res_vec[_];
-//                 }
-//             }
-//             aver_que.push_back(acc / train_count);
-//             std::cout << i << " / " << train_count << " , acc is : " << aver_que.get_average() << "\r";
-//         }
-//
-//     }
-//
-// };
