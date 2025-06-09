@@ -170,6 +170,7 @@ public:
             std::cout << std::format("{}/{} {:.2f}% , error is {:.6f}", i, train_count, i * 100.f / train_count, error) << '\r';
             std::fflush(stdout);
         }
+        Console::show_cursor();
 
 
 

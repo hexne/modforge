@@ -4,6 +4,7 @@
 *******************************************************************************/
 
 module;
+#include <assert.h>
 #include <cmath>
 #include <ranges>
 #include <random>
@@ -94,17 +95,22 @@ void random_tensor(Tensor<T, 2>tensor, double min, double max) {
 }
 
 
-template <size_t N>
+template<size_t N>
 struct OneHot {
 
-    static std::array<bool,N> to_onehot(int type) {
-        std::array<bool,N> ret{};
+    static Vector<bool> to_onehot(int type) {
+        assert(N == ret.size());
+
+        Vector<bool> ret(N);
         ret[type - 1] = true;
         return ret;
     }
 
-    static int to_type(std::array<bool,N> one_hot) {
-        return std::ranges::find(one_hot,true) - one_hot.begin() + 1;
+    static int to_type(Vector<bool> one_hot) {
+        for (int i = 0;i < one_hot.size(); ++i)
+            if (one_hot[i])
+                return i + 1;
+        return 0;
     }
 
 };
