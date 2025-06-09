@@ -15,7 +15,9 @@ import modforge.deep_learning.tools;
 import modforge.average_queue;
 import modforge.console;
 
-
+int cur_train_count;
+int train_count;
+std::shared_ptr<Optimizer> optimizer;
 
 export
 struct Layout {
@@ -27,7 +29,7 @@ struct Layout {
     std::shared_ptr<Activation> action;
 
 
-    Layout(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Sigmoid>())
+    Layout(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
         : size(size), in(size), out(size) , action(action) {  }
 
     void forward(const Vector<float> &pre_in) {
@@ -45,8 +47,10 @@ struct Layout {
         // 如果不是最后一层
         if (have_next) {
 
-            // 更新权值
-            float speed = 0.001;
+            double speed = 0.001;
+            if (!optimizer)
+                speed = optimizer->get_speed(cur_train_count, train_count);
+
             for (int i = 0;i < weight.extent(0); ++i)
                 for (int j = 0;j < weight.extent(1); ++j)
                     weight[i, j] -= speed * gradient[j] * out[i];
@@ -139,7 +143,9 @@ public:
 
 
     void train(const std::vector<std::pair<Vector<float>, Vector<float>>> &dataset,
-                float train_proportion, size_t train_count, int seed) {
+                float train_proportion, size_t train_count, int seed, bool updata_acc = false) {
+
+        ::train_count = train_count;
 
         int train_size = dataset.size() * train_proportion;
 
@@ -155,11 +161,32 @@ public:
 
         Console::hind_cursor();
         for (int i = 0;i < train_count; ++i) {
+            cur_train_count = i;
+
             // 开始训练
             for (auto &[in, out] : train_set_)
                 train(in, out);
 
             // 开始测试
+            if (updata_acc) {
+                float error{};
+                for (auto &[in, out] : test_set_) {
+                    forward(in);
+                    error += mean_relative_error(layouts_.back()->out, out);
+                }
+                error /= test_set_.size();
+
+                std::cout << std::format("{}/{} {:.2f}% , error is {:.6f}", i, train_count, i * 100.f / train_count, error) << '\r';
+                std::fflush(stdout);
+            }
+            else {
+                std::cout << std::format("{}/{} {:.2f}%", i, train_count, i * 100.f / train_count) << '\r';
+                std::fflush(stdout);
+            }
+        }
+        Console::show_cursor();
+
+        if (!updata_acc) {
             float error{};
             for (auto &[in, out] : test_set_) {
                 forward(in);
@@ -167,14 +194,8 @@ public:
             }
             error /= test_set_.size();
 
-            std::cout << std::format("{}/{} {:.2f}% , error is {:.6f}", i, train_count, i * 100.f / train_count, error) << '\r';
-            std::fflush(stdout);
+            std::cout << std::format("error is {:.6f}", error) << std::endl;
         }
-        Console::show_cursor();
-
-
-
-        std::endl(std::cout);
     }
 
     const Vector<float>& forecast(Vector<float> &in) const {
@@ -183,5 +204,9 @@ public:
             layouts_[i]->forward(layouts_[i-1]->next_in);
 
         return layouts_.back()->out;
+    }
+
+    void set_optimizer(std::shared_ptr<Optimizer> optimizer) {
+        ::optimizer = optimizer;
     }
 };

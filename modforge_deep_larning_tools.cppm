@@ -71,6 +71,32 @@ struct MeanSquaredError : LossFunction {
 };
 
 
+/****************************** 优化器 ******************************/
+class Optimizer {
+public:
+    virtual double get_speed(int cur, int count) = 0;
+    virtual ~Optimizer() = default;
+};
+
+class CosineAnnealing : public Optimizer {
+    double max_speed;
+    double min_speed;
+    int T_max;
+
+public:
+    CosineAnnealing(double max_speed, double min_speed, int T_max)
+        : max_speed(max_speed), min_speed(min_speed), T_max(T_max) {}
+
+    double get_speed(int cur, int count) override {
+        // 计算当前进度比例 (0-1)
+        double progress = static_cast<double>(cur % T_max) / T_max;
+
+        // 应用余弦退火公式
+        return min_speed + 0.5 * (max_speed - min_speed) *
+               (1 + std::cos(progress * M_PI));
+    }
+};
+
 
 /**************************************** 归一化 ****************************************/
 struct Normalization {
