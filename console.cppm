@@ -9,6 +9,7 @@ module;
 #include <Windows.h>
 #elif __linux__
 #include <iostream>
+#include <format>
 #endif
 export module modforge.console;
 
@@ -16,6 +17,9 @@ export
 struct Console {
 	static void hind_cursor();
 	static void show_cursor();
+
+    static void cursor_up(int = 1);
+    static void cursor_down(int = 1);
 
 	static void set_color();
 	static void clear_color();
@@ -44,6 +48,12 @@ void Console::show_cursor() {
     std::cout << "\033[?25h";
 }
 
+void Console::cursor_up(int num) {
+    std::cout << std::format("\033[{}A", num);
+}
+void Console::cursor_down(int num) {
+    std::cout << std::format("\033[{}B", num);
+}
 
 
 #endif
