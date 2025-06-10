@@ -125,8 +125,6 @@ template<size_t N>
 struct OneHot {
 
     static Vector<bool> to_onehot(int type) {
-        assert(N == ret.size());
-
         Vector<bool> ret(N);
         ret[type - 1] = true;
         return ret;

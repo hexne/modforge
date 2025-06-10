@@ -6,6 +6,7 @@
 module;
 #include <functional>
 #include <vector>
+#include <format>
 #include <memory>
 #include <mdspan>
 #include <stdexcept>
@@ -32,8 +33,9 @@ public:
     Vector &operator = (Vector &&) = default;
 
     Vector operator *(const Tensor<T, 2> &tensor) {
-        if (data_->size() != tensor.extent(0))
-            throw std::runtime_error("can't *");
+        if (data_->size() != tensor.extent(0)) {
+            throw std::runtime_error(std::format("{}x{} cant * {}x{}", 1, data_->size(), tensor.extent(0), tensor.extent(1)));
+        }
 
         Vector ret(tensor.extent(1));
 
@@ -60,7 +62,9 @@ public:
     }
 
     size_t size() const {
-        return data_->size();
+        if (data_)
+            return data_->size();
+        return 0;
     }
 
     void foreach(std::function<void(T &)> func) {
@@ -201,6 +205,8 @@ public:
     static Tensor<T, Extents> from_view(Tensor<T, Extents> &tensor) {
         Tensor ret;
         ret.view_ = tensor.view_;
+        int x = ret.view_.extent(0);
+        int y = ret.view_.extent(1);
         return ret;
     }
 
@@ -377,6 +383,7 @@ public:
 
         view_ = std::mdspan(view_.data_handle(),
                            std::layout_stride::mapping(new_extents, strides));
+
         return *this;
     }
 

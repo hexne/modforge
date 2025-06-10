@@ -48,27 +48,25 @@ struct CNNLayer {
 
     virtual void forward(const Tensor<float, 2> &) = 0;
     virtual void backward(const Tensor<float, 2> &) = 0;
+    virtual ~CNNLayer() = default;
 };
 
 
-// 输入层
-class InputLayer : public CNNLayer {
-
-public:
-    // @TODO 输入Tensor, 并进行归一化等操作
-    void forward(const Tensor<float, 2> &) override {
-
-    }
-    void backward(const Tensor<float, 2> &) override {
-
-    }
-};
 
 // 卷积层
 class ConvLayer : public CNNLayer {
-
+    std::vector<Tensor<float, 2>> kernels_;
 public:
-    void forward(const Tensor<float, 2> &) override {
+    explicit ConvLayer(auto && ... sizes) requires (sizeof ...(sizes) >= 1){
+        std::initializer_list<int> args {sizes ...};
+        for (auto size : args) {
+            Tensor<float, 2> tmp(size, size);
+            random_tensor(tmp, -1, 1);
+            kernels_.emplace_back(tmp);
+        }
+    }
+    void forward(const Tensor<float, 2> &in) override {
+        this->in = in;
 
     }
     void backward(const Tensor<float, 2> &) override {
@@ -95,11 +93,18 @@ public:
 
 // 激活层
 class ActionLayer : public CNNLayer {
-
+    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
 public:
-    // @TODO 应该提供不同的激活函数
+    ActionLayer() = default;
 
-    void forward(const Tensor<float, 2> &) override {
+    explicit ActionLayer(std::shared_ptr<Activation> action) : action_(std::move(action)) {  }
+
+    void forward(const Tensor<float, 2> &in) override {
+        this->in = in;
+        this->out = in.copy();
+        this->out.foreach([this](float &val) {
+            val = action_->action(val);
+        });
 
     }
     void backward(const Tensor<float, 2> &) override {
@@ -122,6 +127,30 @@ public:
 
 };
 
+// 输入层
+class InputLayer : public CNNLayer {
+
+public:
+    // @TODO 输入Tensor, 并进行归一化等操作
+    void forward(const Tensor<float, 2> &) override {
+
+    }
+    void backward(const Tensor<float, 2> &) override {
+
+    }
+};
+
+class OutputLayer : public CNNLayer {
+
+public:
+    // @TODO 输入Tensor, 并进行归一化等操作
+    void forward(const Tensor<float, 2> &) override {
+
+    }
+    void backward(const Tensor<float, 2> &) override {
+
+    }
+};
 
 export
 class CNN {

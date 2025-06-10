@@ -6,6 +6,7 @@ module;
 #include <iostream>
 #include <memory>
 #include <random>
+#include <regex>
 #include <type_traits>
 #include <vector>
 export module modforge.deep_learning.bp;
@@ -48,7 +49,7 @@ struct BPLayer {
         if (have_next) {
 
             double speed = 0.001;
-            if (!optimizer)
+            if (optimizer)
                 speed = optimizer->get_speed(cur_train_count, train_count);
 
             for (int i = 0;i < weight.extent(0); ++i)
@@ -132,8 +133,8 @@ public:
 
         out_layer->backward(gradient);
 
-        for (int i = layers_.size() - 2; i > 0; --i)
-            layers_[i]->backward(out_layer->gradient);
+        for (int i = layers_.size() - 2; i >= 0; --i)
+            layers_[i]->backward(layers_[i+1]->gradient);
     }
 
     void train(const Vector<float> &in, const Vector<float> &out) {
@@ -167,7 +168,7 @@ public:
             for (auto &[in, out] : train_set_)
                 train(in, out);
 
-            // 开始测试
+            std::cout << std::format("{}/{} {}%", i, train_count, i * 100.f / train_count);
             if (updata_acc) {
                 float error{};
                 for (auto &[in, out] : test_set_) {
@@ -175,32 +176,18 @@ public:
                     error += mean_relative_error(layers_.back()->out, out);
                 }
                 error /= test_set_.size();
-
-                std::cout << std::format("{}/{} {:.2f}% , error is {:.6f}", i, train_count, i * 100.f / train_count, error) << '\r';
-                std::fflush(stdout);
+                std::cout << std::format(" , error is {:.6f}", error);
             }
-            else {
-                std::cout << std::format("{}/{} {:.2f}%", i, train_count, i * 100.f / train_count) << '\r';
-                std::fflush(stdout);
-            }
+            std::cout << '\r';
+            std::cout.flush();
         }
         Console::show_cursor();
-
-        if (!updata_acc) {
-            float error{};
-            for (auto &[in, out] : test_set_) {
-                forward(in);
-                error += mean_relative_error(layers_.back()->out, out);
-            }
-            error /= test_set_.size();
-
-            std::cout << std::format("error is {:.6f}", error) << std::endl;
-        }
+        std::endl(std::cout);
     }
 
     const Vector<float>& forecast(Vector<float> &in) const {
         layers_.front()->forward(in);
-        for (int i = 1;i < in.size(); ++i)
+        for (int i = 1;i < layers_.size(); ++i)
             layers_[i]->forward(layers_[i-1]->next_in);
 
         return layers_.back()->out;
@@ -210,3 +197,45 @@ public:
         ::optimizer = optimizer;
     }
 };
+
+/****************************** 用例 ******************************
+#include <iostream>
+
+import modforge.tensor;
+import modforge.deep_learning.bp;
+import modforge.deep_learning.tools;
+
+auto CreateDataset() {
+    std::vector<std::pair<Vector<float>, Vector<float>>> ret;
+
+    for (int i = 0;i < 100000; ++i) {
+        Vector<float> in(2);
+        Vector<float> out(1);
+        in[0] = GetRandom(0, 0.4);
+        in[1] = GetRandom(0, 0.4);
+        out[0] = in[0] + in[1];
+
+        ret.push_back(std::make_pair(in, out));
+    }
+    return ret;
+}
+
+int main() {
+
+    auto data = CreateDataset();
+
+    BP bp(2, 100, 1);
+    bp.set_optimizer(std::shared_ptr<Optimizer>(new CosineAnnealing(0.01, 0.0001, 1000 * 0.5)));
+    bp.train(data, 0.7, 1000, 0, true);
+
+    Vector<float> in(2);
+    in[0] = 0.2;
+    in[1] = 0.1;
+    std::cout << bp.forecast(in)[0] << std::endl;
+    in[0] = 0.2;
+    in[1] = 0.3;
+    std::cout << bp.forecast(in)[0] << std::endl;
+
+    return 0;
+}
+*******************************************************************************/
