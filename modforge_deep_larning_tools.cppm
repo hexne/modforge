@@ -139,6 +139,14 @@ struct OneHot {
         return 0;
     }
 
+    static int out_to_type(const Vector<float> &out) {
+        int max = 0;
+        for (int i = 0;i < out.size(); ++i)
+            if (out[i] > out[max])
+                max = i;
+        return max + 1;
+    }
+
 };
 
 
