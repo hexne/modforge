@@ -20,7 +20,7 @@ int train_count;
 std::shared_ptr<Optimizer> optimizer;
 
 export
-struct Layout {
+struct BPLayer {
     size_t size;
     Vector<float> in, out, next_in{}, gradient{};
     Tensor<float, 2> weight{};
@@ -29,7 +29,7 @@ struct Layout {
     std::shared_ptr<Activation> action;
 
 
-    Layout(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
+    BPLayer(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
         : size(size), in(size), out(size) , action(action) {  }
 
     void forward(const Vector<float> &pre_in) {
@@ -83,7 +83,7 @@ double mean_relative_error(Vector<T>& output, Vector<T>& target) {
 
 export
 class BP {
-    std::vector<std::shared_ptr<Layout>> layouts_;
+    std::vector<std::shared_ptr<BPLayer>> layers_;
     std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
 
     std::vector<std::pair<Vector<float>, Vector<float>>> train_set_, test_set_;
@@ -95,45 +95,45 @@ public:
     template <typename ... Args>
     BP(Args &&... args) requires (sizeof ...(args) >= 2 && (std::is_same_v<Args, int> && ...)) {
         for (auto size : {args...})
-            add_layout(size);
+            add_layer(size);
     }
 
 
-    void add_layout(size_t size) {
-        add_layout(std::make_shared<Layout>(size));
+    void add_layer(size_t size) {
+        add_layer(std::make_shared<BPLayer>(size));
     }
-    void add_layout(Layout *layout) {
-        add_layout(std::shared_ptr<Layout>(layout));
+    void add_layer(BPLayer *layer) {
+        add_layer(std::shared_ptr<BPLayer>(layer));
     }
-    void add_layout(std::shared_ptr<Layout> layout) {
+    void add_layer(std::shared_ptr<BPLayer> layer) {
 
-        if (!layouts_.empty()) {
-            auto pre_layout = layouts_.back();
-            pre_layout->have_next = true;
-            pre_layout->weight = Tensor<float, 2>(pre_layout->size, layout->size);
-            random_tensor(pre_layout->weight, -1, 1);
+        if (!layers_.empty()) {
+            auto pre_layer = layers_.back();
+            pre_layer->have_next = true;
+            pre_layer->weight = Tensor<float, 2>(pre_layer->size, layer->size);
+            random_tensor(pre_layer->weight, -1, 1);
         }
-        layouts_.push_back(std::move(layout));
+        layers_.push_back(std::move(layer));
 
     }
 
     void forward(const Vector<float> &in) {
-        auto in_layout = layouts_.front();
-        in_layout->forward(in);
-        for (int i = 1;i < layouts_.size(); ++i)
-            layouts_[i]->forward(layouts_[i-1]->next_in);
+        auto in_layer = layers_.front();
+        in_layer->forward(in);
+        for (int i = 1;i < layers_.size(); ++i)
+            layers_[i]->forward(layers_[i-1]->next_in);
     }
 
     void backward(const Vector<float> &out) {
-        auto out_layout = layouts_.back();
+        auto out_layer = layers_.back();
         Vector<float> gradient(out.size());
         for (int i = 0;i < gradient.size(); ++i)
-            gradient[i] = loss_->deaction(out_layout->out[i], out[i]);
+            gradient[i] = loss_->deaction(out_layer->out[i], out[i]);
 
-        out_layout->backward(gradient);
+        out_layer->backward(gradient);
 
-        for (int i = layouts_.size() - 2; i > 0; --i)
-            layouts_[i]->backward(out_layout->gradient);
+        for (int i = layers_.size() - 2; i > 0; --i)
+            layers_[i]->backward(out_layer->gradient);
     }
 
     void train(const Vector<float> &in, const Vector<float> &out) {
@@ -172,7 +172,7 @@ public:
                 float error{};
                 for (auto &[in, out] : test_set_) {
                     forward(in);
-                    error += mean_relative_error(layouts_.back()->out, out);
+                    error += mean_relative_error(layers_.back()->out, out);
                 }
                 error /= test_set_.size();
 
@@ -190,7 +190,7 @@ public:
             float error{};
             for (auto &[in, out] : test_set_) {
                 forward(in);
-                error += mean_relative_error(layouts_.back()->out, out);
+                error += mean_relative_error(layers_.back()->out, out);
             }
             error /= test_set_.size();
 
@@ -199,11 +199,11 @@ public:
     }
 
     const Vector<float>& forecast(Vector<float> &in) const {
-        layouts_.front()->forward(in);
+        layers_.front()->forward(in);
         for (int i = 1;i < in.size(); ++i)
-            layouts_[i]->forward(layouts_[i-1]->next_in);
+            layers_[i]->forward(layers_[i-1]->next_in);
 
-        return layouts_.back()->out;
+        return layers_.back()->out;
     }
 
     void set_optimizer(std::shared_ptr<Optimizer> optimizer) {
