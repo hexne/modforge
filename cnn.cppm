@@ -14,47 +14,18 @@ import modforge.deep_learning.bp;
 import modforge.deep_learning.tools;
 
 
-Tensor<float, 2> Convolution(const Tensor<float, 2> &src, const Tensor<float, 2> &kernel, size_t stride = 1, size_t padding = 0) {
-    int in_w = src.extent(1), kernel_w = kernel.extent(1);
-    int in_h = src.extent(0), kernel_h = kernel.extent(0);
-    int out_w = (in_w + 2 * padding - kernel_w) / stride + 1;
-    int out_h = (in_h + 2 * padding - kernel_h) / stride + 1;
+struct Layer {
+    Tensor<float, 3> in, out;
 
-    Tensor<float, 2> ret(out_h, out_w);
-
-    for (int i = 0; i < out_h; i++) {
-        for (int j = 0; j < out_w; j++) {
-            double sum{};
-
-            for (int x = 0; x < kernel_h; x++) {
-                for (int y = 0; y < kernel_w; y++) {
-                    size_t in_x = i * stride + x;
-                    size_t in_y = j * stride + y;
-                    if (in_x >= in_h || in_y >= in_w)
-                        continue;
-                    sum += src[in_x, in_y] * kernel[x, y];
-                }
-            }
-            ret[i, j] = sum;
-        }
-    }
-
-    return ret;
-}
-
-struct CNNLayer {
-    Tensor<float, 3> in, out, gradient;
-    size_t in_size, out_size;
-
-    virtual void forward(const Tensor<float, 2> &) = 0;
+    virtual void forward(const Tensor<float, 3> &) = 0;
     virtual void backward(const Tensor<float, 2> &) = 0;
-    virtual ~CNNLayer() = default;
+    virtual ~Layer() = default;
 };
 
 
 
 // 卷积层
-class ConvLayer : public CNNLayer {
+class ConvLayer : public Layer {
     std::vector<Tensor<float, 2>> kernels_;
 public:
     explicit ConvLayer(auto && ... sizes) requires (sizeof ...(sizes) >= 1){
@@ -65,62 +36,62 @@ public:
             kernels_.emplace_back(tmp);
         }
     }
-    void forward(const Tensor<float, 2> &in) override {
+    void forward(const Tensor<float, 3> &in) override {
 
     }
 
 };
 
 // 池化层
-class PoolLayer : public CNNLayer {
+class PoolLayer : public Layer {
 
 public:
 
     // @TODO 应该提供不同的卷积操作
-    void forward(const Tensor<float, 2> &) override {
+    void forward(const Tensor<float, 3> &) override {
 
     }
 };
 
 // 激活层
-class ActionLayer : public CNNLayer {
+class ActionLayer : public Layer {
     std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
 public:
     ActionLayer() = default;
 
     explicit ActionLayer(std::shared_ptr<Activation> action) : action_(std::move(action)) {  }
 
-    void forward(const Tensor<float, 2> &in) override {
+    void forward(const Tensor<float, 3> &in) override {
     }
 };
 
 // 全连接层
-class FCLayer : public CNNLayer {
+class FCLayer : public Layer {
     BP bp;
 
 public:
     // @TODO 权值展平,塞入PB
-    void forward(const Tensor<float, 2> &) override {
+    void forward(const Tensor<float, 3> &) override {
 
     }
 
 };
 
 // 输入层
-class InputLayer : public CNNLayer {
+class InputLayer : public Layer {
 
 public:
     // @TODO 输入Tensor, 并进行归一化等操作
-    void forward(const Tensor<float, 2> &) override {
+    void forward(const Tensor<float, 3> &) override {
 
     }
 };
 
-class OutputLayer : public CNNLayer {
+class OutputLayer : public Layer {
 
 public:
     // @TODO 输入Tensor, 并进行归一化等操作
-    void forward(const Tensor<float, 2> &) override {
+    void forward(const Tensor<float, 3> &) override {
 
     }
     void backward(const Tensor<float, 2> &) override {
@@ -130,12 +101,12 @@ public:
 
 export
 class CNN {
-    std::vector<std::shared_ptr<CNNLayer>> layouts_;
+    std::vector<std::shared_ptr<Layer>> layouts_;
 
 public:
     CNN() = default;
 
-    void add_layer(std::shared_ptr<CNNLayer> &layer) {
+    void add_layer(std::shared_ptr<Layer> &layer) {
 
     }
 
