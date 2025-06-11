@@ -20,8 +20,7 @@ int cur_train_count;
 int train_count;
 std::shared_ptr<Optimizer> optimizer;
 
-export
-struct BPLayer {
+struct Layer {
     size_t size;
     Vector<float> in, out, next_in{}, gradient{};
     Tensor<float, 2> weight{};
@@ -30,7 +29,7 @@ struct BPLayer {
     std::shared_ptr<Activation> action;
 
 
-    BPLayer(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
+    Layer(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
         : size(size), in(size), out(size) , action(action) {  }
 
     void forward(const Vector<float> &pre_in) {
@@ -84,7 +83,7 @@ double mean_relative_error(Vector<T>& output, Vector<T>& target) {
 
 export
 class BP {
-    std::vector<std::shared_ptr<BPLayer>> layers_;
+    std::vector<std::shared_ptr<Layer>> layers_;
     std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
 
     std::vector<std::pair<Vector<float>, Vector<float>>> train_set_, test_set_;
@@ -100,13 +99,8 @@ public:
     }
 
 
-    void add_layer(size_t size) {
-        add_layer(std::make_shared<BPLayer>(size));
-    }
-    void add_layer(BPLayer *layer) {
-        add_layer(std::shared_ptr<BPLayer>(layer));
-    }
-    void add_layer(std::shared_ptr<BPLayer> layer) {
+    void add_layer(size_t n, const std::shared_ptr<Activation> &action = std::make_shared<Relu>()) {
+        auto layer = std::make_shared<Layer>(n, action);
 
         if (!layers_.empty()) {
             auto pre_layer = layers_.back();
@@ -115,7 +109,6 @@ public:
             random_tensor(pre_layer->weight, -1, 1);
         }
         layers_.push_back(std::move(layer));
-
     }
 
     void forward(const Vector<float> &in) {

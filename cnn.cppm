@@ -43,7 +43,7 @@ Tensor<float, 2> Convolution(const Tensor<float, 2> &src, const Tensor<float, 2>
 }
 
 struct CNNLayer {
-    Tensor<float, 2> in, out, gradient;
+    Tensor<float, 3> in, out, gradient;
     size_t in_size, out_size;
 
     virtual void forward(const Tensor<float, 2> &) = 0;
@@ -66,13 +66,8 @@ public:
         }
     }
     void forward(const Tensor<float, 2> &in) override {
-        this->in = in;
 
     }
-    void backward(const Tensor<float, 2> &) override {
-
-    }
-
 
 };
 
@@ -85,10 +80,6 @@ public:
     void forward(const Tensor<float, 2> &) override {
 
     }
-    void backward(const Tensor<float, 2> &) override {
-
-    }
-
 };
 
 // 激活层
@@ -100,15 +91,6 @@ public:
     explicit ActionLayer(std::shared_ptr<Activation> action) : action_(std::move(action)) {  }
 
     void forward(const Tensor<float, 2> &in) override {
-        this->in = in;
-        this->out = in.copy();
-        this->out.foreach([this](float &val) {
-            val = action_->action(val);
-        });
-
-    }
-    void backward(const Tensor<float, 2> &) override {
-
     }
 };
 
@@ -121,9 +103,6 @@ public:
     void forward(const Tensor<float, 2> &) override {
 
     }
-    void backward(const Tensor<float, 2> &) override {
-
-    }
 
 };
 
@@ -133,9 +112,6 @@ class InputLayer : public CNNLayer {
 public:
     // @TODO 输入Tensor, 并进行归一化等操作
     void forward(const Tensor<float, 2> &) override {
-
-    }
-    void backward(const Tensor<float, 2> &) override {
 
     }
 };
