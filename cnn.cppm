@@ -3,7 +3,9 @@
 * @Date   : 2025/05/21 16:27:03
 ********************************************************************************/
 module;
+#include <cassert>
 #include <memory>
+#include <numeric>
 #include <vector>
 export module modforge.deep_learning.cnn;
 
@@ -14,123 +16,233 @@ import modforge.deep_learning.bp;
 import modforge.deep_learning.tools;
 
 
-struct Layer {
-    Tensor<float, 3> in, out;
+// 标准卷积核
+using Kernels = Tensor<float, 4>;
+using FeatureMap = Tensor<float, 3>;
+using FeatureExtent = struct { int w{}, h{}, cannel{}; };
+using PoolWindow = Tensor<float, 2>;
 
-    virtual void forward(const Tensor<float, 3> &) = 0;
-    virtual void backward(const Tensor<float, 2> &) = 0;
-    virtual ~Layer() = default;
+FeatureExtent get_out_extent(const FeatureExtent&in_extent, const Kernels &kernels, size_t stride, size_t padding) {
+    FeatureExtent ret;
+
+    ret.h = (in_extent.h + 2 * padding - kernels.extent(2)) / stride + 1;
+    ret.w = (in_extent.w + 2 * padding - kernels.extent(3)) / stride + 1;
+    ret.cannel = kernels.extent(0);
+
+    return ret;
+}
+
+FeatureExtent get_out_extent(const FeatureExtent&in_extent, const PoolWindow &pool_window, size_t stride, size_t padding) {
+    FeatureExtent ret;
+
+    ret.h = (in_extent.h + 2 * padding - pool_window.extent(0)) / stride + 1;
+    ret.w = (in_extent.w + 2 * padding - pool_window.extent(1)) / stride + 1;
+    ret.cannel = in_extent.cannel;
+
+    return ret;
+}
+
+
+struct CNNLayer {
+    FeatureMap in, out;
+    FeatureExtent in_extent, out_extent;
+
+    virtual void forward(const FeatureMap&) = 0;
+    virtual ~CNNLayer() = default;
 };
 
 
 
 // 卷积层
-class ConvLayer : public Layer {
-    std::vector<Tensor<float, 2>> kernels_;
+class ConvLayer : public CNNLayer {
+    Kernels kernels_;
+    size_t stride_, padding_;
 public:
-    explicit ConvLayer(auto && ... sizes) requires (sizeof ...(sizes) >= 1){
-        std::initializer_list<int> args {sizes ...};
-        for (auto size : args) {
-            Tensor<float, 2> tmp(size, size);
-            random_tensor(tmp, -1, 1);
-            kernels_.emplace_back(tmp);
+    ConvLayer(size_t n , size_t size, FeatureExtent in_extent, size_t stride = 1, size_t padding = 0) {
+        this->in_extent = in_extent;
+        stride_ = stride;
+        padding_ = padding;
+        kernels_ = Kernels(n, in_extent.cannel, size, size);
+        out_extent = get_out_extent(this->in_extent, kernels_, stride, padding);
+    }
+
+    void forward(const FeatureMap &in) override {
+        this->in = in;
+
+        int kernel_z = kernels_.extent(1);
+        int kernel_h = kernels_.extent(2);
+        int kernel_w = kernels_.extent(3);
+
+        // 输入通道数和卷积核通道数需要匹配
+        assert(in_extent.cannel == kernel_z);
+
+
+        FeatureMap res(out_extent.cannel, out_extent.h, out_extent.w);
+
+        for (int z = 0; z < out_extent.cannel; ++z) {
+            for (int x = 0; x < out_extent.h; ++x) {
+                for (int y = 0; y < out_extent.w; ++y) {
+                    float sum{};
+
+                    const int h_start = x * stride_ - padding_;
+                    const int w_start = y * stride_ - padding_;
+
+                    for (int kz = 0; kz < kernel_z; ++kz) {
+                        for (int kh = 0; kh < kernel_h; ++kh) {
+                            for (int kw = 0; kw < kernel_w; ++kw) {
+
+                                const int ih = h_start + kh;
+                                const int iw = w_start + kw;
+                                if ((ih < 0 || ih >= in_extent.h) || (iw < 0 || iw >= in_extent.w))
+                                    continue;
+                                sum += this->in[kz, ih, iw] * kernels_[z, kz, kh, kw];
+                            }
+                        }
+                    }
+
+                    res[z, x, y] = sum;
+                }
+            }
         }
-    }
-    void forward(const Tensor<float, 3> &in) override {
 
+        this->out = std::move(res);
     }
-
 };
 
 // 池化层
-class PoolLayer : public Layer {
-
+class PoolLayer : public CNNLayer {
+    PoolWindow pool_window_;
+    size_t stride;
 public:
+    PoolLayer(size_t window_size, const FeatureExtent &in_extent, size_t stride = 1, size_t padding = 0) {
+        this->in_extent = in_extent;
+        this->stride = stride;
+        pool_window_ = PoolWindow(window_size, window_size);
+        out_extent = get_out_extent(this->in_extent, pool_window_, stride, padding);
+    }
+    void forward(const FeatureMap &in) override {
+        this->in = in;
 
-    // @TODO 应该提供不同的卷积操作
-    void forward(const Tensor<float, 3> &) override {
+        const int pool_h = pool_window_.extent(0);
+        const int pool_w = pool_window_.extent(1);
 
+
+        FeatureMap res(in_extent.cannel, out_extent.h, out_extent.w);
+
+        for (int cur_cannel = 0; cur_cannel < in_extent.cannel; ++cur_cannel) {
+            for (int oh = 0; oh < out_extent.h; ++oh) {
+                for (int ow = 0; ow < out_extent.w; ++ow) {
+                    float cur_max = std::numeric_limits<float>::lowest();
+
+                    const int start_x = oh * stride;
+                    const int start_y = ow * stride;
+
+                    for (int ph = 0; ph < pool_h; ++ph) {
+                        for (int pw = 0; pw < pool_w; ++pw) {
+                            const int in_x = start_x + ph;
+                            const int in_y = start_y + pw;
+
+                            if ((in_x < 0 || in_x >= in_extent.h) || (in_y < 0 || in_y >= in_extent.w))
+                                continue;
+                            cur_max = std::max(cur_max, this->in[cur_cannel, in_x, in_y]);
+                        }
+                    }
+
+                    res[cur_cannel, oh, ow] = cur_max;
+                }
+            }
+        }
+
+        this->out = res;
     }
 };
 
 // 激活层
-class ActionLayer : public Layer {
+class ActionLayer : public CNNLayer {
     std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
 public:
     ActionLayer() = default;
 
     explicit ActionLayer(std::shared_ptr<Activation> action) : action_(std::move(action)) {  }
 
-    void forward(const Tensor<float, 3> &in) override {
+    void forward(const FeatureMap &in) override {
+        this->in = in;
+        this->out = this->in.copy();
+        out.foreach([this](float &val) {
+            val = action_->action(val);
+        });
     }
 };
 
 // 全连接层
-class FCLayer : public Layer {
-    BP bp;
-
+class FCLayer : public CNNLayer {
+    FeatureMap weight_;
+    Vector<float> fc_in_;
 public:
-    // @TODO 权值展平,塞入PB
-    void forward(const Tensor<float, 3> &) override {
+    FCLayer(const FeatureExtent &in_extent) {
+        this->in_extent = in_extent;
+        this->out_extent.cannel = in_extent.cannel;
+        this->out_extent.h = out_extent.w = 1;
+        weight_ = FeatureMap(in_extent.cannel, out_extent.h, out_extent.w);
+        fc_in_ = Vector<float>(in_extent.cannel);
+        random_tensor(weight_, -1, 1);
+
+    }
+
+    void forward(const FeatureMap &in) override {
+        this->in = in;
+
+        for (int cur_cancel = 0; cur_cancel < in_extent.cannel; ++cur_cancel) {
+            float sum{};
+            for (int x = 0; x < this->in_extent.h; ++x) {
+                for (int y = x; y < this->in_extent.w; ++y) {
+                    sum += in[cur_cancel, x, y] * weight_[cur_cancel, x, y];
+                }
+            }
+            fc_in_[cur_cancel] = sum;
+        }
 
     }
 
 };
 
 // 输入层
-class InputLayer : public Layer {
-
+class InputLayer : public CNNLayer {
 public:
-    // @TODO 输入Tensor, 并进行归一化等操作
-    void forward(const Tensor<float, 3> &) override {
+    InputLayer(const FeatureExtent &extent) {
+        // 输入层不对extent进行变换
+        in_extent = extent;
+        out_extent = in_extent;
+    }
+    void forward(const FeatureMap &in) override {
+        this->in = in;
+        this->in.foreach([](float &val){
+            val /= 255;         // 归一化操作可进行扩充, 暂时先用这个
+        });
 
     }
 };
 
-class OutputLayer : public Layer {
-
-public:
-    // @TODO 输入Tensor, 并进行归一化等操作
-    void forward(const Tensor<float, 3> &) override {
-
-    }
-    void backward(const Tensor<float, 2> &) override {
-
-    }
-};
 
 export
 class CNN {
-    std::vector<std::shared_ptr<Layer>> layouts_;
+    std::vector<std::shared_ptr<CNNLayer>> layouts_;
 
 public:
-    CNN() = default;
+    // 构造的时候就创建第一层，用于确定输入和输出的尺寸
+    CNN(int w, int h, int cannel) {
+        FeatureExtent in_extent { .w = w, .h = h, .cannel = cannel };
+        layouts_.emplace_back(std::make_shared<InputLayer>(in_extent));
+    }
 
-    void add_layer(std::shared_ptr<Layer> &layer) {
+    void add_convlayer(size_t n, size_t size, const FeatureExtent &in_extent, size_t stride = 1, size_t padding = 0) {
+        auto layer = std::make_shared<ConvLayer>(n, size, layouts_.back()->out_extent, stride, padding);
+        layouts_.emplace_back(layer);
+    }
+
+
+    void forward(const FeatureMap &in) {
 
     }
 
-    void forward(const Tensor<float, 2> &in) {
-
-    }
-    void backward(const Vector<float> &out) {
-
-    }
-
-
-    // CNN的输入是张量，二维或者三维, 输出是onehot
-    void train(const Tensor<float, 2> &in, const Vector<float> &out) {
-        forward(in);
-        backward(out); }
-
-    void train(const std::vector<std::pair<Vector<float>, Vector<float>>> &dataset,
-                float train_proportion, size_t train_count, int seed, bool updata_acc = false) {
-
-
-    }
-    const Vector<float> forcast(const Tensor<float, 2> &in) {
-        forward(in);
-        // @TODO 输出Vector应该被适配
-        return {};
-    }
 };

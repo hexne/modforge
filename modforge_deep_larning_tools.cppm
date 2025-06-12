@@ -112,8 +112,8 @@ double GetRandom(const double min, const double max) {
     std::uniform_real_distribution<> dis(min, max);
     return dis(gen);
 }
-template<typename T>
-void random_tensor(Tensor<T, 2>tensor, double min, double max) {
+template<typename T, size_t Extent = 2>
+void random_tensor(Tensor<T, Extent>tensor, double min, double max) {
     tensor.foreach([&](T &val) {
         val = GetRandom(min, max);
     });
