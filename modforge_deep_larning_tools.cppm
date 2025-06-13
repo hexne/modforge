@@ -6,6 +6,7 @@
 module;
 #include <assert.h>
 #include <cmath>
+#include <numbers>
 #include <ranges>
 #include <random>
 export module modforge.deep_learning.tools;
@@ -98,7 +99,7 @@ public:
 
         // 应用余弦退火公式
         return min_speed + 0.5 * (max_speed - min_speed) *
-               (1 + std::cos(progress * M_PI));
+               (1 + std::cos(progress * std::numbers::pi));
     }
 };
 
