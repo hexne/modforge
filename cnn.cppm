@@ -19,7 +19,7 @@ import modforge.deep_learning.tools;
 // 标准卷积核
 using Kernels = Tensor<float, 4>;
 using FeatureMap = Tensor<float, 3>;
-using FeatureExtent = struct { int w{}, h{}, cannel{}; };
+using FeatureExtent = struct FeatureExtent { int w{}, h{}, cannel{}; };
 using PoolWindow = Tensor<float, 2>;
 
 FeatureExtent get_out_extent(const FeatureExtent&in_extent, const Kernels &kernels, size_t stride, size_t padding) {
@@ -44,10 +44,11 @@ FeatureExtent get_out_extent(const FeatureExtent&in_extent, const PoolWindow &po
 
 
 struct CNNLayer {
-    FeatureMap in, out;
+    FeatureMap in, out, gradient;
     FeatureExtent in_extent, out_extent;
 
     virtual void forward(const FeatureMap&) = 0;
+    virtual void backward(const FeatureMap&) = 0;
     virtual ~CNNLayer() = default;
 };
 
@@ -107,6 +108,10 @@ public:
 
         this->out = std::move(res);
     }
+
+    void backward(const FeatureMap &) override {
+
+    }
 };
 
 // 池化层
@@ -155,6 +160,48 @@ public:
 
         this->out = res;
     }
+
+    void backward(const FeatureMap &next_gradient) override {
+        FeatureMap gradient(in_extent.cannel, in_extent.h, in_extent.w);
+        // 必须初始化为 全0 矩阵，最大池化 反向传播时只有最大值处会被传递梯度
+        gradient.foreach([](float &val) {
+            val = 0.f;
+        });
+
+        for (int c = 0; c < out_extent.cannel; ++c) {
+            for (int oh = 0; oh < out_extent.h; ++oh) {
+                for (int ow = 0; ow < out_extent.w; ++ow) {
+
+                    int max_h = -1, max_w = -1;
+                    float max_val = std::numeric_limits<float>::lowest();
+
+                    // 遍历池化窗口
+                    for (int ph = 0; ph < pool_window_.extent(0); ++ph) {
+                        for (int pw = 0; pw < pool_window_.extent(1); ++pw) {
+                            int ih = oh * stride + ph;
+                            int iw = ow * stride + pw;
+
+                            if (ih < 0 || ih >= in_extent.h || iw < 0 || iw >= in_extent.w)
+                                continue;
+
+                            if (in[c, ih, iw] > max_val) {
+                                max_val = in[c, ih, iw];
+                                max_h = ih;
+                                max_w = iw;
+                            }
+                        }
+                    }
+
+                    // 只在最大值位置回传梯度
+                    if (max_h != -1 && max_w != -1) {
+                        gradient[c, max_h, max_w] = next_gradient[c, oh, ow];
+                    }
+                }
+            }
+        }
+
+        this->gradient = std::move(gradient);
+    }
 };
 
 // 激活层
@@ -172,19 +219,34 @@ public:
             val = action_->action(val);
         });
     }
+
+
+    void backward(const FeatureMap &next_gradient) override {
+        this->gradient = FeatureMap(in_extent.cannel, out_extent.h, out_extent.w);
+        for (int z = 0; z < out_extent.cannel; ++z) {
+            for (int x = 0; x < out_extent.w; ++x) {
+                for (int y = 0; y < out_extent.h; ++y) {
+                    this->gradient[z, x, y] = action_->deaction(in[z, x, y]) * next_gradient[z, x, y];
+                }
+            }
+        }
+    }
 };
 
 // 全连接层
 class FCLayer : public CNNLayer {
-    FeatureMap weight_;
-    Vector<float> fc_in_;
+    Kernels weight_;
+    Vector<float> fc_in_, fc_out_;
+    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
 public:
     FCLayer(const FeatureExtent &in_extent) {
-        this->in_extent = in_extent;
-        this->out_extent.cannel = in_extent.cannel;
-        this->out_extent.h = out_extent.w = 1;
-        weight_ = FeatureMap(in_extent.cannel, out_extent.h, out_extent.w);
-        fc_in_ = Vector<float>(in_extent.cannel);
+        this->out_extent = this->in_extent = in_extent;
+        out_extent.h = out_extent.w = 1;
+
+        weight_ = Kernels(out_extent.cannel, in_extent.cannel, out_extent.h, out_extent.w);
+        fc_in_ = Vector<float>(out_extent.cannel);
+        fc_out_ = Vector<float>(out_extent.cannel);
+
         random_tensor(weight_, -1, 1);
 
     }
@@ -192,15 +254,59 @@ public:
     void forward(const FeatureMap &in) override {
         this->in = in;
 
-        for (int cur_cancel = 0; cur_cancel < in_extent.cannel; ++cur_cancel) {
+        for (int cur_kernel = 0; cur_kernel < out_extent.cannel; ++cur_kernel) {
             float sum{};
-            for (int x = 0; x < this->in_extent.h; ++x) {
-                for (int y = x; y < this->in_extent.w; ++y) {
-                    sum += in[cur_cancel, x, y] * weight_[cur_cancel, x, y];
+            for (int z = 0; z < in_extent.cannel; ++z) {
+                for (int x = 0; x < in_extent.w; ++x) {
+                    for (int y = 0; y < in_extent.h; ++y) {
+                        sum += weight_[cur_kernel, z, x, y] * in[z, x, y];
+                    }
                 }
             }
-            fc_in_[cur_cancel] = sum;
+            fc_in_[cur_kernel] = sum;
+            fc_out_[cur_kernel] = action_->action(sum);
         }
+
+    }
+
+    // 全链接层输出
+    void backward(const Vector<float> &next_gradient) {
+
+        Vector<float> vector_gradient = next_gradient;
+        for (int i = 0;i < next_gradient.size(); ++i) {
+            vector_gradient[i] *= action_->deaction(fc_in_[i]);
+        }
+
+        // @TODO 学习率暂定
+        // 修改权值
+        int speed = 0.001;
+        for (int c_out = 0; c_out < out_extent.cannel; ++c_out) {
+            for (int c_in = 0; c_in < in_extent.cannel; ++c_in) {
+                for (int h = 0; h < in_extent.h; ++h) {
+                    for (int w = 0; w < in_extent.w; ++w) {
+                        weight_[c_out, c_in, h, w] -= speed * vector_gradient[c_out] * in[c_in, h, w];
+                    }
+                }
+            }
+        }
+
+        FeatureMap gradient(in_extent.cannel, in_extent.h, in_extent.w);
+        for (int c_in = 0; c_in < in_extent.cannel; ++c_in) {
+            for (int h = 0; h < in_extent.h; ++h) {
+                for (int w = 0; w < in_extent.w; ++w) {
+                    float sum = 0.0f;
+                    for (int c_out = 0; c_out < out_extent.cannel; ++c_out) {
+                        sum += weight_[c_out, c_in, h, w] * vector_gradient[c_out];
+                    }
+                    gradient[c_in, h, w] = sum;
+                }
+            }
+        }
+        this->gradient = std::move(gradient);
+    }
+    void backward(const FeatureMap &next_gradient) override {
+
+        // 什么也不干
 
     }
 
@@ -219,6 +325,10 @@ public:
         this->in.foreach([](float &val){
             val /= 255;         // 归一化操作可进行扩充, 暂时先用这个
         });
+
+    }
+
+    void backward(const FeatureMap &next_gradient) override {
 
     }
 };
