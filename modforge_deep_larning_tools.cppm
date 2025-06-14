@@ -120,32 +120,30 @@ void random_tensor(Tensor<T, Extent>tensor, double min, double max) {
 
 }
 
+namespace OneHot {
+    // type 从0开始
+    int out_to_type(const Vector<float> &out) {
+        int pos = 0;
+        float max = out[0];
+        for (int i = 1; i < out.size(); ++i) {
+            if (out[i] > max) {
+                max = out[i];
+                pos = i;
+            }
+        }
+        return pos;
+    }
 
-template<size_t N>
-struct OneHot {
-
-    static Vector<bool> to_onehot(int type) {
-        Vector<bool> ret(N);
-        ret[type - 1] = true;
+    template<size_t N>
+    Vector<float> type_to_onehot(int type) {
+        Vector<float> ret(N);
+        for (int i = 0; i < N; ++i)
+            ret[i] = 0.f;
+        ret[type] = 1;
         return ret;
     }
 
-    static int to_type(Vector<bool> one_hot) {
-        for (int i = 0;i < one_hot.size(); ++i)
-            if (one_hot[i])
-                return i + 1;
-        return 0;
-    }
-
-    static int out_to_type(const Vector<float> &out) {
-        int max = 0;
-        for (int i = 0;i < out.size(); ++i)
-            if (out[i] > out[max])
-                max = i;
-        return max + 1;
-    }
-
-};
+}
 
 
 }   // export {
