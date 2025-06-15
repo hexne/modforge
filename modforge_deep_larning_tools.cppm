@@ -30,7 +30,6 @@ struct Sigmoid : Activation {
         double sigmod = action(num);
         return sigmod * (1.0 - sigmod);
     }
-    ~Sigmoid() override = default;
 };
 
 struct Relu : Activation {
@@ -45,7 +44,6 @@ struct Relu : Activation {
         return 0;
     }
 
-    ~Relu() override = default;
 };
 
 
@@ -66,8 +64,15 @@ struct MeanSquaredError : LossFunction {
     double deaction(double predicted_value, double true_value) override {
         return predicted_value - true_value;
     }
+};
+struct CrossEntropy : LossFunction {
+    double action(double target, double pred) override {
+        return -target * std::log(pred + 1e-15f); // 防止 log(0)
+    }
 
-    ~MeanSquaredError() override = default;
+    double deaction(double target, double pred) override {
+        return pred - target; // Softmax 的梯度
+    }
 };
 
 

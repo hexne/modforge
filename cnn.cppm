@@ -16,8 +16,11 @@ import modforge.console;
 import modforge.tensor;
 import modforge.deep_learning.tools;
 
+float speed = 0.001;
 export class CNN;
-
+export namespace TEST {
+    bool print_test = false;
+}
 // 标准卷积核
 using Kernels = Tensor<float, 4>;
 using FeatureMap = Tensor<float, 3>;
@@ -59,9 +62,10 @@ struct CNNLayer {
 
 // 卷积层
 class ConvLayer : public CNNLayer {
-    Kernels kernels_;
+    Kernels kernels_, gradient_;
     size_t stride_, padding_;
 public:
+    // 无问题
     ConvLayer(size_t n , size_t size, FeatureExtent in_extent, size_t stride = 1, size_t padding = 0)
         : stride_(stride), padding_(padding) {
 
@@ -69,9 +73,16 @@ public:
         kernels_ = Kernels(n, in_extent.cannel, size, size);
         out_extent = get_out_extent(in_extent, kernels_, stride, padding);
 
-        random_tensor(kernels_, -1, 1);
-    }
+        int fan_in = in_extent.h * in_extent.w * in_extent.cannel;
+        int fan_out = out_extent.cannel;
+        float range = std::sqrt(6.0f / (fan_in + fan_out));
+        random_tensor(kernels_, -range / 10, range / 10);
 
+
+
+        gradient_ = Kernels(n, in_extent.cannel, size, size);
+    }
+    // 无问题
     void forward(const FeatureMap &in) override {
         this->in = in;
 
@@ -79,13 +90,10 @@ public:
         int kernel_h = kernels_.extent(2);
         int kernel_w = kernels_.extent(3);
 
-        // 输入通道数和卷积核通道数需要匹配
-        assert(in_extent.cannel == kernel_z);
-
-
-        FeatureMap res(out_extent.cannel, out_extent.h, out_extent.w);
+        this->out = FeatureMap(out_extent.cannel, out_extent.h, out_extent.w);
 
         for (int z = 0; z < out_extent.cannel; ++z) {
+
             for (int x = 0; x < out_extent.h; ++x) {
                 for (int y = 0; y < out_extent.w; ++y) {
                     float sum{};
@@ -99,19 +107,16 @@ public:
 
                                 const int ih = h_start + kh;
                                 const int iw = w_start + kw;
-                                if ((ih < 0 || ih >= in_extent.h) || (iw < 0 || iw >= in_extent.w))
-                                    continue;
+
                                 sum += this->in[kz, ih, iw] * kernels_[z, kz, kh, kw];
                             }
                         }
                     }
 
-                    res[z, x, y] = sum;
+                    this->out[z, x, y] = sum;
                 }
             }
         }
-
-        this->out = std::move(res);
     }
 
     void backward(const FeatureMap &next_gradient) override {
@@ -136,30 +141,22 @@ public:
                     const int h_start = x * stride_ - padding_;
                     const int w_start = y * stride_ - padding_;
 
-                    // 2.1 计算输入梯度
                     for (int kz = 0; kz < kernel_z; ++kz) {       // 输入通道
                         for (int kh = 0; kh < kernel_h; ++kh) {    // 核高度
                             for (int kw = 0; kw < kernel_w; ++kw) { // 核宽度
                                 const int ih = h_start + kh;
                                 const int iw = w_start + kw;
-
-                                if (ih < 0 || ih >= in_extent.h || iw < 0 || iw >= in_extent.w)
-                                    continue;
 
                                 gradient[kz, ih, iw] += grad * kernels_[z, kz, kh, kw];
                             }
                         }
                     }
 
-                    // 2.2 计算卷积核梯度
                     for (int kz = 0; kz < kernel_z; ++kz) {       // 输入通道
                         for (int kh = 0; kh < kernel_h; ++kh) {    // 核高度
                             for (int kw = 0; kw < kernel_w; ++kw) { // 核宽度
                                 const int ih = h_start + kh;
                                 const int iw = w_start + kw;
-
-                                if (ih < 0 || ih >= in_extent.h || iw < 0 || iw >= in_extent.w)
-                                    continue;
 
                                 kernel_gradients[z, kz, kh, kw] += grad * in[kz, ih, iw];
                             }
@@ -169,14 +166,11 @@ public:
             }
         }
 
-        // 3. 更新卷积核权重 (需要学习率参数)
-        const float learning_rate = 0.01; // 应该作为类成员变量
-        // 替换原来的 foreach 部分
-        for (size_t z = 0; z < kernels_.extent(0); ++z) {          // 输出通道数
-            for (size_t kz = 0; kz < kernels_.extent(1); ++kz) {   // 输入通道数
-                for (size_t kh = 0; kh < kernels_.extent(2); ++kh) { // 核高度
-                    for (size_t kw = 0; kw < kernels_.extent(3); ++kw) { // 核宽度
-                        kernels_[z, kz, kh, kw] -= learning_rate * kernel_gradients[z, kz, kh, kw];
+        for (size_t z = 0; z < kernels_.extent(0); ++z) {
+            for (size_t kz = 0; kz < kernels_.extent(1); ++kz) {
+                for (size_t kh = 0; kh < kernels_.extent(2); ++kh) {
+                    for (size_t kw = 0; kw < kernels_.extent(3); ++kw) {
+                        kernels_[z, kz, kh, kw] -= speed * kernel_gradients[z, kz, kh, kw];
                     }
                 }
             }
@@ -189,24 +183,26 @@ class PoolLayer : public CNNLayer {
     PoolWindow pool_window_;
     size_t stride;
 public:
+    // 无问题
     PoolLayer(size_t window_size, const FeatureExtent &in_extent, size_t stride = 1, size_t padding = 0) {
         this->in_extent = in_extent;
         this->stride = stride;
         pool_window_ = PoolWindow(window_size, window_size);
         out_extent = get_out_extent(this->in_extent, pool_window_, stride, padding);
     }
+    // 无问题
     void forward(const FeatureMap &in) override {
         this->in = in;
 
         const int pool_h = pool_window_.extent(0);
         const int pool_w = pool_window_.extent(1);
 
+        this->out = FeatureMap(out_extent.cannel, out_extent.h, out_extent.w);
 
-        FeatureMap res(in_extent.cannel, out_extent.h, out_extent.w);
-
-        for (int cur_cannel = 0; cur_cannel < in_extent.cannel; ++cur_cannel) {
+        for (int cur_cannel = 0; cur_cannel < out_extent.cannel; ++cur_cannel) {
             for (int oh = 0; oh < out_extent.h; ++oh) {
                 for (int ow = 0; ow < out_extent.w; ++ow) {
+
                     float cur_max = std::numeric_limits<float>::lowest();
 
                     const int start_x = oh * stride;
@@ -217,18 +213,14 @@ public:
                             const int in_x = start_x + ph;
                             const int in_y = start_y + pw;
 
-                            if ((in_x < 0 || in_x >= in_extent.h) || (in_y < 0 || in_y >= in_extent.w))
-                                continue;
                             cur_max = std::max(cur_max, this->in[cur_cannel, in_x, in_y]);
                         }
                     }
 
-                    res[cur_cannel, oh, ow] = cur_max;
+                    this->out[cur_cannel, oh, ow] = cur_max;
                 }
             }
         }
-
-        this->out = res;
     }
 
     void backward(const FeatureMap &next_gradient) override {
@@ -276,14 +268,17 @@ public:
 
 // 激活层
 class ActionLayer : public CNNLayer {
-    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
+    std::shared_ptr<Activation> action_;
 public:
+
+    // 无问题
     ActionLayer(const FeatureExtent& in_extent ,std::shared_ptr<Activation> action = std::make_shared<Relu>())
         : action_(std::move(action)) {
 
         this->in_extent = this->out_extent = in_extent;
     }
 
+    // 无问题
     void forward(const FeatureMap &in) override {
         this->in = in;
         this->out = this->in.copy();
@@ -314,9 +309,11 @@ class FCLayer : public CNNLayer {
     Kernels weight_;
     Vector<float> fc_in_, fc_out_;
 
-    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
+    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
 
 public:
+
+    // 无问题
     FCLayer(int type_count, const FeatureExtent &in_extent) {
         this->in_extent = in_extent;
 
@@ -326,7 +323,11 @@ public:
         fc_in_ = Vector<float>(out_extent.cannel);
         fc_out_ = Vector<float>(out_extent.cannel);
 
-        random_tensor(weight_, 0, 1);
+        int fan_in = in_extent.h * in_extent.w * in_extent.cannel;
+        int fan_out = out_extent.cannel;
+
+        float range = std::sqrt(6.0f / (fan_in + fan_out));
+        random_tensor(weight_, -range / 20, range / 20);
 
     }
 
@@ -336,8 +337,8 @@ public:
         for (int cur_kernel = 0; cur_kernel < out_extent.cannel; ++cur_kernel) {
             float sum{};
             for (int z = 0; z < in_extent.cannel; ++z) {
-                for (int x = 0; x < in_extent.w; ++x) {
-                    for (int y = 0; y < in_extent.h; ++y) {
+                for (int x = 0; x < in_extent.h; ++x) {
+                    for (int y = 0; y < in_extent.w; ++y) {
                         sum += weight_[cur_kernel, z, x, y] * in[z, x, y];
                     }
                 }
@@ -345,70 +346,40 @@ public:
             fc_in_[cur_kernel] = sum;
             fc_out_[cur_kernel] = action_->action(sum);
         }
-
-        // 对out进行softmax变换
-        // 计算最大值（数值稳定性处理）
-        float max_val = fc_out_[0];
-        for (int i = 1; i < out_extent.cannel; ++i) {
-            if (fc_out_[i] > max_val) {
-                max_val = fc_out_[i];
-            }
-        }
-
-        // 2. 计算指数和
-        float exp_sum = 0.0f;
-        for (int i = 0; i < out_extent.cannel; ++i)
-            exp_sum += std::exp(fc_out_[i] - max_val); // 减去最大值防止溢出
-
-        // 3. 转换为概率分布
-        for (int i = 0; i < out_extent.cannel; ++i)
-            fc_out_[i] = std::exp(fc_out_[i] - max_val) / exp_sum;
     }
 
-    // 全链接层输出
     void backward(const Vector<float> &next_gradient) {
-        Vector<float> vector_gradient = next_gradient;
-        for (int i = 0; i < vector_gradient.size(); ++i) {
-            vector_gradient[i] *= action_->deaction(fc_in_[i]);
-            // 对于Sigmoid，应乘以 fc_out_[i] * (1 - fc_out_[i])
+        this->gradient = FeatureMap(in_extent.cannel, in_extent.h, in_extent.w);
+        gradient.foreach([&](float &val) {
+           val = 0;
+        });
+
+        auto flag = TEST::print_test;
+        if (flag) {
+            for (int i = 0;i < next_gradient.size(); ++i) {
+                std::cout << next_gradient[i] << " ";
+            }
+            std::endl(std::cout);
         }
 
-        // 强制打印梯度（调试）
-        std::cout << "FC Gradients: ";
-        for (int i = 0;i < vector_gradient.size(); ++i) {
-            std::cout << vector_gradient[i] << " ";
-        }
-        std::cout << "\n";
-
-        // 更新权重（确保学习率不为零）
-        const float lr = 0.01f; // 临时调大学习率
-        for (int c_out = 0; c_out < out_extent.cannel; ++c_out) {
-            for (int c_in = 0; c_in < in_extent.cannel; ++c_in) {
-                for (int h = 0; h < in_extent.h; ++h) {
-                    for (int w = 0; w < in_extent.w; ++w) {
-                        weight_[c_out, c_in, h, w] -= lr * vector_gradient[c_out] * in[c_in, h, w];
+        for (int cur_cannel = 0; cur_cannel < out_extent.cannel; ++cur_cannel) {
+            float val = next_gradient[cur_cannel] * action_->deaction(fc_in_[cur_cannel]);
+            for (int z = 0; z < weight_.extent(1); ++z) {
+                for (int x = 0; x < weight_.extent(2); ++x) {
+                    for (int y = 0; y < weight_.extent(3); ++y) {
+                        gradient[z, x, y] += val * weight_[cur_cannel, z, x, y];
+                        // weight_[cur_cannel, z, x, y] -= speed * next_gradient[cur_cannel];
+                        weight_[cur_cannel, z, x, y] -= speed * val * in[z, x, y];  // 实际应为val * input
                     }
                 }
+
             }
         }
 
-        // 计算输入梯度（确保sum不为零）
-        FeatureMap gradient(in_extent.cannel, in_extent.h, in_extent.w);
-        for (int c_in = 0; c_in < in_extent.cannel; ++c_in) {
-            for (int h = 0; h < in_extent.h; ++h) {
-                for (int w = 0; w < in_extent.w; ++w) {
-                    float sum = 0.0f;
-                    for (int c_out = 0; c_out < out_extent.cannel; ++c_out) {
-                        sum += weight_[c_out, c_in, h, w] * vector_gradient[c_out];
-                    }
-                    gradient[c_in, h, w] = sum;
-                }
-            }
-        }
-        this->gradient = std::move(gradient);
     }
-    void backward(const FeatureMap &next_gradient) override {  }
 
+    // 未使用
+    void backward(const FeatureMap &next_gradient) override {  }
 };
 
 
@@ -446,8 +417,8 @@ public:
         layouts_.emplace_back(layer);
     }
 
-    void add_pool_layer(size_t window_size) {
-        auto layer = std::make_shared<PoolLayer>(window_size, get_cur_in_extent());
+    void add_pool_layer(size_t window_size, size_t stride = 2) {
+        auto layer = std::make_shared<PoolLayer>(window_size, get_cur_in_extent(), stride);
         layouts_.emplace_back(layer);
     }
 
@@ -461,15 +432,17 @@ public:
             layer->forward(in);
         }
     }
+    // 在 CNN 类中
     void backward(const Vector<float> &res) {
         auto back_layer = dynamic_cast<FCLayer *>(layouts_.back().get());
         auto out = back_layer->fc_out_;
 
-        Vector<float> in(res.size());
-        for (int i = 0;i < res.size(); ++i) {
-            in[i] = loss_->deaction(res[i], out[i]);
-        }
-        back_layer->backward(in);
+        Vector<float> gradient_diff(res.size());
+        for (int i = 0; i < res.size(); ++i)
+            gradient_diff[i] = loss_->deaction(out[i], res[i]);
+
+        back_layer->backward(gradient_diff);
+
         for (int i = layouts_.size() - 2; i >= 0; --i) {
             layouts_[i]->backward(layouts_[i+1]->gradient);
         }
@@ -520,6 +493,7 @@ public:
                     acc_count ++;
             }
             std::cout << std::format("{}/{} , acc is {:.6f}", i, train_count, acc_count * 1.f / train_size) << '\r';
+
             std::cout.flush();
         }
         std::cout << std::endl;
