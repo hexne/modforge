@@ -34,9 +34,32 @@ void Console::hind_cursor() {
 	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info);
 }
 void Console::show_cursor() {
-
+    CONSOLE_CURSOR_INFO cursor_info{ 1, 1 };
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursor_info);
 }
 
+void Console::cursor_up(int lines) {
+    HANDLE h_console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    GetConsoleScreenBufferInfo(h_console, &console_info);
+
+    COORD new_pos = console_info.dwCursorPosition;
+    new_pos.Y -= (SHORT)lines;
+    if (new_pos.Y < 0) new_pos.Y = 0;
+
+    SetConsoleCursorPosition(h_console, new_pos);
+}
+
+void Console::cursor_down(int lines) {
+    HANDLE h_console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    GetConsoleScreenBufferInfo(h_console, &console_info);
+
+    COORD new_pos = console_info.dwCursorPosition;
+    new_pos.Y += (SHORT)lines;
+
+    SetConsoleCursorPosition(h_console, new_pos);
+}
 
 
 #elif __linux__
