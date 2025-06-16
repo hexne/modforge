@@ -4,6 +4,7 @@
 ********************************************************************************/
 module;
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -15,12 +16,17 @@ export module modforge.deep_learning.cnn;
 import modforge.console;
 import modforge.tensor;
 import modforge.deep_learning.tools;
+import modforge.time;
 
 float speed = 0.001;
 export class CNN;
-export namespace TEST {
-    bool print_test = false;
-}
+
+
+static std::default_random_engine engine;
+static std::uniform_real_distribution<> dis;
+
+
+
 // 标准卷积核
 using Kernels = Tensor<float, 4>;
 using FeatureMap = Tensor<float, 3>;
@@ -64,6 +70,7 @@ struct CNNLayer {
 class ConvLayer : public CNNLayer {
     Kernels kernels_, gradient_;
     size_t stride_, padding_;
+
 public:
     // 无问题
     ConvLayer(size_t n , size_t size, FeatureExtent in_extent, size_t stride = 1, size_t padding = 0)
@@ -72,13 +79,11 @@ public:
         this->in_extent = in_extent;
         kernels_ = Kernels(n, in_extent.cannel, size, size);
         out_extent = get_out_extent(in_extent, kernels_, stride, padding);
+        int N = in_extent.w * in_extent.h * in_extent.cannel;
 
-        int fan_in = in_extent.h * in_extent.w * in_extent.cannel;
-        int fan_out = out_extent.cannel;
-        float range = std::sqrt(6.0f / (fan_in + fan_out));
-        random_tensor(kernels_, -range / 10, range / 10);
-
-
+        kernels_.foreach([=](float &val) {
+            val = 1.0f / N * rand() / 2147483647.0; //随机的值是有讲究的，这个是CNN常用的卷积核随机初值设置
+        });
 
         gradient_ = Kernels(n, in_extent.cannel, size, size);
     }
@@ -272,7 +277,7 @@ class ActionLayer : public CNNLayer {
 public:
 
     // 无问题
-    ActionLayer(const FeatureExtent& in_extent ,std::shared_ptr<Activation> action = std::make_shared<Relu>())
+    ActionLayer(const FeatureExtent& in_extent ,std::shared_ptr<Activation> action = std::make_shared<Sigmoid>())
         : action_(std::move(action)) {
 
         this->in_extent = this->out_extent = in_extent;
@@ -290,6 +295,9 @@ public:
 
     void backward(const FeatureMap &next_gradient) override {
         this->gradient = FeatureMap(in_extent.cannel, out_extent.h, out_extent.w);
+        this->gradient.foreach([&](float &val) {
+            val = 0;
+        });
         for (int z = 0; z < out_extent.cannel; ++z) {
             for (int x = 0; x < out_extent.w; ++x) {
                 for (int y = 0; y < out_extent.h; ++y) {
@@ -309,7 +317,7 @@ class FCLayer : public CNNLayer {
     Kernels weight_;
     Vector<float> fc_in_, fc_out_;
 
-    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
+    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
 
 public:
 
@@ -322,12 +330,11 @@ public:
         weight_ = Kernels(out_extent.cannel, in_extent.cannel, in_extent.h, in_extent.w);
         fc_in_ = Vector<float>(out_extent.cannel);
         fc_out_ = Vector<float>(out_extent.cannel);
+        int N = in_extent.h * in_extent.w * in_extent.cannel;
 
-        int fan_in = in_extent.h * in_extent.w * in_extent.cannel;
-        int fan_out = out_extent.cannel;
-
-        float range = std::sqrt(6.0f / (fan_in + fan_out));
-        random_tensor(weight_, -range / 20, range / 20);
+        weight_.foreach([=](float &val) {
+            val = 2.19722f / N * rand() / float( RAND_MAX );
+        });
 
     }
 
@@ -353,14 +360,6 @@ public:
         gradient.foreach([&](float &val) {
            val = 0;
         });
-
-        auto flag = TEST::print_test;
-        if (flag) {
-            for (int i = 0;i < next_gradient.size(); ++i) {
-                std::cout << next_gradient[i] << " ";
-            }
-            std::endl(std::cout);
-        }
 
         for (int cur_cannel = 0; cur_cannel < out_extent.cannel; ++cur_cannel) {
             float val = next_gradient[cur_cannel] * action_->deaction(fc_in_[cur_cannel]);
@@ -459,12 +458,14 @@ public:
 
         Console::hind_cursor();
 
-        std::cout << "处理数据集" << std::endl;
-        std::mt19937 gen(seed);
-        std::uniform_int_distribution<> dis(0, dataset.size());
-        for (int i = 0;i < 10000; ++i)
-            std::swap(dataset[dis(gen)], dataset[dis(gen)]);
-        std::cout << "打乱数据集" << std::endl;
+        engine = std::default_random_engine(seed);
+
+        // std::cout << "处理数据集" << std::endl;
+        // std::mt19937 gen(seed);
+        // std::uniform_int_distribution<> dis(0, dataset.size());
+        // for (int i = 0;i < 10000; ++i)
+        //     std::swap(dataset[dis(gen)], dataset[dis(gen)]);
+        // std::cout << "打乱数据集" << std::endl;
 
         int train_size = dataset.size() * train_proportion;
 
@@ -475,7 +476,6 @@ public:
             });
         }
         std::cout << "完成归一化" << std::endl;
-
 
         train_ = std::vector(dataset.begin(), dataset.begin() + train_size);
         test_ = std::vector(dataset.begin() + train_size, dataset.end());
