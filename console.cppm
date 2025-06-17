@@ -10,19 +10,24 @@ module;
 #elif __linux__
 #include <iostream>
 #include <format>
+#include <sys/ioctl.h>  // ioctl() 和 TIOCGWINSZ
+#include <unistd.h>     // STDOUT_FILENO
 #endif
 export module modforge.console;
 
 export 
-struct Console {
-	static void hind_cursor();
-	static void show_cursor();
+namespace Console {
+	void hind_cursor();
+	void show_cursor();
 
-    static void cursor_up(int = 1);
-    static void cursor_down(int = 1);
+    void cursor_up(int = 1);
+    void cursor_down(int = 1);
 
-	static void set_color();
-	static void clear_color();
+	void set_color();
+	void clear_color();
+
+    size_t get_width();
+    size_t get_height();
 
 };
 
@@ -61,7 +66,16 @@ void Console::cursor_down(int lines) {
     SetConsoleCursorPosition(h_console, new_pos);
 }
 
-
+size_t Console::get_width() {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    return csbi.srWindow.Right - csbi.srWindow.Left + 1;
+}
+size_t Console::get_height() {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    return csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+}
 #elif __linux__
 
 void Console::hind_cursor() {
@@ -77,6 +91,15 @@ void Console::cursor_up(int num) {
 void Console::cursor_down(int num) {
     std::cout << std::format("\033[{}B", num);
 }
+size_t Console::get_width() {
+    struct winsize size;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+    return size.ws_col;
+}
 
-
+size_t Console::get_height() {
+    struct winsize size;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+    return size.ws_row;
+}
 #endif
