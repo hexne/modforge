@@ -218,7 +218,8 @@ public:
                             const int in_x = start_x + ph;
                             const int in_y = start_y + pw;
 
-                            cur_max = std::max(cur_max, this->in[cur_cannel, in_x, in_y]);
+                            if (cur_max < in[cur_cannel, in_x, in_y])
+								cur_max = in[cur_cannel, in_x, in_y];
                         }
                     }
 
@@ -325,7 +326,7 @@ public:
     FCLayer(int type_count, const FeatureExtent &in_extent) {
         this->in_extent = in_extent;
 
-        out_extent = FeatureExtent { .cannel = type_count, .w = 1, .h = 1 };
+        out_extent = FeatureExtent { .w = 1, .h = 1, .cannel = type_count };
 
         weight_ = Kernels(out_extent.cannel, in_extent.cannel, in_extent.h, in_extent.w);
         fc_in_ = Vector<float>(out_extent.cannel);
