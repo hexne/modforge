@@ -178,7 +178,7 @@ public:
     }
 
     [[nodiscard]]
-    std::string to_string() const {
+    std::string get_string() const {
         std::stringstream ss;
 
         ss << get_ymd() << ' ';
@@ -187,14 +187,14 @@ public:
         return ss.str();
     }
     [[nodiscard]]
-    std::string to_date_string() const {
+    std::string get_date_string() const {
         std::stringstream ss;
         const std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(time_.get_local_time())};
         ss << ymd;
         return ss.str();
     }
     [[nodiscard]]
-    std::string to_clock_string() const {
+    std::string get_clock_string() const {
         std::stringstream ss;
         const std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(time_.get_local_time()) - std::chrono::floor<std::chrono::days>(time_.get_local_time())};
         ss << hms;
@@ -202,7 +202,7 @@ public:
     }
 
     friend std::ostream& operator << (std::ostream& out,const Time &time) {
-        out << time.to_string();
+        out << time.get_string();
         return out;
     }
 
@@ -213,7 +213,7 @@ public:
     
     [[nodiscard]]
     bool compare_time(const Time &time) const {
-        return to_clock_string() == time.to_clock_string();
+        return get_clock_string() == time.get_clock_string();
     }
 
     bool operator == (const Time &time) const {
@@ -268,13 +268,13 @@ struct std::formatter<Time> {
         switch (format_type_) {
             case FormatType::None:
             case FormatType::Time:
-                time_str = time.to_string();
+                time_str = time.get_string();
                 break;
             case FormatType::Date:
-                time_str = time.to_date_string();
+                time_str = time.get_date_string();
                 break;
             case FormatType::Clock:
-                time_str = time.to_clock_string();
+                time_str = time.get_clock_string();
                 break;
             default:
                 break;

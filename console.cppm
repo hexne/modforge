@@ -92,9 +92,18 @@ void Console::cursor_down(int num) {
     std::cout << std::format("\033[{}B", num);
 }
 size_t Console::get_width() {
+    const char* columns = std::getenv("COLUMNS");
+    if (columns) {
+        return std::stoul(columns);
+    }
+
+    // 回退到 ioctl
     struct winsize size;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-    return size.ws_col;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0) {
+        return size.ws_col;
+    }
+
+    return 80; // 默认值
 }
 
 size_t Console::get_height() {
