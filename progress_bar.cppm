@@ -6,6 +6,7 @@ module;
 #include <future>
 #include <string>
 #include <iostream>
+#include <ranges>
 #include <vector>
 export module modforge.progress_bar;
 
@@ -69,9 +70,9 @@ class Progressbar {
     int current_{};
     int console_width = Console::get_width();
 
-    static constexpr int number_width = 5;
+    static constexpr int percentage_width = 5;
     static constexpr int time_width = 10;
-    int width = console_width - time_width - number_width;
+    int width = console_width - time_width - percentage_width;
 
     int name_width = width * 0.20;
     int tab_width = width * 0.05;
@@ -88,6 +89,9 @@ public:
     void set_current(int current) {
         current_ = current;
     }
+    size_t get_current() const {
+        return current_;
+    }
 
 
     std::string get_progress_bar() const {
@@ -95,13 +99,14 @@ public:
         // tab
         auto tab = std::string(tab_width, ' ');
 
+        // 剩余时间
         auto time = std::async(&get_remaining_time, begin_time_, current_, total_, time_width);
 
         // 进度条
         auto bar = std::async(&get_bar, current_, total_, bar_width);
 
         // 百分比
-        auto percentage = std::async(&get_percentage, current_, total_, number_width);
+        auto percentage = std::async(&get_percentage, current_, total_, percentage_width);
 
         return name.get() + tab + time.get() + bar.get() + percentage.get();
     }
@@ -115,33 +120,107 @@ public:
 export
 class Progress {
     int console_width = Console::get_width();
+    int number_width{};
+    int tab_width{};
+    int time_width = 10;
+    int bar_width{};
+    int percentage_width{};
     int total_{}, current_{};
     std::vector<std::pair<std::string, int>> bars_;
+    Progressbar cur_bar_;
+
+    Time begin_time_;
+
+
+    size_t get_max_number_width() const {
+        std::vector<size_t> number_widths(bars_.size());
+        for (int i = 0;i < number_widths.size(); ++i)
+            number_widths[i] = std::to_string(bars_[i].second).size();
+        return *std::max_element(number_widths.begin(), number_widths.end());
+    }
+
+public:
 
     void push(const std::string& name, int total) {
         total_ ++;
         bars_.emplace_back(name, total);
     }
+    Progressbar &cur_bar() {
+        return cur_bar_;
+    }
     Progress& operator += (int num) {
         current_ += num;
-
         return *this;
     }
 
-    std::string get_percentage_bar() {
-        std::string ret;
+    std::string get_progress_bar() {
+        auto first_line = std::async(&Progressbar::get_progress_bar, &cur_bar_);
 
-        return ret;
+        // 数字
+        auto get_number = std::async([this](size_t current, size_t total, size_t width) {
+            std::string format = "({:>" + std::to_string(width) + "}/{})";
+            auto args = std::make_format_args(current, total);
+            return std::vformat(format, args);
+        }, current_, total_, get_max_number_width());
+
+        // 缩进
+        auto tab = std::string(tab_width, ' ');
+
+        // 剩余时间
+        size_t cur{};
+        for (int i = 0;i < current_; ++i)
+            cur += bars_[i].second;
+        cur += cur_bar().get_current();
+        size_t total{};
+        for (const auto &bar : bars_)
+            total += bar.second;
+        auto time = std::async(&get_remaining_time, begin_time_, cur, total, time_width);
+
+        // 进度条
+        auto bar = std::async(&get_bar, cur, total_, bar_width);
+
+        // 百分比
+        auto percentage = std::async(&get_percentage, current_, total_, percentage_width);
+
+        return first_line.get() + '\n' + get_number.get() + tab + time.get() + bar.get() + percentage.get();
     }
 
 
     void print() {
-        // 输出当前progress bar
-        Progressbar pb(bars_[current_].first, bars_[current_].second);
-        std::cout << pb.get_progress_bar() << std::endl;
-
-        // 输出总进度
-
+        std::cout << get_progress_bar() << '\r';
+        Console::cursor_up();
     }
 
 };
+
+
+/*
+
+Progress progress;
+progress.push("归一化"，1000);
+progress.push("训练中"，10000);
+
+while (归一化中)
+    progress.cur_bar() += 1;
+    progress.print();
+
+progress += 1;
+while(训练中)
+    progress.cur_bar() += 1;
+    progress.print();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ */
