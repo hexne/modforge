@@ -78,6 +78,7 @@ class Progressbar {
     int tab_width = width * 0.05;
     int bar_width = width * 0.75;
 public:
+    Progressbar() = default;
     Progressbar(std::string name, int total) : name_(std::move(name)), total_(total) {  }
 
     Progressbar& operator += (int num) {
@@ -119,17 +120,17 @@ public:
 };
 export
 class Progress {
-    int console_width = Console::get_width();
+    int width = Console::get_width();
     int number_width{};
-    int tab_width{};
+    int tab_width = width * 0.05;
     int time_width = 10;
     int bar_width{};
-    int percentage_width{};
+    int percentage_width = 5;
     int total_{}, current_{};
     std::vector<std::pair<std::string, int>> bars_;
-    Progressbar cur_bar_;
+    Progressbar cur_bar_{};
 
-    Time begin_time_;
+    Time begin_time_{};
 
 
     size_t get_max_number_width() const {
@@ -138,18 +139,31 @@ class Progress {
             number_widths[i] = std::to_string(bars_[i].second).size();
         return *std::max_element(number_widths.begin(), number_widths.end());
     }
+    void updata_width() {
+        number_width = get_max_number_width() * 2 + 3;
+        bar_width = width * 0.7;
 
+    }
 public:
+    Progress() = default;
 
     void push(const std::string& name, int total) {
         total_ ++;
         bars_.emplace_back(name, total);
+
+        if (total_ == 1)
+            cur_bar_ = Progressbar(name, total);
+
+        updata_width();
     }
     Progressbar &cur_bar() {
         return cur_bar_;
     }
     Progress& operator += (int num) {
         current_ += num;
+
+        cur_bar_ = Progressbar(bars_[current_].first, bars_[current_].second);
+
         return *this;
     }
 
@@ -184,7 +198,6 @@ public:
 
         return first_line.get() + '\n' + get_number.get() + tab + time.get() + bar.get() + percentage.get();
     }
-
 
     void print() {
         std::cout << get_progress_bar() << '\r';
