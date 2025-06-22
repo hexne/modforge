@@ -8,7 +8,7 @@ module;
 #include <iostream>
 #include <ranges>
 #include <vector>
-export module modforge.progress_bar;
+export module modforge.progress;
 
 import modforge.console;
 import modforge.time;
