@@ -96,20 +96,20 @@ public:
 
 
     std::string get_progress_bar() const {
-        auto name = get_name( name_, name_width);
+        auto name = std::async(get_name, name_, name_width);
         // tab
         auto tab = std::string(tab_width, ' ');
 
         // 剩余时间
-        auto time = get_remaining_time( begin_time_, current_, total_, time_width);
+        auto time = std::async(get_remaining_time, begin_time_, current_, total_, time_width);
 
         // 进度条
-        auto bar = get_bar( current_, total_, bar_width);
+        auto bar = std::async(get_bar, current_, total_, bar_width);
 
         // 百分比
-        auto percentage = get_percentage( current_, total_, percentage_width);
+        auto percentage = std::async(get_percentage, current_, total_, percentage_width);
 
-        return name + tab + time + bar + percentage;
+        return name.get() + tab + time.get() + bar.get() + percentage.get();
     }
 
     void print() {
@@ -144,10 +144,7 @@ class Progress {
 
     void updata_width() {
         number_width = get_max_number_width() * 2 + 3;
-
         tab_width = width * 0.25 - number_width;
-        if (tab_width < 0)
-            tab_width = 0;
     }
 public:
     Progress() = default;
@@ -174,15 +171,15 @@ public:
     }
 
     std::string get_progress_bar() {
-        auto first_line = cur_bar_.get_progress_bar();
+        auto first_line = std::async(&Progressbar::get_progress_bar, cur_bar_);
 
         // 数字
-        auto get_number = [this](size_t current, size_t total, size_t width) {
+        auto get_number = std::async([this](size_t current, size_t total, size_t width) {
             std::string format = "({:>" + std::to_string(width) + "}/{})";
             current ++;
             auto args = std::make_format_args(current, total);
             return std::vformat(format, args);
-        }(current_, total_, get_max_number_width());
+        }, current_, total_, get_max_number_width());
 
         // 缩进
         auto tab = std::string(tab_width, ' ');
@@ -195,20 +192,24 @@ public:
         size_t total{};
         for (const auto &bar_total : bars_ | std::views::values)
             total += bar_total;
-        auto time = get_remaining_time( begin_time_, cur, total, time_width);
+        auto time = std::async(get_remaining_time, begin_time_, cur, total, time_width);
 
         // 进度条
-        auto bar = get_bar( cur, total, bar_width);
+        auto bar = std::async(get_bar, cur, total, bar_width);
 
         // 百分比
-        auto percentage = get_percentage( cur, total, percentage_width);
+        auto percentage = std::async(get_percentage, cur, total, percentage_width);
 
-        return first_line + '\n' + get_number + tab + time + bar + percentage;
+        return first_line.get() + '\n' + get_number.get() + tab + time.get() + bar.get() + percentage.get();
     }
 
     void print() {
         std::cout << get_progress_bar() << '\r';
         Console::cursor_up();
+    }
+
+    ~Progress() {
+        std::cout << std::endl << std::endl;
     }
 
 };
