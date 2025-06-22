@@ -80,6 +80,9 @@ class Progressbar {
 public:
     Progressbar() = default;
     Progressbar(std::string name, int total) : name_(std::move(name)), total_(total) {  }
+    ~Progressbar() {
+        std::endl(std::cout);
+    }
 
     Progressbar& operator += (int num) {
         current_ += num;
