@@ -305,7 +305,7 @@ public:
     }
 
     void backward(const FeatureMap &) override {  }
-    
+
     void backward(const Vector<float> & next_gradient) {
 
     }
@@ -372,12 +372,11 @@ public:
         auto end_layer = dynamic_cast<FCLayer *>(layers_.back().get());
         auto out = end_layer->fc_out_;
 
+        // @TODO 最后一层的梯度实现,暂时这样，为了快速搭建框架
         auto end_gradient = (res - out);
         end_layer->backward(end_gradient);
-
-
-
-
+        for (int i = layers_.size() - 2; i >= 0; i--)
+            layers_[i]->backward(layers_[i+1]->gradient);
     }
 
 
@@ -392,13 +391,19 @@ public:
             throw std::runtime_error("load_dataset is not define");
 
         auto dataset = load_dataset(feature_path, label_path);
-        Progressbar pb("训练中...", dataset.size());
 
-        for (const auto &[feature_map, label] : dataset) {
-            pb += 1;
-            pb.print();
-            train(feature_map, label);
+        Progress progress(false);
+        for (int i = 0;i < train_count; ++i) {
+            progress.push(std::string("train epoch is ") + std::to_string(i+1), dataset.size());
+        }
 
+        for (int epoch = 0; epoch < train_count; ++epoch) {
+            for (const auto &[feature_map, label] : dataset) {
+                train(feature_map, label);
+                progress.cur_bar() += 1;
+                progress.print();
+            }
+            progress += 1;
         }
 
     }

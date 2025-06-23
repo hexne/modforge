@@ -69,6 +69,7 @@ class Progressbar {
     int total_{};
     int current_{};
     int console_width = Console::get_width();
+    bool destruct_print_endl_ = true;
 
     static constexpr int percentage_width = 5;
     static constexpr int time_width = 10;
@@ -79,9 +80,12 @@ class Progressbar {
     int bar_width = width * 0.75;
 public:
     Progressbar() = default;
-    Progressbar(std::string name, int total) : name_(std::move(name)), total_(total) {  }
+    Progressbar(std::string name, int total, bool print_endl = true)
+        : name_(std::move(name)), total_(total), destruct_print_endl_(print_endl) {  }
+
     ~Progressbar() {
-        std::endl(std::cout);
+        if (destruct_print_endl_)
+            std::endl(std::cout);
     }
 
     Progressbar& operator += (int num) {
@@ -89,12 +93,14 @@ public:
         return *this;
     }
 
-
     void set_current(int current) {
         current_ = current;
     }
     size_t get_current() const {
         return current_;
+    }
+    void destruct_print_endl(bool flag) {
+        destruct_print_endl_ = flag;
     }
 
 
@@ -139,7 +145,7 @@ class Progress {
     Progressbar cur_bar_{};
 
     Time begin_time_{};
-
+    bool show_history_;
 
     size_t get_max_number_width() const {
         return std::to_string(bars_.size()).size();
@@ -150,14 +156,15 @@ class Progress {
         tab_width = width * 0.25 - number_width;
     }
 public:
-    Progress() = default;
+    explicit Progress(bool show_history = true) : show_history_(show_history) {  }
 
     void push(const std::string& name, int total) {
         total_ ++;
         bars_.emplace_back(name, total);
 
+        cur_bar_.destruct_print_endl(false);
         if (total_ == 1)
-            cur_bar_ = Progressbar(name, total);
+            cur_bar_ = Progressbar(name, total, false);
 
         updata_width();
     }
@@ -167,8 +174,10 @@ public:
     Progress& operator += (int num) {
         current_ += num;
 
-        std::endl(std::cout);
-        cur_bar_ = Progressbar(bars_[current_].first, bars_[current_].second);
+        if (show_history_)
+            std::endl(std::cout);
+
+        cur_bar_ = Progressbar(bars_[current_].first, bars_[current_].second, false);
 
         return *this;
     }

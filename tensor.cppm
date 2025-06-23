@@ -38,7 +38,7 @@ public:
 
         Vector ret(data_->size());
         for (int i = 0;i < data_->size();i++)
-            ret[i] =  data_.operator[](i) - right[i];
+            ret[i] =  data_->operator[](i) - right[i];
 
         return ret;
     }
