@@ -123,7 +123,7 @@ void update_gradient() {
 }
 
 struct Layer {
-    FeatureMap in, out, gradient;
+    FeatureMap in, out, gradient, old_gradient;
     FeatureExtent in_extent, out_extent;
 
     virtual void forward(const FeatureMap &) = 0;
@@ -372,8 +372,8 @@ public:
         auto end_layer = dynamic_cast<FCLayer *>(layers_.back().get());
         auto out = end_layer->fc_out_;
 
-        // @TODO 最后一层的梯度实现,暂时这样，为了快速搭建框架
-        auto end_gradient = (res - out);
+        auto end_gradient = loss_->deaction(out, res);
+
         end_layer->backward(end_gradient);
         for (int i = layers_.size() - 2; i >= 0; i--)
             layers_[i]->backward(layers_[i+1]->gradient);

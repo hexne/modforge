@@ -54,6 +54,9 @@ struct LossFunction {
     virtual double action(double predicted_value, double true_value) = 0;
     virtual double deaction(double predicted_value, double true_value) = 0;
 
+    virtual Vector<float> action(Vector<float> predicted_value, Vector<float> true_value) = 0;
+    virtual Vector<float> deaction(Vector<float> predicted_value, Vector<float> true_value) = 0;
+
     virtual ~LossFunction() = default;
 };
 
@@ -65,14 +68,27 @@ struct MeanSquaredError : LossFunction {
     double deaction(double predicted_value, double true_value) override {
         return predicted_value - true_value;
     }
-};
-struct CrossEntropy : LossFunction {
-    double action(double target, double pred) override {
-        return -target * std::log(pred + 1e-15f); // 防止 log(0)
+
+    Vector<float> action(Vector<float> predicted_value, Vector<float> true_value) override {
+        if (predicted_value.size() != true_value.size())
+            throw std::invalid_argument("predicted_value.size() != true_value.size()");
+
+        Vector<float> ret(predicted_value.size());
+        for (int i = 0;i < predicted_value.size(); ++i)
+            ret[i] = action(predicted_value[i], true_value[i]);
+
+        return ret;
     }
 
-    double deaction(double target, double pred) override {
-        return pred - target; // Softmax 的梯度
+    Vector<float> deaction(Vector<float> predicted_value, Vector<float> true_value) override {
+        if (predicted_value.size() != true_value.size())
+            throw std::invalid_argument("predicted_value.size() != true_value.size()");
+
+        Vector<float> ret(predicted_value.size());
+        for (int i = 0;i < predicted_value.size(); ++i)
+            ret[i] = deaction(predicted_value[i], true_value[i]);
+
+        return ret;
     }
 };
 
