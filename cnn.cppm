@@ -367,9 +367,14 @@ public:
             throw std::runtime_error("load_dataset is not define");
 
         auto dataset = load_dataset(feature_path, label_path);
+        Progressbar pb("训练中...", dataset.size());
 
-        for (const auto &[feature_map, label] : dataset)
+        for (const auto &[feature_map, label] : dataset) {
+            pb += 1;
+            pb.print();
             train(feature_map, label);
+
+        }
 
     }
 };
