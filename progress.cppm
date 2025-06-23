@@ -14,11 +14,11 @@ import modforge.console;
 import modforge.time;
 
 std::string get_name(const std::string &name, size_t width) {
-    if (name.size() < width) {
+    if (name.size() <= width) {
         std::string format = std::string() + "{:" + std::to_string(width) + "}";
         return std::vformat(format, std::make_format_args(name));
     }
-    std::string format = std::string() + "{:." + std::to_string(width) + "}...";
+    std::string format = std::string() + "{:." + std::to_string(width - 3) + "}...";
     return std::vformat(format, std::make_format_args(name));
 }
 
@@ -162,9 +162,9 @@ public:
         total_ ++;
         bars_.emplace_back(name, total);
 
-        cur_bar_.destruct_print_endl(false);
+        cur_bar_.destruct_print_endl(show_history_);
         if (total_ == 1)
-            cur_bar_ = Progressbar(name, total, false);
+            cur_bar_ = Progressbar(name, total, show_history_);
 
         updata_width();
     }
@@ -177,7 +177,7 @@ public:
         if (show_history_)
             std::endl(std::cout);
 
-        cur_bar_ = Progressbar(bars_[current_].first, bars_[current_].second, false);
+        cur_bar_ = Progressbar(bars_[current_].first, bars_[current_].second, show_history_);
 
         return *this;
     }
