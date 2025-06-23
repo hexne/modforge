@@ -14,6 +14,7 @@ import modforge.console;
 import modforge.progress;
 import modforge.deep_learning.tools;
 
+// @TODO, 所有的梯度都应该在构造函数中创建出来
 
 using PoolWindow = Tensor<float, 2>;
 using FeatureMap = Tensor<float, 3>;
@@ -113,13 +114,18 @@ FeatureExtent get_out_extent(const FeatureExtent&in_extent, const PoolWindow &po
     return ret;
 }
 
-// 更新权重
-void update_weight() {
+#define LEARNING_RATE 0.01
+#define MOMENTUM 0.6
+#define WEIGHT_DECAY 0.001
 
+static float update_weight( float w, float &grad, float &old_grad, float multp = 1 ) {
+    // w -= LEARNING_RATE * grad.grad;
+    w -= LEARNING_RATE  * (grad + old_grad * MOMENTUM) * multp + LEARNING_RATE * WEIGHT_DECAY * w;
+    return w;
 }
-// 更新梯度
-void update_gradient() {
 
+static void update_gradient(float& grad, float &old_grad) {
+    old_grad = grad + old_grad * MOMENTUM;
 }
 
 struct Layer {
@@ -148,8 +154,6 @@ public:
             val = 1.0f / N * rand() / 2147483647.0; //随机的值是有讲究的，这个是CNN常用的卷积核随机初值设置
         });
 
-        // @TODO 梯度
-        // gradient = Kernels(n, in_extent.cannel, size, size);
     }
 
     void forward(const FeatureMap &in) override {
@@ -188,7 +192,10 @@ public:
         }
     }
 
-    void backward(const FeatureMap &) override {
+    void backward(const FeatureMap &next_gradient) override {
+
+        // 梯度分为卷积核梯度和梯度
+
 
     }
 
@@ -238,10 +245,45 @@ public:
         }
     }
 
-    void backward(const FeatureMap &) override {
+    void backward(const FeatureMap &next_gradient) override {
+        FeatureMap gradient(in_extent.cannel, in_extent.h, in_extent.w);
+        // 必须初始化为 全0 矩阵，最大池化 反向传播时只有最大值处会被传递梯度
+        gradient.foreach([](float &val) {
+            val = 0.f;
+        });
 
+        for (int c = 0; c < out_extent.cannel; ++c) {
+            for (int oh = 0; oh < out_extent.h; ++oh) {
+                for (int ow = 0; ow < out_extent.w; ++ow) {
+                    int max_h = -1, max_w = -1;
+                    float max_val = std::numeric_limits<float>::lowest();
+                    // 遍历池化窗口
+                    for (int ph = 0; ph < pool_window_.extent(0); ++ph) {
+                        for (int pw = 0; pw < pool_window_.extent(1); ++pw) {
+                            int ih = oh * stride_ + ph;
+                            int iw = ow * stride_ + pw;
+                            // if (ih < 0 || ih >= in_extent.h || iw < 0 || iw >= in_extent.w)
+                            //     continue;
+                            if (in[c, ih, iw] > max_val) {
+                                max_val = in[c, ih, iw];
+                                max_h = ih;
+                                max_w = iw;
+                            }
+                        }
+                    }
+
+                    // 只在最大值位置回传梯度
+                    if (max_h != -1 && max_w != -1) {
+                        gradient[c, max_h, max_w] = next_gradient[c, oh, ow];
+                    }
+                }
+            }
+        }
+        this->gradient = std::move(gradient);
     }
+
 };
+
 class ActionLayer : public Layer {
     std::shared_ptr<Activation> action_;
 public:
@@ -258,7 +300,16 @@ public:
             val = action_->action(val);
         });
     }
-    void backward(const FeatureMap &) override {
+    void backward(const FeatureMap &next_gradient) override {
+        for (int z = 0; z < in_extent.cannel; ++z) {
+            for (int x = 0; x < in_extent.h; ++x) {
+                for (int y = 0; y < in_extent.w; ++y) {
+                    gradient[z, x, y] = action_->deaction(in[z, x, y]) * next_gradient[z, x, y];
+                    // 这一层没有也不需要更新梯度和权重
+                }
+            }
+        }
+
 
     }
 };
@@ -308,6 +359,34 @@ public:
 
     void backward(const Vector<float> & next_gradient) {
 
+        // 应该有两个gradient,一个一维的(下面两行)，一个和输入尺寸相同（在Layer里）
+        static Vector<float> once_gradient(next_gradient.size());
+        static Vector<float> once_gradient_old(next_gradient.size());
+
+        // 对于每个输出的神经元
+        for (int n = 0; n < fc_out_.size(); ++n) {
+
+            auto &tmp_grad = once_gradient[n];
+            auto &tmp_old_grad = once_gradient_old[n];
+            tmp_grad = next_gradient[n] * action_->deaction(fc_in_[n]);
+
+            for (int z = 0; z < in_extent.cannel; ++z) {
+                for (int x = 0; x < in_extent.h; ++x) {
+                    for (int y = 0; y < in_extent.w; ++y) {
+                        // 下一层使用的误差
+                        gradient[z, x, y] = tmp_grad * weight_[n, z, x, y];
+
+                        // 更新权重
+                        auto &w = weight_[n, z, x, y];
+                        update_weight(w, tmp_grad, tmp_old_grad, in[z, x, y]);
+
+                    }
+                }
+            }
+            // 更新梯度
+            update_gradient(tmp_grad, tmp_old_grad);
+        }
+
     }
 
 };
@@ -330,10 +409,6 @@ class CNN {
         return ret;
     }
 
-    // @TODO 对数据进行加载，打乱，等操作
-    void process_data() {
-
-    }
 
 public:
     std::function<std::vector<Data>(const std::string &, const std::string &)> load_dataset = load_dataset_impl;
