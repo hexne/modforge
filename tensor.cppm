@@ -32,6 +32,17 @@ public:
     Vector &operator = (const Vector &) = default;
     Vector &operator = (Vector &&) = default;
 
+    Vector operator - (const Vector &right) const {
+        if (data_->size() != right.data_->size())
+            throw std::runtime_error("Vector size mismatch");
+
+        Vector ret(data_->size());
+        for (int i = 0;i < data_->size();i++)
+            ret[i] =  data_.operator[](i) - right[i];
+
+        return ret;
+    }
+
     Vector operator *(const Tensor<T, 2> &tensor) {
         if (data_->size() != tensor.extent(0)) {
             throw std::runtime_error(std::format("{}x{} cant * {}x{}", 1, data_->size(), tensor.extent(0), tensor.extent(1)));

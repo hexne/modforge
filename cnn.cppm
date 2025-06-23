@@ -127,7 +127,7 @@ struct Layer {
     FeatureExtent in_extent, out_extent;
 
     virtual void forward(const FeatureMap &) = 0;
-    // virtual void backward() = 0;
+    virtual void backward(const FeatureMap &) = 0;
     virtual ~Layer() = default;
 };
 
@@ -188,6 +188,10 @@ public:
         }
     }
 
+    void backward(const FeatureMap &) override {
+
+    }
+
 };
 class PoolLayer : public Layer {
     PoolWindow pool_window_;
@@ -233,6 +237,10 @@ public:
             }
         }
     }
+
+    void backward(const FeatureMap &) override {
+
+    }
 };
 class ActionLayer : public Layer {
     std::shared_ptr<Activation> action_;
@@ -249,6 +257,9 @@ public:
         this->out.foreach([&](float &val) {
             val = action_->action(val);
         });
+    }
+    void backward(const FeatureMap &) override {
+
     }
 };
 
@@ -292,6 +303,13 @@ public:
             fc_out_[cur_kernel] = action_->action(sum);
         }
     }
+
+    void backward(const FeatureMap &) override {  }
+    
+    void backward(const Vector<float> & next_gradient) {
+
+    }
+
 };
 
 
@@ -312,7 +330,7 @@ class CNN {
         return ret;
     }
 
-
+    // @TODO 对数据进行加载，打乱，等操作
     void process_data() {
 
     }
@@ -351,6 +369,13 @@ public:
     }
     // 在 CNN 类中
     void backward(const Vector<float> &res) {
+        auto end_layer = dynamic_cast<FCLayer *>(layers_.back().get());
+        auto out = end_layer->fc_out_;
+
+        auto end_gradient = (res - out);
+        end_layer->backward(end_gradient);
+
+
 
 
     }
