@@ -3,499 +3,760 @@
 * @Date   : 2025/05/21 16:27:03
 ********************************************************************************/
 module;
-#include <vector>
-#include <iostream>
 #include <fstream>
-#include <functional>
+#include <cfloat>
+#include <vector>
+#include <cmath>
+#include <memory>
+#include <cstdint>
 export module modforge.deep_learning.cnn;
 
 import modforge.tensor;
-import modforge.console;
-import modforge.progress;
 import modforge.deep_learning.tools;
 
-// @TODO, 所有的梯度都应该在构造函数中创建出来
-
-using PoolWindow = Tensor<float, 2>;
-using FeatureMap = Tensor<float, 3>;
-using Kernels    = Tensor<float, 4>;
-using Label      = Vector<float>;
-struct FeatureExtent {
-    int w{};
-    int h{};
-    int cannel{};
+export struct gradient_t
+{
+    float grad,oldgrad;
+    gradient_t(): grad(0), oldgrad(0) {}
 };
-struct Data {
-    FeatureMap feature_map;
-    Label label;
-};
-
-int32_t swap_endian(int32_t val) {
-    return ((val >> 24) & 0xff) | ((val << 8) & 0xff0000) |
-           ((val >> 8) & 0xff00) | ((val << 24) & 0xff000000);
-}
-
-std::vector<Data> load_dataset_impl(const std::string &path_images, const std::string &path_labels) {
-    std::vector<Data> ret;
-
-    std::ifstream images_in(path_images, std::ios::binary);
-    if (!images_in) throw std::runtime_error("Failed to open images file: " + path_images);
-
-    int32_t magic, num_images, rows, cols;
-    images_in.read(reinterpret_cast<char*>(&magic), 4);
-    images_in.read(reinterpret_cast<char*>(&num_images), 4);
-    images_in.read(reinterpret_cast<char*>(&rows), 4);
-    images_in.read(reinterpret_cast<char*>(&cols), 4);
-
-    magic = swap_endian(magic);
-    num_images = swap_endian(num_images);
-    rows = swap_endian(rows);
-    cols = swap_endian(cols);
-
-    std::ifstream labels_in(path_labels, std::ios::binary);
-    if (!labels_in) throw std::runtime_error("Failed to open labels file: " + path_labels);
-
-    int32_t label_magic, label_count;
-    labels_in.read(reinterpret_cast<char*>(&label_magic), 4);
-    labels_in.read(reinterpret_cast<char*>(&label_count), 4);
-    label_magic = swap_endian(label_magic);
-    label_count = swap_endian(label_count);
-
-    if (magic != 2051 || label_magic != 2049 || num_images != label_count)
-        throw std::runtime_error("Invalid MNIST file format");
-
-    std::vector<uint8_t> image_data(num_images * rows * cols);
-    std::vector<uint8_t> label_data(num_images);
-
-    images_in.read(reinterpret_cast<char*>(image_data.data()), image_data.size());
-    labels_in.read(reinterpret_cast<char*>(label_data.data()), label_data.size());
-
-    constexpr int num_classes = 10;
-    ret.reserve(num_images);
-
-    Progressbar pb("加载数据...", num_images);
-    for (int i = 0; i < num_images; ++i) {
-        pb += 1;
-        pb.print();
-
-        FeatureMap image(1, rows, cols);
-        for (int r = 0; r < rows; ++r) {
-            for (int c = 0; c < cols; ++c) {
-                image[0, r, c] = static_cast<float>(image_data[i * rows * cols + r * cols + c]);
-            }
-        }
-
-        Label label = OneHot::type_to_onehot<num_classes>(label_data[i]);
-
-        ret.emplace_back(Data{image, label});
-    }
-    // std::endl(std::cout);
-
-    return ret;
-}
-
-FeatureExtent get_out_extent(const FeatureExtent&in_extent, const Kernels &kernels, size_t stride, size_t padding) {
-    FeatureExtent ret;
-
-    ret.h = (in_extent.h + 2 * padding - kernels.extent(2)) / stride + 1;
-    ret.w = (in_extent.w + 2 * padding - kernels.extent(3)) / stride + 1;
-    ret.cannel = kernels.extent(0);
-
-    return ret;
-}
-
-FeatureExtent get_out_extent(const FeatureExtent&in_extent, const PoolWindow &pool_window, size_t stride, size_t padding) {
-    FeatureExtent ret;
-
-    ret.h = (in_extent.h + 2 * padding - pool_window.extent(0)) / stride + 1;
-    ret.w = (in_extent.w + 2 * padding - pool_window.extent(1)) / stride + 1;
-    ret.cannel = in_extent.cannel;
-
-    return ret;
-}
 
 #define LEARNING_RATE 0.01
 #define MOMENTUM 0.6
 #define WEIGHT_DECAY 0.001
 
-static float update_weight( float w, float &grad, float &old_grad, float multp = 1 ) {
+export float update_weight( float w, gradient_t& grad, float multp = 1 )
+{
     // w -= LEARNING_RATE * grad.grad;
-    w -= LEARNING_RATE  * (grad + old_grad * MOMENTUM) * multp + LEARNING_RATE * WEIGHT_DECAY * w;
+    w -= LEARNING_RATE  * (grad.grad + grad.oldgrad * MOMENTUM) * multp + LEARNING_RATE * WEIGHT_DECAY * w;
     return w;
 }
 
-static void update_gradient(float& grad, float &old_grad) {
-    old_grad = grad + old_grad * MOMENTUM;
+export void update_gradient( gradient_t& grad )
+{
+    grad.oldgrad = (grad.grad + grad.oldgrad * MOMENTUM);
 }
 
-struct Layer {
-    FeatureMap in, out, gradient, old_gradient;
-    FeatureExtent in_extent, out_extent;
 
-    virtual void forward(const FeatureMap &) = 0;
-    virtual void backward(const FeatureMap &) = 0;
-    virtual ~Layer() = default;
+export struct FeatureExtent {
+    int x{}, y{}, z{};
 };
 
-class ConvLayer : public Layer {
-    size_t stride_, padding_;
-    Kernels kernels_;
-public:
-    ConvLayer(size_t n , size_t size, FeatureExtent in_extent, size_t stride = 1, size_t padding = 0)
-           : stride_(stride), padding_(padding) {
+export template<typename T>
+struct tensor_t {
+    Tensor<T, 3> data_;
 
-        this->in_extent = in_extent;
-        out_extent = get_out_extent(in_extent, kernels_, stride, padding);
+    FeatureExtent size;
 
-        kernels_ = Kernels(n, in_extent.cannel, size, size);
-        int N = in_extent.w * in_extent.h * in_extent.cannel;
-
-        kernels_.foreach([=](float &val) {
-            val = 1.0f / N * rand() / 2147483647.0; //随机的值是有讲究的，这个是CNN常用的卷积核随机初值设置
-        });
-
+    tensor_t( int x, int y, int z ) {
+        data_ = Tensor<T, 3>( z, x, y);
+        size.x = x, size.y = y, size.z = z;
     }
 
-    void forward(const FeatureMap &in) override {
-        this->in = in;
-
-        int kernel_z = kernels_.extent(1);
-        int kernel_h = kernels_.extent(2);
-        int kernel_w = kernels_.extent(3);
-
-        this->out = FeatureMap(out_extent.cannel, out_extent.h, out_extent.w);
-
-        for (int z = 0; z < out_extent.cannel; ++z) {
-
-            for (int x = 0; x < out_extent.h; ++x) {
-                for (int y = 0; y < out_extent.w; ++y) {
-                    float sum{};
-
-                    const int h_start = x * stride_ - padding_;
-                    const int w_start = y * stride_ - padding_;
-
-                    for (int kz = 0; kz < kernel_z; ++kz) {
-                        for (int kh = 0; kh < kernel_h; ++kh) {
-                            for (int kw = 0; kw < kernel_w; ++kw) {
-
-                                const int ih = h_start + kh;
-                                const int iw = w_start + kw;
-
-                                sum += this->in[kz, ih, iw] * kernels_[z, kz, kh, kw];
-                            }
-                        }
-                    }
-
-                    this->out[z, x, y] = sum;
-                }
-            }
-        }
+    tensor_t( const tensor_t& other ) {
+        data_ = other.data_;
+        this->size = other.size;
     }
 
-    void backward(const FeatureMap &next_gradient) override {
-
-        // 梯度分为卷积核梯度和梯度
-
-
-    }
-
-};
-class PoolLayer : public Layer {
-    PoolWindow pool_window_;
-    size_t stride_;
-
-public:
-    PoolLayer(size_t window_size, const FeatureExtent &in_extent, size_t stride = 1, size_t padding = 0) {
-        this->in_extent = in_extent;
-        stride_ = stride;
-        pool_window_ = PoolWindow(window_size, window_size);
-        out_extent = get_out_extent(this->in_extent, pool_window_, stride, padding);
-    }
-
-    void forward(const FeatureMap &in) override {
-        this->in = in;
-
-        const int pool_h = pool_window_.extent(0);
-        const int pool_w = pool_window_.extent(1);
-
-        this->out = FeatureMap(out_extent.cannel, out_extent.h, out_extent.w);
-
-        for (int cur_cannel = 0; cur_cannel < out_extent.cannel; ++cur_cannel) {
-            for (int oh = 0; oh < out_extent.h; ++oh) {
-                for (int ow = 0; ow < out_extent.w; ++ow) {
-
-                    float cur_max = std::numeric_limits<float>::lowest();
-
-                    const int start_x = oh * stride_;
-                    const int start_y = ow * stride_;
-
-                    for (int ph = 0; ph < pool_h; ++ph) {
-                        for (int pw = 0; pw < pool_w; ++pw) {
-                            const int in_x = start_x + ph;
-                            const int in_y = start_y + pw;
-
-                            if (cur_max < in[cur_cannel, in_x, in_y])
-                                cur_max = in[cur_cannel, in_x, in_y];
-                        }
-                    }
-
-                    this->out[cur_cannel, oh, ow] = cur_max;
-                }
-            }
-        }
-    }
-
-    void backward(const FeatureMap &next_gradient) override {
-        FeatureMap gradient(in_extent.cannel, in_extent.h, in_extent.w);
-        // 必须初始化为 全0 矩阵，最大池化 反向传播时只有最大值处会被传递梯度
-        gradient.foreach([](float &val) {
-            val = 0.f;
-        });
-
-        for (int c = 0; c < out_extent.cannel; ++c) {
-            for (int oh = 0; oh < out_extent.h; ++oh) {
-                for (int ow = 0; ow < out_extent.w; ++ow) {
-                    int max_h = -1, max_w = -1;
-                    float max_val = std::numeric_limits<float>::lowest();
-                    // 遍历池化窗口
-                    for (int ph = 0; ph < pool_window_.extent(0); ++ph) {
-                        for (int pw = 0; pw < pool_window_.extent(1); ++pw) {
-                            int ih = oh * stride_ + ph;
-                            int iw = ow * stride_ + pw;
-                            // if (ih < 0 || ih >= in_extent.h || iw < 0 || iw >= in_extent.w)
-                            //     continue;
-                            if (in[c, ih, iw] > max_val) {
-                                max_val = in[c, ih, iw];
-                                max_h = ih;
-                                max_w = iw;
-                            }
-                        }
-                    }
-
-                    // 只在最大值位置回传梯度
-                    if (max_h != -1 && max_w != -1) {
-                        gradient[c, max_h, max_w] = next_gradient[c, oh, ow];
-                    }
-                }
-            }
-        }
-        this->gradient = std::move(gradient);
-    }
-
-};
-
-class ActionLayer : public Layer {
-    std::shared_ptr<Activation> action_;
-public:
-    ActionLayer(const FeatureExtent& in_extent ,std::shared_ptr<Activation> action = std::make_shared<Sigmoid>())
-        : action_(std::move(action)) {
-
-        this->in_extent = this->out_extent = in_extent;
-    }
-
-    void forward(const FeatureMap &in) override {
-        this->in = in;
-        this->out = this->in.copy();
-        this->out.foreach([&](float &val) {
-            val = action_->action(val);
-        });
-    }
-    void backward(const FeatureMap &next_gradient) override {
-        for (int z = 0; z < in_extent.cannel; ++z) {
-            for (int x = 0; x < in_extent.h; ++x) {
-                for (int y = 0; y < in_extent.w; ++y) {
-                    gradient[z, x, y] = action_->deaction(in[z, x, y]) * next_gradient[z, x, y];
-                    // 这一层没有也不需要更新梯度和权重
-                }
-            }
-        }
-
-
-    }
-};
-
-export class CNN;
-class FCLayer : public Layer {
-    friend class CNN;
-    Kernels weight_;
-    Vector<float> fc_in_, fc_out_;
-    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
-
-public:
-    FCLayer(int type_count, const FeatureExtent &in_extent) {
-        this->in_extent = in_extent;
-
-        out_extent = FeatureExtent { .w = 1, .h = 1, .cannel = type_count };
-
-        weight_ = Kernels(out_extent.cannel, in_extent.cannel, in_extent.h, in_extent.w);
-        fc_in_ = Vector<float>(out_extent.cannel);
-        fc_out_ = Vector<float>(out_extent.cannel);
-        int N = in_extent.h * in_extent.w * in_extent.cannel;
-
-        weight_.foreach([=](float &val) {
-            val = 2.19722f / N * rand() / float( RAND_MAX );
-        });
-
-    }
-
-    void forward(const FeatureMap &in) override {
-        this->in = in;
-
-        for (int cur_kernel = 0; cur_kernel < out_extent.cannel; ++cur_kernel) {
-            float sum{};
-            for (int z = 0; z < in_extent.cannel; ++z) {
-                for (int x = 0; x < in_extent.h; ++x) {
-                    for (int y = 0; y < in_extent.w; ++y) {
-                        sum += weight_[cur_kernel, z, x, y] * in[z, x, y];
-                    }
-                }
-            }
-            fc_in_[cur_kernel] = sum;
-            fc_out_[cur_kernel] = action_->action(sum);
-        }
-    }
-
-    void backward(const FeatureMap &) override {  }
-
-    void backward(const Vector<float> & next_gradient) {
-
-        // 应该有两个gradient,一个一维的(下面两行)，一个和输入尺寸相同（在Layer里）
-        static Vector<float> once_gradient(next_gradient.size());
-        static Vector<float> once_gradient_old(next_gradient.size());
-
-        // 对于每个输出的神经元
-        for (int n = 0; n < fc_out_.size(); ++n) {
-
-            auto &tmp_grad = once_gradient[n];
-            auto &tmp_old_grad = once_gradient_old[n];
-            tmp_grad = next_gradient[n] * action_->deaction(fc_in_[n]);
-
-            for (int z = 0; z < in_extent.cannel; ++z) {
-                for (int x = 0; x < in_extent.h; ++x) {
-                    for (int y = 0; y < in_extent.w; ++y) {
-                        // 下一层使用的误差
-                        gradient[z, x, y] = tmp_grad * weight_[n, z, x, y];
-
-                        // 更新权重
-                        auto &w = weight_[n, z, x, y];
-                        update_weight(w, tmp_grad, tmp_old_grad, in[z, x, y]);
-
-                    }
-                }
-            }
-            // 更新梯度
-            update_gradient(tmp_grad, tmp_old_grad);
-        }
-
-    }
-
-};
-
-
-class CNN {
-    FeatureExtent in_extent;
-    std::vector<std::shared_ptr<Layer>> layers_;
-    std::vector<Data> train_, test_;
-    std::shared_ptr<LossFunction> loss_ = std::make_shared<MeanSquaredError>();
-
-
-    [[nodiscard]]
-    FeatureExtent get_cur_in_extent() const {
-        FeatureExtent ret;
-        if (layers_.empty())
-            ret = in_extent;
-        else
-            ret = layers_.back()->out_extent;
+    tensor_t<T> operator + ( tensor_t<T>& other ) {
+        tensor_t<T> ret(size.x, size.y, size.z);
+        ret.data_ = data_ + other.data_;
         return ret;
     }
 
+    tensor_t<T> operator - ( tensor_t<T>& other ) {
+        tensor_t<T> ret(size.x, size.y, size.z);
+        ret.data_ = data_ - other.data_;
+        return ret;
+    }
+
+    T& operator()( int x, int y, int z ) {
+        return data_[z, x, y];
+    }
+    T& operator[](int x, int y, int z) {
+        return data_[z, x, y];
+    }
+
+    T& get( int x, int y, int z ) {
+        return data_[z, x, y];
+    }
+
+};
+
+export Tensor<float, 3> clone(tensor_t<float> &in) {
+    Tensor<float, 3> ret(in.size.z, in.size.x, in.size.y);
+    for (int z = 0; z < in.size.z; z++) {
+        for (int x = 0; x < in.size.x; x++) {
+            for (int y = 0; y < in.size.y; y++) {
+                ret[z, x, y] = in(x, y, z);
+            }
+        }
+    }
+    return ret;
+}
+
+export tensor_t<float> clone(Tensor<float, 3> &in) {
+    tensor_t<float> ret(in.extent(1), in.extent(2), in.extent(0));
+    for (int z = 0; z < in.extent(0); z++) {
+        for (int x = 0; x < in.extent(1); x++) {
+            for (int y = 0; y < in.extent(2); y++) {
+                ret(x, y, z) = in[z, x, y];
+            }
+        }
+    }
+    return ret;
+
+}
+
+
+export enum class layer_type
+{
+    conv,
+    fc,
+    relu,
+    pool,
+    dropout_layer
+};
+
+export class layer_t
+{
+public:
+    layer_type type;
+    tensor_t<float> grads_in;
+    tensor_t<float> in;
+    tensor_t<float> out;
+    Tensor<float, 3> input, output;
+    layer_t( layer_type type_, FeatureExtent in_size, FeatureExtent out_size ):
+        type( type_ ),
+        in( in_size.x, in_size.y, in_size.z ),
+        grads_in( in_size.x, in_size.y, in_size.z ),
+        out( out_size.x, out_size.y, out_size.z )
+    {
+    }
+    virtual ~layer_t(){}
+    virtual void activate( tensor_t<float>& in )=0;
+    virtual void fix_weights()=0;
+    virtual void calc_grads( tensor_t<float>& grad_next_layer )=0;
+};
+
+export class conv_layer_t: public layer_t {
+public:
+	// std::vector<tensor_t<float>> filters;
+    Tensor<float, 3> gradient;
+    Tensor<float, 4> filters;
+    Tensor<gradient_t, 4> filters_grads;
+
+	// std::vector<tensor_t<gradient_t>> filter_grads;
+	uint16_t stride;
+	uint16_t extend_filter;
+
+	// 卷积层构造仅初始化卷积核
+	conv_layer_t( uint16_t stride, uint16_t extend_filter, uint16_t number_filters, FeatureExtent in_size )
+		:
+		layer_t( layer_type::conv, in_size, {(in_size.x - extend_filter) / stride + 1, (in_size.y - extend_filter) / stride + 1, number_filters} )
+	{
+		this->stride = stride;
+		this->extend_filter = extend_filter;
+	    filters = Tensor<float, 4>(number_filters, in_size.z, extend_filter, extend_filter);
+
+		int N = extend_filter * extend_filter * in_size.z;
+	    filters.foreach([=](auto &val) {
+	        val = 1.0f / N * rand() / 2147483647.0;
+	    });
+	    filters_grads = Tensor<gradient_t, 4>(number_filters, in_size.z, extend_filter, extend_filter);
+
+	    input = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+	    FeatureExtent out_size = {(in_size.x - extend_filter) / stride + 1, (in_size.y - extend_filter) / stride + 1, number_filters};
+	    output = Tensor<float, 3>( out_size.z, out_size.x, out_size.y );
+	    gradient = Tensor<float, 3> (in_size.z, in_size.x, in_size.y);
+
+	}
+
+	FeatureExtent map_to_input( FeatureExtent out, int z )
+	{
+		return {out.x * stride, out.y * stride, z};
+	}
+
+	struct range_t
+	{
+		int min_x, min_y, min_z;
+		int max_x, max_y, max_z;
+	};
+
+	int GET_R( float f, int max, bool lim_min )
+	{
+		if ( f <= 0 ) return 0;
+		max -= 1;
+		if ( f >= max ) return max;
+		if ( lim_min ) return ceil( f );
+		else return floor( f );
+	}
+
+	range_t map_to_output( int x, int y )
+	{
+		float a = x, b = y;
+		return { GET_R( (a - extend_filter + 1) / stride, out.size.x, true ), GET_R( (b - extend_filter + 1) / stride, out.size.y, true ), 0, GET_R( a / stride, out.size.x, false ), GET_R( b / stride, out.size.y, false ), (int)out.size.z - 1, };
+	}
+
+	void activate( tensor_t<float>& in ) override
+	{
+		this->in = in;
+	    input = clone(in);
+		// 使用每个卷积核进行卷积
+		for ( int n = 0; n < filters.extent(0); n++ )
+		{
+
+			// 对于输出的每个像素
+			for ( int x = 0; x < output.extent(1); x++ )
+				for ( int y = 0; y < output.extent(2); y++ )
+				{
+					FeatureExtent mapped = map_to_input( { (uint16_t)x, (uint16_t)y, 0 }, 0 );
+					float sum = 0;
+					for ( int i = 0; i < extend_filter; i++ )
+						for ( int j = 0; j < extend_filter; j++ )
+							for ( int z = 0; z < input.extent(0); z++ )
+								sum += filters[n, z, i, j] * input[z, mapped.x + i, mapped.y + j];
+				    output[n, x, y] = sum;
+				}
+		}
+	    out = clone(output);
+	}
+
+	void fix_weights() override
+	{
+		for ( int a = 0; a < filters.extent(0); a++ )
+			for ( int i = 0; i < extend_filter; i++ )
+				for ( int j = 0; j < extend_filter; j++ )
+					for ( int z = 0; z < input.extent(0); z++ )
+					{
+						float& w = filters[a, z, i, j];
+						gradient_t& grad = filters_grads[a, z, i, j];
+						w = update_weight( w, grad );
+						update_gradient( grad );
+					}
+	}
+
+	void calc_grads( tensor_t<float>& grad_next_layer ) override
+	{
+	    auto next_gradient = clone(grad_next_layer);
+
+		// 卷积核梯度每次都初始化
+		// 卷积核有n个，每个都是一个三维张量
+		for ( int k = 0; k < filters_grads.extent(0); k++ )
+			for ( int i = 0; i < extend_filter; i++ )
+				for ( int j = 0; j < extend_filter; j++ )
+					for ( int z = 0; z < input.extent(0); z++ )
+						filters_grads[k, z, i, j].grad = 0;
+
+		// 遍历当前图像
+		for ( int x = 0; x < input.extent(1); x++ )
+			for ( int y = 0; y < input.extent(2); y++ )
+			{
+				// 对于输入的每个像素，在卷积后输出的数据中，都有一个或者多个像素点使用了这个输入的像素
+				// map_to_output 获取 使用了这个输入像素的 输出像素的坐标范围
+				range_t rn = map_to_output( x, y );
+
+				// 卷积操作仅操作了xy 坐标
+				// in.size.z 是通道数量
+				// 配合上面的xy, 这三个循环遍历了整张图片
+				for ( int z = 0; z < input.extent(0); z++ ) {
+
+					// 对于每个特征值， 有与之相对的 xyz范围
+					float sum_error = 0;
+					//out[i, j, k] -> in[x, y, z] 有贡献的位置
+					for ( int i = rn.min_x; i <= rn.max_x; i++ )
+					{
+						int minx = i * stride;
+						for ( int j = rn.min_y; j <= rn.max_y; j++ )
+						{
+							int miny = j * stride;
+							for ( int k = rn.min_z; k <= rn.max_z; k++ )
+							{
+								//贡献的系数 -> 第k个核作用 out[ i, j, k] 对应的in区域，in[x, y, z] 的系数
+								int K = filters[k, z ,x - minx, y - miny];
+								//系数 * 偏导
+								sum_error += K * next_gradient[k, i, j];
+								//卷积核 grad 同理
+								filters_grads[k, z, x-minx, y-miny].grad += input[z, x, y] * next_gradient[k, i, j];
+							}
+						}
+					}
+					//更新
+				    gradient[z, x, y] = sum_error;
+				}
+			}
+	    grads_in = clone(gradient);
+	}
+};
+
+
+// 非线性激励层
+export class relu_layer_t: public layer_t {
+
+    Tensor<float, 3> input_;
+    Tensor<float, 3> output_;
+    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
+    Tensor<float, 3> gradient;
 
 public:
-    std::function<std::vector<Data>(const std::string &, const std::string &)> load_dataset = load_dataset_impl;
 
-    CNN(int w, int h, int cannel) {
-        in_extent = FeatureExtent{ .w = w, .h = h, .cannel = cannel };
+    relu_layer_t( FeatureExtent in_size )
+        :
+        layer_t( layer_type::relu, in_size, in_size ) {
+
+        // 激活层尺寸不变
+        input_ = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+        output_ = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+        gradient = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
     }
 
-    void add_conv_layer(size_t n, size_t size, size_t stride = 1, size_t padding = 0) {
-        auto layer = std::make_shared<ConvLayer>(n, size, get_cur_in_extent(), stride, padding);
-        layers_.emplace_back(layer);
+    void activate( tensor_t<float>& in ) override
+    {
+        this->in = in;
+        input_ = clone(in);
+
+        for ( int i = 0; i < input_.extent(1); i++ )
+            for ( int j = 0; j < input_.extent(2); j++ )
+                for ( int z = 0; z < input_.extent(0); z++ )
+                    output_[z, i, j] = action_->action(input_[z, i, j]);
+
+        out = clone(output_);
     }
 
-    void add_action_layer(std::shared_ptr<Activation> action = std::make_shared<Relu>()) {
-        auto layer = std::make_shared<ActionLayer>(get_cur_in_extent(), action);
-        layers_.emplace_back(layer);
-    }
+    void fix_weights() override {}
 
-    void add_pool_layer(size_t window_size, size_t stride = 2) {
-        auto layer = std::make_shared<PoolLayer>(window_size, get_cur_in_extent(), stride);
-        layers_.emplace_back(layer);
-    }
+    void calc_grads( tensor_t<float>& grad_next_layer ) override {
+        auto next_gradient = clone(grad_next_layer);
 
-    void add_fc_layer(size_t type_count) {
-        auto layer = std::make_shared<FCLayer>(type_count, get_cur_in_extent());
-        layers_.emplace_back(layer);
-    }
-
-    void forward(const FeatureMap &in) {
-        for (auto &layer : layers_) {
-            layer->forward(in);
-        }
-    }
-    // 在 CNN 类中
-    void backward(const Vector<float> &res) {
-        auto end_layer = dynamic_cast<FCLayer *>(layers_.back().get());
-        auto out = end_layer->fc_out_;
-
-        auto end_gradient = loss_->deaction(out, res);
-
-        end_layer->backward(end_gradient);
-        for (int i = layers_.size() - 2; i >= 0; i--)
-            layers_[i]->backward(layers_[i+1]->gradient);
-    }
-
-
-    void train(const FeatureMap &in, const Vector<float> &out) {
-        forward(in);
-        backward(out);
-    }
-    void train(const std::string &feature_path, const std::string &label_path,
-        float train_proportion, size_t train_count, int seed) {
-
-        if (!load_dataset)
-            throw std::runtime_error("load_dataset is not define");
-
-        auto dataset = load_dataset(feature_path, label_path);
-
-        Progress progress(false);
-        for (int i = 0;i < train_count; ++i) {
-            progress.push(std::string("train epoch is ") + std::to_string(i+1), dataset.size());
-        }
-
-        for (int epoch = 0; epoch < train_count; ++epoch) {
-            for (const auto &[feature_map, label] : dataset) {
-                train(feature_map, label);
-                progress.cur_bar() += 1;
-                progress.print();
-            }
-            progress += 1;
-        }
-
+        for ( int i = 0; i < in.size.x; i++ )
+            for ( int j = 0; j < in.size.y; j++ )
+                for ( int z = 0; z < in.size.z; z++ )
+                    gradient[z, i, j] = action_->deaction(input_[z, i, j]) * next_gradient[z, i, j];
+        grads_in = clone(gradient);
     }
 };
 
 
+export class pool_layer_t: public layer_t {
+
+    Tensor<float, 3> input_;
+    Tensor<float, 3> output_;
+    Tensor<float, 3> gradient;
+public:
+	uint16_t stride;
+	uint16_t extend_filter;
+
+	pool_layer_t( uint16_t stride_, uint16_t extend_filter_, FeatureExtent in_size )
+		:
+		stride(stride_),
+		extend_filter(extend_filter_),
+		layer_t( layer_type::pool, in_size, {(in_size.x - extend_filter_) / stride_ + 1, (in_size.y - extend_filter_) / stride_ + 1, in_size.z} )
+	{
+	    input_ = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+	    FeatureExtent out_size = {(in_size.x - extend_filter_) / stride_ + 1, (in_size.y - extend_filter_) / stride_ + 1, in_size.z};
+	    output_ = Tensor<float, 3>( out_size.z, out_size.x, out_size.y );
+
+	    gradient = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+	}
+
+	FeatureExtent map_to_input( FeatureExtent out, int z )
+	{
+		return {out.x * stride, out.y * stride, z};
+	}
+
+	struct range_t
+	{
+		int min_x, min_y, min_z;
+		int max_x, max_y, max_z;
+	};
+
+	int GET_R( float f, int max, bool lim_min )
+	{
+		if ( f <= 0 ) return 0;
+		max -= 1;
+		if ( f >= max ) return max;
+		if ( lim_min ) return ceil( f );
+		else return floor( f );
+	}
+
+	range_t map_to_output( int x, int y )
+	{
+		float a = x, b = y;
+		return {
+			GET_R( (a - extend_filter + 1) / stride, out.size.x, true ),
+			GET_R( (b - extend_filter + 1) / stride, out.size.y, true ),
+			0,
+			GET_R( a / stride, out.size.x, false ),
+			GET_R( b / stride, out.size.y, false ), (int)out.size.z - 1,
+		};
+	}
+
+	void activate( tensor_t<float>& in ) override
+	{
+		this->in = in;
+	    input_ = clone(in);
+
+		for ( int x = 0; x < output_.extent(1); x++ )
+			for ( int y = 0; y < output_.extent(2); y++ )
+				for ( int z = 0; z < output_.extent(0); z++ )
+				{
+					FeatureExtent mapped = map_to_input( { (uint16_t)x, (uint16_t)y, 0 }, 0 );
+					float maxx = -FLT_MAX;
+					for ( int i = 0; i < extend_filter; i++ )
+						for ( int j = 0; j < extend_filter; j++ )
+						{
+							float v = input_[z, mapped.x + i, mapped.y + j];
+							if ( v > maxx ) maxx = v;
+						}
+				    output_[z, x, y] = maxx;
+				}
+	    out = clone(output_);
+	}
+
+	void fix_weights() override {}
+
+	void calc_grads( tensor_t<float>& grad_next_layer ) override
+	{
+	    auto next_gradient = clone(grad_next_layer);
+
+		// 对于输入的[x, y]
+		for ( int x = 0; x < input_.extent(1); x++ )
+			for ( int y = 0; y < input_.extent(2); y++ )
+			{
+				// 找到x y对应的什么范围
+				// 得到的range是 该点对应的 在池化层中的位置
+				range_t rn = map_to_output( x, y );
+
+				// 池化是逐层的，因此z应该不参与到range的运算
+				// in.size.z 是通道数量
+				for ( int z = 0; z < input_.extent(0); z++ )
+				{
+					float sum_error = 0;
+					//out[i, j, z] 是 in[x, y, z] 可能有贡献的位置，贡献的系数是 1 或者 0
+
+					// i, j 对应的是池化窗口中的坐标
+					for ( int i = rn.min_x; i <= rn.max_x; i++ ) {
+						for ( int j = rn.min_y; j <= rn.max_y; j++ ) {
+							int is_max = in( x, y, z ) == out( i, j, z ) ? 1 : 0;
+							//偏导 * 系数
+							sum_error += is_max * next_gradient[z, i, j];
+						}
+					}
+				    gradient[z, x, y] = sum_error;
+				}
+			}
+	    grads_in = clone(gradient);
+	}
+};
+export class fc_layer_t: public layer_t {
+    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
+    Tensor<float, 3> input_, output_;
+    Tensor<float, 3> gradient;
+public:
+	Vector<float> fc_in, fc_out;
+
+	// 权值矩阵 => 三维张量
+	// tensor_t<float> weights;
+    Tensor<float, 4> weights;
+
+	// 梯度, 此处全连接层的梯度是一个vector<梯度>
+	Vector<gradient_t> gradients;
+
+	fc_layer_t( FeatureExtent in_size, int out_size )
+		:
+		layer_t( layer_type::fc, in_size, {out_size, 1, 1} ),
+        weights(out_size, in_size.z, in_size.x, in_size.y)
+	{
+		fc_in = Vector<float>( out_size );
+	    fc_out = Vector<float>( out_size );
+
+		gradients = Vector<gradient_t>( out_size );
+	    gradient = Tensor<float, 3> (in_size.z, in_size.x, in_size.y);
+
+	    input_ = Tensor<float, 3>( in_size.z, in_size.x, in_size.y );
+	    output_ = Tensor<float, 3>( 1, 1, out_size );
+
+	    random_tensor(weights, -1, 1);
+	}
 
 
-/****************************** 使用示例 ******************************\
-import modforge.deep_learning.cnn;
+
+	void activate( tensor_t<float>& in ) override
+	{
+		// 前向传播的输入是一个三维张量
+		this->in = in;
+
+	    Tensor<float, 3> input = clone(in);
+	    Tensor<float, 3> output(input.extent(0), input.extent(1), input.extent(2));
+
+		float now = 0;
+		for ( int cnt = 0; cnt < out.size.x; cnt++, now=0 )
+		{
+			for ( int i = 0; i < input.extent(1); i++ )
+				for ( int j = 0; j < input.extent(2); j++ )
+					for ( int z = 0; z < input.extent(0); z++ )
+					    now += input[z, i, j] * weights[cnt, z, i, j];
+
+			// 三维张量和权值张量做点乘，展成一维张量
+			fc_in[cnt] = now;
+			// 输入通过激活函数做输出, 因此输出也是一维张量
+			// 且二者尺度相同
+		    fc_out[cnt] = action_->action( now );
+		}
+	}
+
+	// 更新权重，根据本层中此前计算的梯度(grad)
+	void fix_weights() override
+	{
+
+		// 对于每一个输出神经元
+		for ( int n = 0; n < out.size.x; n++ )
+		{
+			gradient_t& grad = gradients[n];
+			for ( int i = 0; i < in.size.x; i++ ) {
+				for ( int j = 0; j < in.size.y; j++ ) {
+					for ( int k = 0; k < in.size.z; k++ ) {
+						// float& w = weights( id( i, j, k ), n, 0 );
+					    auto &w = weights[n, k, i, j];
+						w = update_weight( w, grad, in( i, j, k ) );
+					}
+
+				}
+
+			}
+
+			update_gradient( grad );
+		}
+	}
+
+	void calc_grads( tensor_t<float>& grad_next_layer ) override {  }
+	// 下一层保存的梯度是一个三维张量
+	void calc_grads( Vector<float>& grad_next_layer ) {
+	    gradient.foreach([](auto &val) {
+	        val = 0;
+	    });
 
 
-int main(int argc, char *argv[]) {
+		// 此处全连接层输入的是 均方误差损失函数得到的 (y_ - y)
+		// grads_in 中保存的是下一层使用的梯度
+		// 梯度综合了全部的权值矩阵
+		for ( int n = 0; n < out.size.x; n++ )
+		{
+			// 全连接层作为最后一层，起初保存的梯度仅和输入输出 一维张量的大小相同
+			// 此处的gradient是fc层独有的，尺寸是一维的
+			// 在构造函数中创建
+			gradient_t& grad = gradients[n];
 
-    auto dataset = load_dataset("./dataset/train-images.idx3-ubyte", "./dataset/train-labels.idx1-ubyte");
+			// grad 中的梯度用来更新权重
+			grad.grad = grad_next_layer[ n ] * action_->deaction( fc_in[n] );
+
+			// 此处将原本的一维梯度通过权值张量转为三维梯度
+			for ( int i = 0; i < in.size.x; i++ )
+				for ( int j = 0; j < in.size.y; j++ )
+					for ( int k = 0; k < in.size.z; k++ )
+					    gradient[k, i, j] += grad.grad * weights[n, k, i, j];
+						// grads_in( i, j, k ) += grad.grad * weights( id( i, j, k ), n, 0 );
+		}
+
+	    grads_in = clone(gradient);
+	}
+
+};
+
+export class Model
+{
+public:
+	Model(){}
+
+	void add_conv( uint16_t stride, uint16_t extend_filter, uint16_t number_filters, FeatureExtent in_size )
+	{
+		conv_layer_t * layer = new conv_layer_t( stride, extend_filter, number_filters, in_size);
+		layers.push_back( (layer_t*)layer );
+	}
+
+	void add_relu( FeatureExtent in_size )
+	{
+		relu_layer_t * layer = new relu_layer_t( in_size );
+		layers.push_back( (layer_t*)layer );
+	}
+
+	void add_pool( uint16_t stride, uint16_t extend_filter, FeatureExtent in_size )
+	{
+		pool_layer_t * layer = new pool_layer_t( stride, extend_filter, in_size );
+		layers.push_back( (layer_t*)layer );
+	}
+
+	void add_fc( FeatureExtent in_size, int out_size )
+	{
+		fc_layer_t * layer = new fc_layer_t( in_size, 10 );
+		layers.push_back( (layer_t*)layer );
+	}
+
+	FeatureExtent& output_size()
+	{
+		return layers.back()->out.size;
+	}
+
+	int predict()
+	{
+		int ans = 0;
+	    auto end_layer = dynamic_cast<fc_layer_t*>( layers.back() );
+		for( int i = 0; i < 10; i++ )
+			if( end_layer->fc_out[i] > end_layer->fc_out[ans] )
+				ans = i ;
+		return ans;
+	}
+
+	tensor_t<float>& predict_info()
+	{
+		return layers.back()->out;
+	}
+
+	void forward( tensor_t<float>& data ) {
+	    auto begin_layer = layers.front();
+	    begin_layer->activate(data);
+		for ( int i = 1; i < layers.size(); i++ )
+			layers[i]->activate(layers[i - 1]->out);
+	}
+
+	float train( Tensor<float, 3> &data, Vector<float>& label )
+	{
+
+	    auto in_data = clone(data);
+		// 前向传播
+		forward( in_data );
+
+		// 最后一层，目前为全连接层
+		// 和最后的结果相减得到差值
+	    auto end_label = dynamic_cast<fc_layer_t *>(layers.back());
 
 
-    return 0;
+
+	    auto vec_res_info = end_label->fc_out - label;
+
+
+
+
+	    end_label->calc_grads( vec_res_info );
+		for ( int i = layers.size() - 2; i >= 0; i-- )
+			layers[i]->calc_grads( layers[i + 1]->grads_in);
+
+		for ( int i = 0; i < layers.size(); i++ )
+			layers[i]->fix_weights();
+
+
+	    // 计算误差
+		float err = 0;
+		for ( int i = 0; i < 10; i++ )
+		{
+			float x = label[i] - vec_res_info[i];
+			err += x*x ;
+		}
+		return sqrt(err) * 100;
+	}
+
+
+private:
+	std::vector<layer_t*> layers;
+};
+
+
+
+uint32_t byteswap_uint32(uint32_t a)
+{
+	return ((((a >> 24) & 0xff) << 0) |
+		(((a >> 16) & 0xff) << 8) |
+		(((a >> 8) & 0xff) << 16) |
+		(((a >> 0) & 0xff) << 24));
 }
-*/
+
+export struct case_t
+{
+	Tensor<float, 3> data;
+    Vector<float> label;
+};
+
+export uint8_t* read_file( const char* szFile )
+{
+	std::ifstream file( szFile, std::ios::binary | std::ios::ate );
+	std::streamsize size = file.tellg();
+	file.seekg( 0, std::ios::beg );
+
+	if ( size == -1 )
+		return nullptr;
+
+	uint8_t* buffer = new uint8_t[size];
+	file.read( (char*)buffer, size );
+	return buffer;
+}
+
+export std::vector<case_t> read_train_cases()
+{
+	std::vector<case_t> cases;
+
+	uint8_t* train_image = read_file( "train-images.idx3-ubyte" );
+	uint8_t* train_labels = read_file( "train-labels.idx1-ubyte" );
+
+	uint32_t case_count = byteswap_uint32( *(uint32_t*)(train_image + 4) );
+
+	for ( int i = 0; i < case_count; i++ )
+	{
+		case_t c
+		{
+			// image
+			Tensor<float, 3>(1, 28, 28),
+			// one hot labels
+		Vector<float>( 10 )
+		};
+
+		uint8_t* img = train_image + 16 + i * (28 * 28);
+		uint8_t* label = train_labels + 8 + i;
+
+		for ( int x = 0; x < 28; x++ )
+			for ( int y = 0; y < 28; y++ )
+				c.data[0, x, y] = img[x + y * 28] / 255.f;
+
+		for ( int b = 0; b < 10; b++ )
+			c.label[ b] = *label == b ? 1.0f : 0.0f;
+
+		cases.push_back( c );
+	}
+	delete[] train_image;
+	delete[] train_labels;
+
+	return cases;
+}
+
+export std::vector<case_t> read_test_cases()
+{
+	std::vector<case_t> cases;
+
+	uint8_t* train_image = read_file( "t10k-images.idx3-ubyte" );
+	uint8_t* train_labels = read_file( "t10k-labels.idx1-ubyte" );
+
+	uint32_t case_count = byteswap_uint32( *(uint32_t*)(train_image + 4) );
+
+	for ( int i = 0; i < case_count; i++ )
+	{
+		case_t c
+		{
+			Tensor<float, 3>(1, 28, 28),
+				Vector<float> ( 10 )
+				};
+
+		uint8_t* img = train_image + 16 + i * (28 * 28);
+		uint8_t* label = train_labels + 8 + i;
+
+		for ( int x = 0; x < 28; x++ )
+			for ( int y = 0; y < 28; y++ )
+				c.data[0, x, y] = img[x + y * 28] / 255.f;
+
+		for ( int b = 0; b < 10; b++ )
+			c.label[ b ] = *label == b ? 1.0f : 0.0f;
+
+		cases.push_back( c );
+	}
+	delete[] train_image;
+	delete[] train_labels;
+
+	return cases;
+}
