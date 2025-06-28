@@ -147,6 +147,8 @@ class Progress {
     Time begin_time_{};
     bool show_history_;
 
+    std::string info_{};
+
     size_t get_max_number_width() const {
         return std::to_string(bars_.size()).size();
     }
@@ -168,8 +170,16 @@ public:
 
         updata_width();
     }
+    Progress& set_info(const std::string& info) {
+        info_ = info;
+        return *this;
+    }
     Progressbar &cur_bar() {
         return cur_bar_;
+    }
+    [[nodiscard]] size_t get_width() const {
+        return width;
+
     }
     Progress& operator += (int num) {
         current_ += num;
@@ -212,16 +222,16 @@ public:
         // 百分比
         auto percentage = std::async(get_percentage, cur, total, percentage_width);
 
-        return first_line.get() + '\n' + get_number.get() + tab + time.get() + bar.get() + percentage.get();
+        return first_line.get() + '\n' + get_number.get() + tab + time.get() + bar.get() + percentage.get() + '\n' + info_;
     }
 
     void print() {
         std::cout << get_progress_bar() << '\r';
-        Console::cursor_up();
+        Console::cursor_up(2);
     }
 
     ~Progress() {
-        std::cout << std::endl << std::endl;
+        std::cout << std::endl << std::endl << std::endl;
     }
 
 };
