@@ -5,9 +5,9 @@
 module;
 #include <fstream>
 #include <vector>
-#include <cmath>
+#include <bit>
 #include <memory>
-#include <cstdint>
+#include <functional>
 #include <future>
 #include <thread>
 export module modforge.deep_learning.cnn;
@@ -28,9 +28,15 @@ export struct FeatureExtent {
 };
 
 export struct Data {
-    Tensor<float, 3> data;
+    FeatureMap data;
     Label label;
 };
+
+export struct PoolMaxPos {
+    int x;
+    int y;
+};
+using PoolLayerMaxPos = Tensor<PoolMaxPos, 3>;
 
 
 #define LEARNING_RATE 0.01
@@ -162,12 +168,10 @@ public:
 
     void forward(const Tensor<float, 3>& in) override {
         this->in = in;
-
-        for (int i = 0; i < in.extent(1); i++)
-            for (int j = 0; j < in.extent(2); j++)
-                for (int z = 0; z < in.extent(0); z++)
+        for (int z = 0; z < in.extent(0); z++)
+            for (int i = 0; i < in.extent(1); i++)
+                for (int j = 0; j < in.extent(2); j++)
                     out[z, i, j] = action_->action(in[z, i, j]);
-
     }
 
 
@@ -180,9 +184,10 @@ public:
     }
 };
 
-
 export class PoolLayer: public Layer {
     PoolWindow pool_window_;
+    PoolLayerMaxPos pool_max_pos_;
+
     int stride;
     int pool_window_size;
 public:
@@ -192,10 +197,7 @@ public:
 		Layer(in_size, {(in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1, in_size.z}) {
 
 	    pool_window_ = PoolWindow(pool_window_size, pool_window_size);
-	}
-
-	FeatureExtent map_to_input(FeatureExtent out_size, int z) {
-		return {out_size.x * stride, out_size.y * stride, z};
+	    pool_max_pos_ = PoolLayerMaxPos(in_size.z, (in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1);
 	}
 
 	void forward(const FeatureMap& in) override {
@@ -205,19 +207,27 @@ public:
 	        for (int oh = 0; oh < out_extent.x; ++oh) {
 	            for (int ow = 0; ow < out_extent.y; ++ow) {
 
-	                float cur_max = std::numeric_limits<float>::lowest();
-
 	                const int start_x = oh * stride;
 	                const int start_y = ow * stride;
 
+                    int max_x{}, max_y{};
+	                float cur_max = std::numeric_limits<float>::lowest();
 	                for (int ph = 0; ph < pool_window_.extent(0); ++ph) {
 	                    for (int pw = 0; pw < pool_window_.extent(1); ++pw) {
 	                        const int in_x = start_x + ph;
 	                        const int in_y = start_y + pw;
-	                        cur_max = std::max(cur_max, in[cur_cannel, in_x, in_y]);
+
+	                        if (cur_max < in[cur_cannel, in_x, in_y]) {
+	                            max_x = in_x;
+	                            max_y = in_y;
+	                            cur_max = in[cur_cannel, in_x, in_y];
+	                        }
 	                    }
 	                }
 	                out[cur_cannel, oh, ow] = cur_max;
+	                pool_max_pos_[cur_cannel, oh, ow].x = max_x;
+	                pool_max_pos_[cur_cannel, oh, ow].y = max_y;
+
 	            }
 	        }
 	    }
@@ -229,27 +239,11 @@ public:
             val = 0.f;
         });
 
-	    for (int c = 0; c < out_extent.z; ++c) {
-	        for (int oh = 0; oh < out_extent.x; ++oh) {
-	            for (int ow = 0; ow < out_extent.y; ++ow) {
-	                int max_h = -1, max_w = -1;
-	                float max_val = std::numeric_limits<float>::lowest();
-	                // 遍历池化窗口
-	                for (int ph = 0; ph < pool_window_.extent(0); ++ph) {
-	                    for (int pw = 0; pw < pool_window_.extent(1); ++pw) {
-	                        int ih = oh * stride + ph;
-	                        int iw = ow * stride + pw;
-	                        if (in[c, ih, iw] > max_val) {
-	                            max_val = in[c, ih, iw];
-	                            max_h = ih;
-	                            max_w = iw;
-	                        }
-	                    }
-	                }
-
-	                if (max_h != -1 && max_w != -1) {
-	                    gradient[c, max_h, max_w] = next_gradient[c, oh, ow];
-	                }
+	    for (int z = 0; z < out_extent.z; ++z) {
+	        for (int x = 0; x < out_extent.x; ++x) {
+	            for (int y = 0; y < out_extent.y; ++y) {
+	                auto &[max_x, max_y] = pool_max_pos_[z, x, y];
+	                gradient[z, max_x, max_y] = next_gradient[z, x, y];
 	            }
 	        }
 	    }
@@ -339,6 +333,8 @@ export class CNN {
 public:
 	CNN(int x, int y, int z) : in_extent(x, y, z) {  }
 
+    std::function<std::vector<Data>(const std::string&, const std::string&)> load_dataset_func;
+
 	void add_conv(int kernel_num, int kernel_size, uint16_t stride = 1) {
 		layers.push_back(std::make_shared<ConvLayer>(kernel_num, kernel_size, stride, get_cur_in_extent()));
 	}
@@ -382,25 +378,29 @@ public:
 	        progress.push("训练中...", datas.size());
 
 	    Console::hind_cursor();
+
+	    int flag = datas.size() / 100;
 	    for (int i = 0;i < train_count; ++i) {
 	        float acc{};
+	        std::thread print_thread;
 	        for (int cur = 0; cur < datas.size(); ++cur) {
 	            auto &[image, label] = datas[cur];
-
 	            progress.cur_bar() += 1;
-	            progress.set_info("acc is : " + std::to_string(acc / cur));
-	            // auto print_thread = std::thread(&Progress::print, progress);
-	            auto print_thread = std::thread([&] {
-	                progress.print();
-	            });
-	            // progress.print();
+
+	            if (cur % flag == 0) {
+                    progress.set_info("acc is : " + std::to_string(acc / cur));
+	                print_thread = std::thread([&] {
+                        progress.print();
+                    });
+	            }
 
 	            train(image, label);
 	            auto res_type = OneHot::out_to_type(label);
 	            auto out_type = OneHot::out_to_type(get_out());
 	            acc += res_type == out_type;
 
-	            print_thread.join();
+	            if (cur % flag == 0)
+	                print_thread.join();
 	        }
 	        progress.print();
 	        progress += 1;
@@ -409,38 +409,34 @@ public:
         Console::show_cursor();
 	}
 
+    void train(const std::string &image_path, const std::string &label_path, int train_count) const {
+	    if (!load_dataset_func)
+	        throw std::runtime_error("load_dataset_func impl is null");
+	    auto dataset = load_dataset_func(image_path, label_path);
+	    train(dataset, train_count);
+	}
 };
 
-
-
-uint32_t byteswap_uint32(uint32_t cur_kernel) {
-	return ((((cur_kernel >> 24) & 0xff) << 0) |
-		(((cur_kernel >> 16) & 0xff) << 8) |
-		(((cur_kernel >> 8) & 0xff) << 16) |
-		(((cur_kernel >> 0) & 0xff) << 24));
-}
-
-
-export uint8_t* read_file(const char* szFile) {
-	std::ifstream file(szFile, std::ios::binary | std::ios::ate);
+char* read_file(const std::string &path) {
+	std::ifstream file(path, std::ios::binary | std::ios::ate);
 	std::streamsize size = file.tellg();
 	file.seekg(0, std::ios::beg);
 
 	if (size == -1)
 		return nullptr;
 
-	uint8_t* buffer = new uint8_t[size];
-	file.read((char*)buffer, size);
+    auto buffer = new char[size];
+
+	file.read(reinterpret_cast<char *>(buffer), size);
 	return buffer;
 }
-
-export std::vector<Data> read_train_cases() {
+export std::vector<Data> load_mnist_dataset(const std::string& image_path, const std::string& label_path) {
 	std::vector<Data> ret;
 
-	uint8_t* train_image = read_file("train-images.idx3-ubyte");
-	uint8_t* train_labels = read_file("train-labels.idx1-ubyte");
+	char* train_image = read_file(image_path);
+	char* train_labels = read_file(label_path);
 
-	uint32_t case_count = byteswap_uint32(*(uint32_t*)(train_image + 4));
+	int case_count = std::byteswap(*reinterpret_cast<int *>(train_image + 4));
 
 	for (int i = 0; i < case_count; i++) {
 		Data c {
@@ -448,8 +444,8 @@ export std::vector<Data> read_train_cases() {
 			Vector<float>(10)
 		};
 
-		uint8_t* img = train_image + 16 + i * (28 * 28);
-		uint8_t* label = train_labels + 8 + i;
+		char* img = train_image + 16 + i * (28 * 28);
+		char* label = train_labels + 8 + i;
 
 		for (int x = 0; x < 28; x++)
 			for (int y = 0; y < 28; y++)
@@ -464,36 +460,4 @@ export std::vector<Data> read_train_cases() {
 	delete[] train_labels;
 
 	return ret;
-}
-
-export std::vector<Data> read_test_cases() {
-	std::vector<Data> cases;
-
-	uint8_t* train_image = read_file("t10k-images.idx3-ubyte");
-	uint8_t* train_labels = read_file("t10k-labels.idx1-ubyte");
-
-	uint32_t case_count = byteswap_uint32(*(uint32_t*)(train_image + 4));
-
-	for (int i = 0; i < case_count; i++) {
-		Data c {
-		    Tensor<float, 3>(1, 28, 28),
-		    Vector<float> (10)
-		};
-
-		uint8_t* img = train_image + 16 + i * (28 * 28);
-		uint8_t* label = train_labels + 8 + i;
-
-		for (int x = 0; x < 28; x++)
-			for (int y = 0; y < 28; y++)
-				c.data[0, x, y] = img[x + y * 28] / 255.f;
-
-		for (int b = 0; b < 10; b++)
-			c.label[ b ] = *label == b ? 1.0f : 0.0f;
-
-		cases.push_back(c);
-	}
-	delete[] train_image;
-	delete[] train_labels;
-
-	return cases;
 }
