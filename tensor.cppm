@@ -10,6 +10,7 @@ module;
 #include <memory>
 #include <mdspan>
 #include <stdexcept>
+#include <iostream>
 export module modforge.tensor;
 
 export
@@ -95,7 +96,6 @@ class Tensor {
     constexpr int mul(Args && ...args) {
         return (... * args);
     }
-
 
     template<typename U, typename ... Args>
     [[nodiscard]]
@@ -194,6 +194,10 @@ class Tensor {
 
     }
 
+    template<size_t... I>
+    void create_tensor(std::vector<int>& dims, std::index_sequence<I...>) {
+        new (this) Tensor(dims[I]...);
+    }
 public:
     Tensor() = default;
 
@@ -243,6 +247,39 @@ public:
 
     Tensor(Tensor &&) = default;
     Tensor& operator = (Tensor &&) = default;
+
+    void read(std::istream &in) {
+        int rank;
+        in.read(reinterpret_cast<char*>(&rank),sizeof(int));
+        std::vector<int> dims(rank);
+        for (int i = 0;i < rank; ++i) {
+            in.read(reinterpret_cast<char*>(&dims[i]),sizeof(int));
+        }
+
+        create_tensor(dims, std::make_index_sequence<Extents>{});
+        this->foreach([&](auto &val) {
+            in.read(reinterpret_cast<char*>(&val),sizeof(val));
+        });
+
+    }
+    void write(std::ostream &out) {
+        // 维度
+        int rank = view_.rank();
+        out.write(reinterpret_cast<const char*>(&rank), sizeof(rank));
+        // 依次保存维度
+        for (int i = 0; i < rank; ++i) {
+            int cur_size = view_.extent(i);
+            out.write(reinterpret_cast<const char*>(&cur_size), sizeof(cur_size));
+        }
+
+        // 保存剩下的数据
+        this->foreach([&] (auto &val){
+            out.write(reinterpret_cast<char*>(&val), sizeof(val));
+        });
+
+    }
+
+
 
     Tensor copy() const {
         auto ptr = std::make_shared<std::vector<T>>(data_->size());
