@@ -16,13 +16,17 @@ import modforge.tensor;
 export {
 
 /**************************************** 激活函数 ****************************************/
-struct Activation {
+struct Activate {
     virtual double action(double num) = 0;
     virtual double deaction(double num) = 0;
-    virtual ~Activation() = default;
+    virtual ~Activate() = default;
 };
 
-struct Sigmoid : Activation {
+enum class ActivateType {
+    Sigmoid, Relu
+};
+
+struct Sigmoid : Activate {
     double action(double num) override {
         return 1.0 / (1.0 + exp(-num));
     }
@@ -33,7 +37,7 @@ struct Sigmoid : Activation {
     }
 };
 
-struct Relu : Activation {
+struct Relu : Activate {
 
     double action(double num) override {
         return std::max(0.0, num);

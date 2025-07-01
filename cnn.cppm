@@ -23,8 +23,18 @@ using Kernels    = Tensor<float, 4>;
 using Weights    = Tensor<float, 4>;
 using Label      = Vector<float>;
 
-export struct FeatureExtent {
+struct FeatureExtent {
     int x{}, y{}, z{};
+    void read(std::istream &in) {
+        in.read(reinterpret_cast<char*>(&z), sizeof(z));
+        in.read(reinterpret_cast<char*>(&x), sizeof(x));
+        in.read(reinterpret_cast<char*>(&y), sizeof(y));
+    }
+    void write(std::ostream &out) const {
+        out.write(reinterpret_cast<const char*>(&z), sizeof(z));
+        out.write(reinterpret_cast<const char*>(&x), sizeof(x));
+        out.write(reinterpret_cast<const char*>(&y), sizeof(y));
+    }
 };
 
 export struct Data {
@@ -54,8 +64,9 @@ void update_gradient(float &gradient, float &old_gradient) {
 
 export struct Layer {
     FeatureExtent in_extent, out_extent;
-
     FeatureMap in, out, gradient;
+    int stride;
+
     Layer(FeatureExtent in_size, FeatureExtent out_size)
         :   in_extent(in_size.x, in_size.y, in_size.z),
             out_extent(out_size.x, out_size.y, out_size.z),
@@ -65,14 +76,34 @@ export struct Layer {
 
     virtual void forward(const FeatureMap& in) = 0;
     virtual void backward(const FeatureMap& next_gradient) = 0;
+    virtual void read(std::istream &in) {
+        in_extent.read(in);
+        out_extent.read(in);
+
+        in.read(reinterpret_cast<char *>(&stride), sizeof(stride));
+
+        this->in.read(in);
+        this->out.read(in);
+
+        // 梯度暂时无需保存
+    }
+    virtual void write(std::ostream &out) {
+        in_extent.write(out);
+        out_extent.write(out);
+
+        out.write(reinterpret_cast<const char*>(&stride), sizeof(stride));
+
+        this->in.write(out);
+        this->out.write(out);
+
+        // 梯度不被保存
+    }
     virtual ~Layer() = default;
 };
 
 export class ConvLayer : public Layer {
     Kernels kernels, filters_grads, old_filters_grads;
-    int stride;
 public:
-
 	ConvLayer(int kernel_num, int kernel_size, uint16_t stride, FeatureExtent in_size)
 		: Layer(in_size, {(in_size.x - kernel_size) / stride + 1, (in_size.y - kernel_size) / stride + 1, kernel_num}) {
 		this->stride = stride;
@@ -113,7 +144,6 @@ public:
 
 	}
 
-
     void backward(const FeatureMap& next_gradient) override {
 	    filters_grads.foreach([](auto &val) { val = 0; });
 	    gradient.foreach([](auto &val) { val = 0; });
@@ -153,13 +183,21 @@ public:
 	        }
 	    }
 	}
+
+    void read(std::istream &in) override {
+	    Layer::read(in);
+	    kernels.read(in);
+	}
+
+    void write(std::ostream &out) override {
+	    Layer::write(out);
+	    kernels.write(out);
+	}
 };
 
-
-// 非线性激励层
 export class ActionLayer: public Layer {
 
-    std::shared_ptr<Activation> action_ = std::make_shared<Relu>();
+    std::shared_ptr<Activate> action_ = std::make_shared<Relu>();
 
 public:
 
@@ -173,7 +211,6 @@ public:
                 for (int j = 0; j < in.extent(2); j++)
                     out[z, i, j] = action_->action(in[z, i, j]);
     }
-
 
     void backward(const FeatureMap& next_gradient) override {
         for (int z = 0; z < in.extent(0); z++)
@@ -250,7 +287,7 @@ public:
 	}
 };
 export class FCLayer: public Layer {
-    std::shared_ptr<Activation> action_ = std::make_shared<Sigmoid>();
+    std::shared_ptr<Activate> action_ = std::make_shared<Sigmoid>();
 public:
 	Label fc_in, fc_out;
     Weights weights;
