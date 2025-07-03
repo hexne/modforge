@@ -26,10 +26,10 @@ struct Layer {
     Tensor<float, 2> weight{};
     bool have_next{};
 
-    std::shared_ptr<Activation> action;
+    std::shared_ptr<Activate> action;
 
 
-    Layer(const size_t size, const std::shared_ptr<Activation> &action = std::make_shared<Relu>())
+    Layer(const size_t size, const std::shared_ptr<Activate> &action = std::make_shared<Relu>())
         : size(size), in(size), out(size) , action(action) {  }
 
     void forward(const Vector<float> &pre_in) {
@@ -99,7 +99,7 @@ public:
     }
 
 
-    void add_layer(size_t n, const std::shared_ptr<Activation> &action = std::make_shared<Relu>()) {
+    void add_layer(size_t n, const std::shared_ptr<Activate> &action = std::make_shared<Relu>()) {
         auto layer = std::make_shared<Layer>(n, action);
 
         if (!layers_.empty()) {

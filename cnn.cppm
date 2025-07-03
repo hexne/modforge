@@ -61,12 +61,17 @@ void update_gradient(float &gradient, float &old_gradient) {
     old_gradient = (gradient + old_gradient) * MOMENTUM;
 }
 
+enum class LayerType {
+    None, Conv, Activate, Pool, FC
+};
 
-export struct Layer {
-    FeatureExtent in_extent, out_extent;
-    FeatureMap in, out, gradient;
-    int stride;
+struct Layer {
+    FeatureExtent in_extent{}, out_extent{};
+    FeatureMap in{}, out{}, gradient{};
+    int stride{};
+    LayerType layer_type = LayerType::None;
 
+    Layer() = default;
     Layer(FeatureExtent in_size, FeatureExtent out_size)
         :   in_extent(in_size.x, in_size.y, in_size.z),
             out_extent(out_size.x, out_size.y, out_size.z),
@@ -101,11 +106,14 @@ export struct Layer {
     virtual ~Layer() = default;
 };
 
-export class ConvLayer : public Layer {
-    Kernels kernels, filters_grads, old_filters_grads;
+
+class ConvLayer : public Layer {
+    Kernels kernels{}, filters_grads{}, old_filters_grads{};
 public:
+    ConvLayer() = default;
 	ConvLayer(int kernel_num, int kernel_size, uint16_t stride, FeatureExtent in_size)
 		: Layer(in_size, {(in_size.x - kernel_size) / stride + 1, (in_size.y - kernel_size) / stride + 1, kernel_num}) {
+	    this->layer_type = LayerType::Conv;
 		this->stride = stride;
 	    kernels = Kernels(kernel_num, in_size.z, kernel_size, kernel_size);
 
@@ -186,23 +194,29 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
+	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 	    kernels.read(in);
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
+	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 	    kernels.write(out);
 	}
 };
 
-export class ActionLayer: public Layer {
+class ActionLayer: public Layer {
 
     std::shared_ptr<Activate> action_ = std::make_shared<Relu>();
+    ActivateType activate_type = ActivateType::Relu;
 
 public:
+    ActionLayer() = default;
 
-    ActionLayer(const FeatureExtent in_size)
-        : Layer(in_size, in_size) {  }
+    explicit ActionLayer(const FeatureExtent in_size)
+        : Layer(in_size, in_size) {
+        layer_type = LayerType::Activate;
+    }
 
     void forward(const Tensor<float, 3>& in) override {
         this->in = in;
@@ -219,20 +233,34 @@ public:
                     gradient[z, i, j] = action_->deaction(in[z, i, j]) * next_gradient[z, i, j];
 
     }
+
+    void read(std::istream &in) override {
+        Layer::read(in);
+        in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+        in.read(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
+    }
+
+    void write(std::ostream &out) override {
+        Layer::write(out);
+        out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+        out.write(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
+    }
 };
 
 export class PoolLayer: public Layer {
     PoolWindow pool_window_;
     PoolLayerMaxPos pool_max_pos_;
 
-    int stride;
     int pool_window_size;
 public:
 
-	PoolLayer(int pool_window_size, uint16_t stride, FeatureExtent in_size)
-		: stride(stride), pool_window_size(pool_window_size),
-		Layer(in_size, {(in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1, in_size.z}) {
+    PoolLayer() = default;
 
+	PoolLayer(int pool_window_size, uint16_t stride, FeatureExtent in_size)
+		: pool_window_size(pool_window_size),
+		Layer(in_size, {(in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1, in_size.z}) {
+        layer_type = LayerType::Pool;
+	    this->stride = stride;
 	    pool_window_ = PoolWindow(pool_window_size, pool_window_size);
 	    pool_max_pos_ = PoolLayerMaxPos(in_size.z, (in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1);
 	}
@@ -270,7 +298,6 @@ public:
 	    }
 	}
 
-
 	void backward(const FeatureMap& next_gradient) override {
 	    gradient.foreach([](float &val) {
             val = 0.f;
@@ -285,28 +312,43 @@ public:
 	        }
 	    }
 	}
+
+    void read(std::istream &in) override {
+	    Layer::read(in);
+	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+	    in.read(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
+	}
+
+    void write(std::ostream &out) override {
+	    Layer::write(out);
+	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+	    out.write(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
+	}
 };
+
 export class FCLayer: public Layer {
     std::shared_ptr<Activate> action_ = std::make_shared<Sigmoid>();
+    ActivateType activate_type = ActivateType::Sigmoid;
+    Weights weights;
 public:
 	Label fc_in, fc_out;
-    Weights weights;
 	Vector<float> once_gradient;
     Vector<float> once_old_gradient;
+    LayerType layer_type = LayerType::FC;
 
+    FCLayer() = default;
 	FCLayer(FeatureExtent in_size, int out_size)
 		: Layer(in_size, {out_size, 1, 1}),
         weights(out_size, in_size.z, in_size.x, in_size.y) {
 		fc_in = Label(out_size);
 	    fc_out = Label(out_size);
 
+	    layer_type = LayerType::FC;
 		once_gradient = Label(out_size);
 	    once_old_gradient = Label(out_size);
 
 	    random_tensor(weights, -1, 1);
 	}
-
-
 
 	void forward(const FeatureMap& in) override {
 	    this->in = in;
@@ -324,7 +366,6 @@ public:
 	        fc_out[cur_kernel] = action_->action(sum);
 	    }
 	}
-
 
 	void backward(const FeatureMap& next_gradient) override {  }
 	void backward(Vector<float>& grad_next_layer) {
@@ -351,9 +392,25 @@ public:
 		}
 	}
 
+    void read(std::istream &in) override {
+	    Layer::read(in);
+	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+	    in.read(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
+	    weights.read(in);
+
+	}
+
+    void write(std::ostream &out) override {
+	    Layer::write(out);
+	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
+	    out.write(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
+	    weights.write(out);
+	}
+
 };
 
 export class CNN {
+    int version_ = 1;
     FeatureExtent in_extent;
     std::vector<std::shared_ptr<Layer>> layers;
 
@@ -388,7 +445,6 @@ public:
 		layers.push_back(std::make_shared<FCLayer>(get_cur_in_extent(), type_count));
 	}
 
-
 	void forward(const FeatureMap& data) const {
 	    auto begin_layer = layers.front();
 	    begin_layer->forward(data);
@@ -402,7 +458,6 @@ public:
 	    for (int i = layers.size() - 2; i >= 0; i--)
 	        layers[i]->backward(layers[i + 1]->gradient);
 	}
-
 
 	void train(const Tensor<float, 3> &data, const Label& label) const {
 		forward(data);
@@ -451,6 +506,71 @@ public:
 	        throw std::runtime_error("load_dataset_func impl is null");
 	    auto dataset = load_dataset_func(image_path, label_path);
 	    train(dataset, train_count);
+	}
+
+    void load(const std::string &module_path) {
+	    std::ifstream file(module_path, std::ios::binary);
+	    if (!file.is_open())
+	        throw std::runtime_error("load " + module_path + " failed");
+
+        // 序列化版本信息
+	    file.read(reinterpret_cast<char *>(&version_), sizeof(version_));
+
+	    // 输入尺寸信息
+	    in_extent.read(file);
+
+	    // 层数
+	    int layers_count = layers.size();
+	    file.read(reinterpret_cast<char *>(&layers_count), sizeof(layers_count));
+	    for (int i = 0;i < layers_count; ++i) {
+	        LayerType layer_type;
+	        std::shared_ptr<Layer> layer;
+	        file.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
+	        switch (layer_type) {
+	        case LayerType::Conv:
+	            layer = std::make_shared<ConvLayer>();
+	            layer->read(file);
+                break;
+	        case LayerType::Activate:
+	            layer = std::make_shared<ActionLayer>();
+	            layer->read(file);
+	            break;
+            case LayerType::Pool:
+	            layer = std::make_shared<PoolLayer>();
+	            layer->read(file);
+                break;
+            case LayerType::FC:
+	            layer = std::make_shared<FCLayer>();
+	            layer->read(file);
+                break;
+            default:
+	            throw std::runtime_error("layer type not support");
+	        }
+	        layers.emplace_back(std::move(layer));
+	    }
+
+	}
+    void save(const std::string &module_path) {
+	    std::ofstream file(module_path, std::ios::binary);
+	    if (!file.is_open())
+	        throw std::runtime_error("save " + module_path + " failed");
+
+	    // 序列化版本
+	    file.write(reinterpret_cast<char *>(&version_), sizeof(version_));
+
+	    // 输入尺寸信息
+	    in_extent.write(file);
+
+	    // 层数
+	    int layers_count = layers.size();
+	    file.write(reinterpret_cast<char *>(&layers_count), sizeof(layers_count));
+
+	    // 层类型
+	    for (const auto &layer : layers) {
+	        file.write(reinterpret_cast<char *>(&layer->layer_type), sizeof(layer->layer_type));
+	    }
+	    for (auto &layer : layers)
+	        layer->write(file);
 	}
 };
 

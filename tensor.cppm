@@ -196,6 +196,15 @@ class Tensor {
 
     template<size_t... I>
     void create_tensor(std::vector<int>& dims, std::index_sequence<I...>) {
+        for (auto num : dims)
+            std::cout << num << " ";
+        endl(std::cout);
+
+        for (int i = 0;i < dims.size(); ++i) {
+            std::cout << dims[i] << " ";
+        }
+        endl(std::cout);
+
         new (this) Tensor(dims[I]...);
     }
 public:
