@@ -86,6 +86,7 @@ struct Layer {
         out_extent.read(in);
 
         in.read(reinterpret_cast<char *>(&stride), sizeof(stride));
+        in.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 
         this->in.read(in);
         this->out.read(in);
@@ -97,6 +98,7 @@ struct Layer {
         out_extent.write(out);
 
         out.write(reinterpret_cast<const char*>(&stride), sizeof(stride));
+        out.write(reinterpret_cast<char*>(&layer_type), sizeof(layer_type));
 
         this->in.write(out);
         this->out.write(out);
@@ -194,13 +196,11 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 	    kernels.read(in);
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 	    kernels.write(out);
 	}
 };
@@ -215,7 +215,7 @@ public:
 
     explicit ActionLayer(const FeatureExtent in_size)
         : Layer(in_size, in_size) {
-        layer_type = LayerType::Activate;
+        this->layer_type = LayerType::Activate;
     }
 
     void forward(const Tensor<float, 3>& in) override {
@@ -236,13 +236,11 @@ public:
 
     void read(std::istream &in) override {
         Layer::read(in);
-        in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
         in.read(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
     }
 
     void write(std::ostream &out) override {
         Layer::write(out);
-        out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
         out.write(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
     }
 };
@@ -259,7 +257,7 @@ public:
 	PoolLayer(int pool_window_size, uint16_t stride, FeatureExtent in_size)
 		: pool_window_size(pool_window_size),
 		Layer(in_size, {(in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1, in_size.z}) {
-        layer_type = LayerType::Pool;
+        this->layer_type = LayerType::Pool;
 	    this->stride = stride;
 	    pool_window_ = PoolWindow(pool_window_size, pool_window_size);
 	    pool_max_pos_ = PoolLayerMaxPos(in_size.z, (in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1);
@@ -315,13 +313,11 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
 	    in.read(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
 	    out.write(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
 	}
 };
@@ -334,7 +330,6 @@ public:
 	Label fc_in, fc_out;
 	Vector<float> once_gradient;
     Vector<float> once_old_gradient;
-    LayerType layer_type = LayerType::FC;
 
     FCLayer() = default;
 	FCLayer(FeatureExtent in_size, int out_size)
@@ -343,7 +338,7 @@ public:
 		fc_in = Label(out_size);
 	    fc_out = Label(out_size);
 
-	    layer_type = LayerType::FC;
+	    this->layer_type = LayerType::FC;
 		once_gradient = Label(out_size);
 	    once_old_gradient = Label(out_size);
 
@@ -394,7 +389,6 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
 	    in.read(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
 	    weights.read(in);
 
@@ -402,7 +396,6 @@ public:
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    out.write(reinterpret_cast<char *>(&layer_type), sizeof(LayerType));
 	    out.write(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
 	    weights.write(out);
 	}
@@ -425,24 +418,27 @@ export class CNN {
     }
 
 public:
+    CNN() = default;
 	CNN(int x, int y, int z) : in_extent(x, y, z) {  }
 
     std::function<std::vector<Data>(const std::string&, const std::string&)> load_dataset_func;
 
 	void add_conv(int kernel_num, int kernel_size, uint16_t stride = 1) {
-		layers.push_back(std::make_shared<ConvLayer>(kernel_num, kernel_size, stride, get_cur_in_extent()));
+		layers.emplace_back(std::make_shared<ConvLayer>(kernel_num, kernel_size, stride, get_cur_in_extent()));
 	}
 
 	void add_relu() {
-		layers.push_back(std::make_shared<ActionLayer>(get_cur_in_extent()));
+	    auto cur_in_extent = get_cur_in_extent();
+	    auto layer = std::make_shared<ActionLayer>(cur_in_extent);
+		layers.push_back(layer);
 	}
 
 	void add_pool(int pool_window_size, uint16_t stride) {
-		layers.push_back(std::make_shared<PoolLayer>(stride, pool_window_size, get_cur_in_extent()));
+		layers.emplace_back(std::make_shared<PoolLayer>(stride, pool_window_size, get_cur_in_extent()));
 	}
 
 	void add_fc(int type_count) {
-		layers.push_back(std::make_shared<FCLayer>(get_cur_in_extent(), type_count));
+		layers.emplace_back(std::make_shared<FCLayer>(get_cur_in_extent(), type_count));
 	}
 
 	void forward(const FeatureMap& data) const {
@@ -529,25 +525,24 @@ public:
 	        switch (layer_type) {
 	        case LayerType::Conv:
 	            layer = std::make_shared<ConvLayer>();
-	            layer->read(file);
                 break;
 	        case LayerType::Activate:
 	            layer = std::make_shared<ActionLayer>();
-	            layer->read(file);
 	            break;
             case LayerType::Pool:
 	            layer = std::make_shared<PoolLayer>();
-	            layer->read(file);
                 break;
             case LayerType::FC:
 	            layer = std::make_shared<FCLayer>();
-	            layer->read(file);
                 break;
             default:
 	            throw std::runtime_error("layer type not support");
 	        }
 	        layers.emplace_back(std::move(layer));
 	    }
+
+	    for (auto &layer : layers)
+	        layer->read(file);
 
 	}
     void save(const std::string &module_path) {
