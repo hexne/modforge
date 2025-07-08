@@ -24,7 +24,7 @@ class Vector {
 
 public:
     Vector() = default;
-    explicit Vector(int n) :data_(std::make_shared<std::vector<T>>(n)) {  }
+    explicit Vector(int n) : data_(std::make_shared<std::vector<T>>(n)) {  }
     Vector(T *ptr, size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
 
     Vector(const Vector &) = default;
@@ -82,6 +82,16 @@ public:
     void foreach(std::function<void(T &)> func) {
         for (auto &val : data_)
             func(val);
+    }
+
+    void read(std::istream &in) {
+        int size{};
+        in.read(reinterpret_cast<char *>(&size), sizeof(size));
+        data_ = std::make_shared<std::vector<T>>(size);
+    }
+    void write(std::ostream &out) const {
+        int size = data_->size();
+        out.write(reinterpret_cast<const char *>(&size), sizeof(size));
     }
 
 };

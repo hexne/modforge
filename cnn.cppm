@@ -313,12 +313,14 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
+	    in.read (reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
+	    pool_max_pos_.read(in);
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
 	    out.write(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
+	    pool_max_pos_.write(out);
 	}
 };
 
@@ -391,13 +393,17 @@ public:
 	    Layer::read(in);
 	    in.read(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
 	    weights.read(in);
-
+	    fc_in.read(in);
+	    fc_out.read(in);
 	}
+
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
 	    out.write(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
 	    weights.write(out);
+	    fc_in.write(out);
+	    fc_out.write(out);
 	}
 
 };
