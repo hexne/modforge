@@ -3,18 +3,11 @@
  * @Data   : 2024/12/10 22:32
 *******************************************************************************/
 
-module;
-#include <functional>
-#include <vector>
-#include <format>
-#include <memory>
-#include <mdspan>
-#include <stdexcept>
-#include <iostream>
 export module modforge.tensor;
+import std;
 
 export
-template <typename T, size_t Extents>
+template <typename T, std::size_t Extents>
 class Tensor;
 
 export
@@ -25,7 +18,7 @@ class Vector {
 public:
     Vector() = default;
     explicit Vector(int n) : data_(std::make_shared<std::vector<T>>(n)) {  }
-    Vector(T *ptr, size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
+    Vector(T *ptr, std::size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
 
     Vector(const Vector &) = default;
     Vector(Vector &&) = default;
@@ -66,14 +59,14 @@ public:
         return *this;
     }
 
-	T& operator[](size_t index) {
+	T& operator[](std::size_t index) {
 		return (*data_)[index];
 	}
-    T operator[](size_t index) const {
+    T operator[](std::size_t index) const {
         return (*data_)[index];
     }
 
-    size_t size() const {
+    std::size_t size() const {
         if (data_)
             return data_->size();
         return 0;
@@ -106,10 +99,10 @@ public:
 };
 
 export
-template <typename T,size_t Extents>
+template <typename T,std::size_t Extents>
 class Tensor {
     std::shared_ptr<std::vector<T>> data_;
-    std::mdspan<T, std::dextents<size_t, Extents>, std::layout_stride> view_;
+    std::mdspan<T, std::dextents<std::size_t, Extents>, std::layout_stride> view_;
 
     template<typename ... Args>
     constexpr int mul(Args && ...args) {
@@ -118,14 +111,14 @@ class Tensor {
 
     template<typename U, typename ... Args>
     [[nodiscard]]
-    auto& access_vector(std::vector<U>& vec, size_t first, Args &&...index) {
+    auto& access_vector(std::vector<U>& vec, std::size_t first, Args &&...index) {
         if constexpr (sizeof ...(index) >= 1)
             return access_vector(vec[first], index ...);
         else
             return vec[first];
     }
 
-    template<size_t extent>
+    template<std::size_t extent>
     auto to_vector_impl() {
         if constexpr (extent == 1) {
             return std::vector<T>(view_.extent(Extents - 1));
@@ -185,18 +178,18 @@ class Tensor {
 
     }
 
-    template <size_t N, typename ... Index>
+    template <std::size_t N, typename ... Index>
     void mul_impl(Tensor &result, const Tensor &other, Index ...index) const {
         // 此处计算乘法
         if constexpr (N == Extents - 2) {
-            const size_t n = view_.extent(Extents - 2); // 结果行数
-            const size_t p = other.view_.extent(Extents - 1); // 结果列数
-            const size_t k = view_.extent(Extents - 1); // 内积维度
+            const std::size_t n = view_.extent(Extents - 2); // 结果行数
+            const std::size_t p = other.view_.extent(Extents - 1); // 结果列数
+            const std::size_t k = view_.extent(Extents - 1); // 内积维度
 
-            for (size_t i = 0; i < n; ++i) {
-                for (size_t j = 0; j < p; ++j) {
+            for (std::size_t i = 0; i < n; ++i) {
+                for (std::size_t j = 0; j < p; ++j) {
                     T sum{};
-                    for (size_t l = 0; l < k; ++l) {
+                    for (std::size_t l = 0; l < k; ++l) {
                         sum += view_[index..., i, l] * other.view_[index..., l, j];
                     }
                     result.view_[index..., i, j] = sum;
@@ -213,7 +206,7 @@ class Tensor {
 
     }
 
-    template<size_t... I>
+    template<std::size_t... I>
     void create_tensor(std::vector<int>& dims, std::index_sequence<I...>) {
         new (this) Tensor(dims[I]...);
     }
@@ -231,7 +224,7 @@ public:
         ret.view_ = std::mdspan(data, args ...);
         return ret;
     }
-    static Tensor from_view(const T* data, std::layout_stride::mapping<std::dextents<size_t, Extents>> mapping) {
+    static Tensor from_view(const T* data, std::layout_stride::mapping<std::dextents<std::size_t, Extents>> mapping) {
         Tensor ret;
         ret.view_ = std::mdspan(data, mapping);
         return ret;
@@ -244,20 +237,20 @@ public:
         return ret;
     }
 
-    Tensor(const T *data, size_t count, auto && ...args) requires (sizeof ...(args) == Extents) {
+    Tensor(const T *data, std::size_t count, auto && ...args) requires (sizeof ...(args) == Extents) {
         data_ = std::make_shared<std::vector<T>>(count);
         std::copy(data, data + count, data_->begin());
         view_ = std::mdspan(data_->data(), args ...);
     }
 
-    Tensor(std::shared_ptr<T[]> ptr,size_t count, auto && ...args) requires (sizeof ...(args) == Extents)
+    Tensor(std::shared_ptr<T[]> ptr,std::size_t count, auto && ...args) requires (sizeof ...(args) == Extents)
                 : Tensor(ptr.get(), count, std::forward<decltype(args)>(args) ...) {
 
     }
 
     explicit Tensor(const std::vector<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
 
-    Tensor(std::shared_ptr<std::vector<T>> vec, std::layout_stride::mapping<std::dextents<size_t, Extents>> mapping) : data_(vec), view_(data_->data(), mapping) {  }
+    Tensor(std::shared_ptr<std::vector<T>> vec, std::layout_stride::mapping<std::dextents<std::size_t, Extents>> mapping) : data_(vec), view_(data_->data(), mapping) {  }
 
     Tensor(const std::initializer_list<T> &vec, auto && ...args) requires (sizeof ...(args) == Extents) : Tensor(std::data(vec), vec.size(), args ...) {  }
 
@@ -319,11 +312,11 @@ public:
         return Tensor(ptr, view_.mapping());
     }
 
-    [[nodiscard]] size_t extent(size_t extent) const {
+    [[nodiscard]] std::size_t extent(std::size_t extent) const {
         return view_.extent(extent);
     }
 
-    [[nodiscard]] size_t rank() const {
+    [[nodiscard]] std::size_t rank() const {
         return view_.rank();
     }
 
@@ -406,12 +399,12 @@ public:
             throw std::runtime_error("Tensor size is different");
 
 
-        std::array<size_t, Extents> new_extents;
+        std::array<std::size_t, Extents> new_extents;
         for (int i = 0;i < Extents - 2; ++i)
             new_extents[i] = view_.extent(i);
         new_extents[Extents - 2] = view_.extent(Extents - 2);
         new_extents[Extents - 1] = other.view_.extent(Extents - 1);
-        auto create = [&]<size_t ...Index>(std::index_sequence<Index...>) {
+        auto create = [&]<std::size_t ...Index>(std::index_sequence<Index...>) {
             return Tensor<T, Extents>(new_extents[Index]...);
         };
         auto result = create(std::make_index_sequence<Extents>());
@@ -430,29 +423,29 @@ public:
         static_assert(Extents >= 2, "Transpose requires at least 2 dimensions");
 
         // 新的步长
-        std::array<size_t, Extents> strides;
-        for (size_t i = 0; i < Extents - 2; ++i)
+        std::array<std::size_t, Extents> strides;
+        for (std::size_t i = 0; i < Extents - 2; ++i)
             strides[i] = view_.mapping().stride(i);
         strides[Extents - 2] = view_.mapping().stride(Extents - 1);
         strides[Extents - 1] = view_.mapping().stride(Extents - 2);
 
         // 新的维度
-        std::array<size_t, Extents> extents;
-        for (size_t i = 0; i < Extents; ++i)
+        std::array<std::size_t, Extents> extents;
+        for (std::size_t i = 0; i < Extents; ++i)
             extents[i] = view_.extent(i);
         std::swap(extents[Extents - 2], extents[Extents - 1]);
 
         // 构造 extents 对象
         auto new_extents = [&]{
             if constexpr (Extents == 1) {
-                return std::dextents<size_t, 1>{extents[0]};
+                return std::dextents<std::size_t, 1>{extents[0]};
             } else if constexpr (Extents == 2) {
-                return std::dextents<size_t, 2>{extents[0], extents[1]};
+                return std::dextents<std::size_t, 2>{extents[0], extents[1]};
             } else if constexpr (Extents == 3) {
-                return std::dextents<size_t, 3>{extents[0], extents[1], extents[2]};
+                return std::dextents<std::size_t, 3>{extents[0], extents[1], extents[2]};
             } else {
                 static_assert(Extents <= 3, "Only support up to 3 dimensions");
-                return std::dextents<size_t, Extents>{};
+                return std::dextents<std::size_t, Extents>{};
             }
         }();
 
@@ -466,7 +459,7 @@ public:
 };
 
 template <typename T, typename ...Args>
-Tensor(T *, size_t, Args ...) -> Tensor<T, sizeof...(Args)>;
+Tensor(T *, std::size_t, Args ...) -> Tensor<T, sizeof...(Args)>;
 
 template <typename T, typename ...Args>
 Tensor(const std::vector<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;

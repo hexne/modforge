@@ -2,14 +2,8 @@
  * @Author : hexne
  * @Data   : 2024/12/06 22:51
 *******************************************************************************/
-module;
-#include <iostream>
-#include <memory>
-#include <random>
-#include <regex>
-#include <type_traits>
-#include <vector>
 export module modforge.deep_learning.bp;
+import std;
 
 import modforge.tensor;
 import modforge.deep_learning.tools;
@@ -21,7 +15,7 @@ int train_count;
 std::shared_ptr<Optimizer> optimizer;
 
 struct Layer {
-    size_t size;
+    std::size_t size;
     Vector<float> in, out, next_in{}, gradient{};
     Tensor<float, 2> weight{};
     bool have_next{};
@@ -29,7 +23,7 @@ struct Layer {
     std::shared_ptr<Activate> action;
 
 
-    Layer(const size_t size, const std::shared_ptr<Activate> &action = std::make_shared<Relu>())
+    Layer(const std::size_t size, const std::shared_ptr<Activate> &action = std::make_shared<Relu>())
         : size(size), in(size), out(size) , action(action) {  }
 
     void forward(const Vector<float> &pre_in) {
@@ -99,7 +93,7 @@ public:
     }
 
 
-    void add_layer(size_t n, const std::shared_ptr<Activate> &action = std::make_shared<Relu>()) {
+    void add_layer(std::size_t n, const std::shared_ptr<Activate> &action = std::make_shared<Relu>()) {
         auto layer = std::make_shared<Layer>(n, action);
 
         if (!layers_.empty()) {
@@ -137,7 +131,7 @@ public:
 
 
     void train(const std::vector<std::pair<Vector<float>, Vector<float>>> &dataset,
-                float train_proportion, size_t train_count, int seed, bool updata_acc = false) {
+                float train_proportion, std::size_t train_count, int seed, bool updata_acc = false) {
 
         ::train_count = train_count;
 

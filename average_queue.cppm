@@ -2,11 +2,9 @@
  * @Author : hexne
  * @Data   : 2024/12/01 22:56
 *******************************************************************************/
-
-module;
-#include <array>
-#include <stdexcept>
 export module modforge.average_queue;
+import std;
+
 
 template <typename T>
 concept AverageType = requires(T val1, T val2, T res, int count){
@@ -18,10 +16,10 @@ concept AverageType = requires(T val1, T val2, T res, int count){
 
 
 export
-template <AverageType T, size_t MaxSize>
+template <AverageType T, std::size_t MaxSize>
 class AverageQueue {
 	std::array<T, MaxSize + 1> data_{};
-	size_t max_size_ = MaxSize + 1;
+	std::size_t max_size_ = MaxSize + 1;
 	int front_{}, rear_{};
 public:
 
@@ -58,7 +56,7 @@ public:
 	}
 
 
-	size_t size() const {
+	std::size_t size() const {
 		int size = rear_ - front_;
 		if (size > 0)
 			return size;

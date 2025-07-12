@@ -3,20 +3,14 @@
  * @Data   : 2024/11/19 21:15
 *******************************************************************************/
 
-module;
-#include <map>
-#include <functional>
-#include <ostream>
-#include <string>
-#include <vector>
 export module modforge.param;
-
+import std;
 
 export class Param {
     std::vector<std::string> params_;
     std::map<std::string, std::function<void()>> support_params_;
     // 方案2 :
-    template<size_t ... index>
+    template<std::size_t ... index>
     void add_param_impl(auto && tuple, auto &&callback, std::index_sequence<index...>) {
         auto lam = [&] (const std::string &str) {
             support_params_.insert({str,callback});
@@ -102,7 +96,7 @@ public:
         return params_.size() > 1;
     }
     [[nodiscard]]
-    size_t count_param() const {
+    std::size_t count_param() const {
         return params_.size();
     }
 

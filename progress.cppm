@@ -2,18 +2,13 @@
 * @Author : hexne
 * @Date   : 2025/05/28 14:27:03
 ********************************************************************************/
-module;
-#include <future>
-#include <string>
-#include <iostream>
-#include <ranges>
-#include <vector>
 export module modforge.progress;
 
+import std;
 import modforge.console;
 import modforge.time;
 
-std::string get_name(const std::string &name, size_t width) {
+std::string get_name(const std::string &name, std::size_t width) {
     if (name.size() <= width) {
         std::string format = std::string() + "{:" + std::to_string(width) + "}";
         return std::vformat(format, std::make_format_args(name));
@@ -22,13 +17,13 @@ std::string get_name(const std::string &name, size_t width) {
     return std::vformat(format, std::make_format_args(name));
 }
 
-std::string get_remaining_time(const Time &begin_time, size_t current, size_t total, size_t width) {
+std::string get_remaining_time(const Time &begin_time, std::size_t current, std::size_t total, std::size_t width) {
     std::string ret;
     auto cur_time = Time::now();
     auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
 
     float percentage = current * 1.f / total;
-    size_t total_time = use_time / percentage;
+    std::size_t total_time = use_time / percentage;
     auto remaining_time = total_time - use_time;
     if (percentage >= 1.f)
         remaining_time = 0;
@@ -40,7 +35,7 @@ std::string get_remaining_time(const Time &begin_time, size_t current, size_t to
     return std::vformat(format, std::make_format_args(arg));
 }
 
-std::string get_bar(size_t current, size_t total, size_t width) {
+std::string get_bar(std::size_t current, std::size_t total, std::size_t width) {
     std::string bar(width, ' ');
     bar.front() = '[';
     bar.back() = ']';
@@ -54,7 +49,7 @@ std::string get_bar(size_t current, size_t total, size_t width) {
 }
 
 
-std::string get_percentage(size_t current, size_t total, size_t width) {
+std::string get_percentage(std::size_t current, std::size_t total, std::size_t width) {
     float percentage = current * 1.f / total;
     std::string format = "{:>" + std::to_string(width) + "}%";
     int arg = percentage * 100;
@@ -96,7 +91,7 @@ public:
     void set_current(int current) {
         current_ = current;
     }
-    size_t get_current() const {
+    std::size_t get_current() const {
         return current_;
     }
     void destruct_print_endl(bool flag) {
@@ -149,7 +144,7 @@ class Progress {
 
     std::string info_{};
 
-    size_t get_max_number_width() const {
+    std::size_t get_max_number_width() const {
         return std::to_string(bars_.size()).size();
     }
 
@@ -177,7 +172,7 @@ public:
     Progressbar &cur_bar() {
         return cur_bar_;
     }
-    [[nodiscard]] size_t get_width() const {
+    [[nodiscard]] std::size_t get_width() const {
         return width;
 
     }
@@ -196,7 +191,7 @@ public:
         auto first_line = std::async(&Progressbar::get_progress_bar, cur_bar_);
 
         // 数字
-        auto get_number = std::async([this](size_t current, size_t total, size_t width) {
+        auto get_number = std::async([this](std::size_t current, std::size_t total, std::size_t width) {
             std::string format = "({:>" + std::to_string(width) + "}/{})";
             current ++;
             auto args = std::make_format_args(current, total);
@@ -207,11 +202,11 @@ public:
         auto tab = std::string(tab_width, ' ');
 
         // 剩余时间
-        size_t cur{};
+        std::size_t cur{};
         for (int i = 0;i < current_; ++i)
             cur += bars_[i].second;
         cur += cur_bar().get_current();
-        size_t total{};
+        std::size_t total{};
         for (const auto &bar_total : bars_ | std::views::values)
             total += bar_total;
         auto time = std::async(get_remaining_time, begin_time_, cur, total, time_width);

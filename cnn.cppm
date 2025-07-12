@@ -2,16 +2,9 @@
 * @Author : hexne
 * @Date   : 2025/05/21 16:27:03
 ********************************************************************************/
-module;
-#include <fstream>
-#include <vector>
-#include <bit>
-#include <memory>
-#include <functional>
-#include <future>
-#include <iostream>
-#include <thread>
 export module modforge.deep_learning.cnn;
+
+import std;
 
 import modforge.tensor;
 import modforge.progress;
@@ -70,7 +63,7 @@ void update_gradient(float &gradient, float &old_gradient) {
     old_gradient = (gradient + old_gradient) * MOMENTUM;
 }
 
-enum class LayerType : u_char {
+enum class LayerType : unsigned char {
     None, Conv, Activate, Pool, FC
 };
 std::ostream & operator << (std::ostream &out, const LayerType &val) {
@@ -116,7 +109,7 @@ class ConvLayer : public Layer {
     Kernels kernels{}, filters_grads{}, old_filters_grads{};
 public:
     ConvLayer() = default;
-	ConvLayer(int kernel_num, int kernel_size, uint16_t stride, FeatureExtent in_size)
+	ConvLayer(int kernel_num, int kernel_size, int stride, FeatureExtent in_size)
 		: Layer(in_size, {(in_size.x - kernel_size) / stride + 1, (in_size.y - kernel_size) / stride + 1, kernel_num}) {
 	    this->layer_type = LayerType::Conv;
 		this->stride = stride;
@@ -124,7 +117,7 @@ public:
 
 		int N = kernel_size * kernel_size * in_size.z;
 	    kernels.foreach([=](auto &val) {
-	        val = 1.0f / N * rand() / 2147483647.0;
+	        val = 1.0f / N * std::rand() / 2147483647.0;
 	    });
 	    filters_grads = Kernels(kernel_num, in_size.z, kernel_size, kernel_size);
 	    old_filters_grads = Kernels(kernel_num, in_size.z, kernel_size, kernel_size);
@@ -267,7 +260,7 @@ public:
 
     PoolLayer() = default;
 
-	PoolLayer(int pool_window_size, uint16_t stride, FeatureExtent in_size)
+	PoolLayer(int pool_window_size, int stride, FeatureExtent in_size)
 		: pool_window_size(pool_window_size),
 		Layer(in_size, {(in_size.x - pool_window_size) / stride + 1, (in_size.y - pool_window_size) / stride + 1, in_size.z}) {
         this->layer_type = LayerType::Pool;
@@ -445,7 +438,7 @@ public:
 
     std::function<std::vector<Data>(const std::string&, const std::string&)> load_dataset_func;
 
-	void add_conv(int kernel_num, int kernel_size, uint16_t stride = 1) {
+	void add_conv(int kernel_num, int kernel_size, int stride = 1) {
 		layers.emplace_back(std::make_shared<ConvLayer>(kernel_num, kernel_size, stride, get_cur_in_extent()));
 	}
 
@@ -455,7 +448,7 @@ public:
 		layers.push_back(layer);
 	}
 
-	void add_pool(int pool_window_size, uint16_t stride) {
+	void add_pool(int pool_window_size, int stride) {
 		layers.emplace_back(std::make_shared<PoolLayer>(stride, pool_window_size, get_cur_in_extent()));
 	}
 
