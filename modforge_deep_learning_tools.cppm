@@ -22,9 +22,18 @@ struct Activate {
     virtual ~Activate() = default;
 };
 
-enum class ActivateType {
+enum class ActivateType : u_char {
     Sigmoid, Relu
 };
+
+std::ostream & operator << (std::ostream &out, const ActivateType &val) {
+    out.write(reinterpret_cast<const char *>(&val), sizeof(ActivateType));
+    return out;
+}
+std::istream & operator >> (std::istream &in, ActivateType &val) {
+    in.read(reinterpret_cast<char *>(&val), sizeof(ActivateType));
+    return in;
+}
 
 struct Sigmoid : Activate {
     double action(double num) override {

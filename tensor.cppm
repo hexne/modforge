@@ -94,6 +94,15 @@ public:
         out.write(reinterpret_cast<const char *>(&size), sizeof(size));
     }
 
+    friend std::istream &operator >> (std::istream &in, Vector &vec) {
+        vec.read(in);
+        return in;
+    }
+    friend std::ostream &operator << (std::ostream &out, Vector &vec) {
+        vec.write(out);
+        return out;
+    }
+
 };
 
 export
@@ -289,6 +298,14 @@ public:
 
     }
 
+    friend std::istream &operator >> (std::istream &in, Tensor &tensor) {
+        tensor.read(in);
+        return in;
+    }
+    friend std::ostream &operator << (std::ostream &out, Tensor &tensor) {
+        tensor.write(out);
+        return out;
+    }
 
 
     Tensor copy() const {

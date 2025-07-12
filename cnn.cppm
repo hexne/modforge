@@ -9,6 +9,7 @@ module;
 #include <memory>
 #include <functional>
 #include <future>
+#include <iostream>
 #include <thread>
 export module modforge.deep_learning.cnn;
 
@@ -34,6 +35,14 @@ struct FeatureExtent {
         out.write(reinterpret_cast<const char*>(&z), sizeof(z));
         out.write(reinterpret_cast<const char*>(&x), sizeof(x));
         out.write(reinterpret_cast<const char*>(&y), sizeof(y));
+    }
+    friend std::istream &operator >> (std::istream &in, FeatureExtent &extent) {
+        extent.read(in);
+        return in;
+    }
+    friend std::ostream &operator << (std::ostream &out, const FeatureExtent &extent) {
+        extent.write(out);
+        return out;
     }
 };
 
@@ -61,10 +70,17 @@ void update_gradient(float &gradient, float &old_gradient) {
     old_gradient = (gradient + old_gradient) * MOMENTUM;
 }
 
-enum class LayerType {
+enum class LayerType : u_char {
     None, Conv, Activate, Pool, FC
 };
-
+std::ostream & operator << (std::ostream &out, const LayerType &val) {
+    out.write(reinterpret_cast<const char *>(&val), sizeof(LayerType));
+    return out;
+}
+std::istream & operator >> (std::istream &in, LayerType &val) {
+    in.read(reinterpret_cast<char *>(&val), sizeof(LayerType));
+    return in;
+}
 struct Layer {
     FeatureExtent in_extent{}, out_extent{};
     FeatureMap in{}, out{}, gradient{};
@@ -82,32 +98,19 @@ struct Layer {
     virtual void forward(const FeatureMap& in) = 0;
     virtual void backward(const FeatureMap& next_gradient) = 0;
     virtual void read(std::istream &in) {
-        in_extent.read(in);
-        out_extent.read(in);
-
+        in >> in_extent >> out_extent;
+        in >> this->in >> this->out >> this->gradient;
         in.read(reinterpret_cast<char *>(&stride), sizeof(stride));
-        in.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
-
-        this->in.read(in);
-        this->out.read(in);
-
-        // 梯度暂时无需保存
+        in >> layer_type;
     }
     virtual void write(std::ostream &out) {
-        in_extent.write(out);
-        out_extent.write(out);
-
+        out << in_extent << out_extent;
+        out << this->in << this->out << this->gradient;
         out.write(reinterpret_cast<const char*>(&stride), sizeof(stride));
-        out.write(reinterpret_cast<char*>(&layer_type), sizeof(layer_type));
-
-        this->in.write(out);
-        this->out.write(out);
-
-        // 梯度不被保存
+        out << layer_type;
     }
     virtual ~Layer() = default;
 };
-
 
 class ConvLayer : public Layer {
     Kernels kernels{}, filters_grads{}, old_filters_grads{};
@@ -196,12 +199,12 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    kernels.read(in);
+	    in >> kernels >> filters_grads >> old_filters_grads;
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    kernels.write(out);
+	    out << kernels << filters_grads << old_filters_grads;
 	}
 };
 
@@ -236,12 +239,22 @@ public:
 
     void read(std::istream &in) override {
         Layer::read(in);
-        in.read(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
+        in >> activate_type;
+        switch (activate_type) {
+        case ActivateType::Sigmoid:
+            action_ = std::make_shared<Sigmoid>();
+            break;
+        case ActivateType::Relu:
+            action_ = std::make_shared<Relu>();
+            break;
+        default:
+            throw std::invalid_argument("Invalid activate type");
+        }
     }
 
     void write(std::ostream &out) override {
         Layer::write(out);
-        out.write(reinterpret_cast<char*>(&activate_type), sizeof(ActivateType));
+        out << activate_type;
     }
 };
 
@@ -313,14 +326,12 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read (reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
-	    pool_max_pos_.read(in);
+	    in >> pool_window_ >> pool_max_pos_;
 	}
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    out.write(reinterpret_cast<char*>(&pool_window_size), sizeof(pool_window_size));
-	    pool_max_pos_.write(out);
+	    out << pool_window_ << pool_max_pos_;
 	}
 };
 
@@ -391,19 +402,24 @@ public:
 
     void read(std::istream &in) override {
 	    Layer::read(in);
-	    in.read(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
-	    weights.read(in);
-	    fc_in.read(in);
-	    fc_out.read(in);
+	    in >> activate_type;
+	    switch (activate_type) {
+        case ActivateType::Sigmoid:
+	        action_ = std::make_shared<Sigmoid>();
+        case ActivateType::Relu:
+	        action_ = std::make_shared<Relu>();
+	        break;
+        default:
+	        throw std::invalid_argument("Invalid activate type");
+	    }
+	    in >> weights >> fc_in >> fc_out >> once_gradient >> once_old_gradient;
 	}
 
 
     void write(std::ostream &out) override {
 	    Layer::write(out);
-	    out.write(reinterpret_cast<char*>(&activate_type), sizeof(activate_type));
-	    weights.write(out);
-	    fc_in.write(out);
-	    fc_out.write(out);
+	    out << activate_type;
+	    out << weights << fc_in << fc_out << once_gradient << once_old_gradient;
 	}
 
 };
@@ -461,17 +477,18 @@ public:
 	        layers[i]->backward(layers[i + 1]->gradient);
 	}
 
-	void train(const Tensor<float, 3> &data, const Label& label) const {
+    Label forcast(const FeatureMap& data) const {
+	    forward(data);
+	    return get_out();
+	}
+    void train(const FeatureMap &data, const Label& label) const {
 		forward(data);
 	    backward(label);
 	}
-
     void train(const std::vector<Data> &datas,int train_count) const {
 	    Progress progress(false);
 	    for (int i = 0;i < train_count; ++i)
 	        progress.push("训练中...", datas.size());
-
-	    Console::hind_cursor();
 
 	    int flag = datas.size() / 100;
 	    for (int i = 0;i < train_count; ++i) {
@@ -500,14 +517,36 @@ public:
 	        progress += 1;
 	    }
 
-        Console::show_cursor();
 	}
-
     void train(const std::string &image_path, const std::string &label_path, int train_count) const {
 	    if (!load_dataset_func)
 	        throw std::runtime_error("load_dataset_func impl is null");
 	    auto dataset = load_dataset_func(image_path, label_path);
 	    train(dataset, train_count);
+	}
+    bool test(const FeatureMap &data, const Label& label) const {
+	    auto out = OneHot::out_to_type(forcast(data));
+	    auto lab = OneHot::out_to_type(label);
+	    return out == lab;
+	}
+    void test(const std::vector<Data> &datas) const {
+	    Progressbar pb("测试中...", datas.size());
+
+	    int acc{};
+	    for (int i = 0;i < datas.size(); ++i) {
+	        auto [image, label] = datas[i];
+	        acc += test(image, label);
+	        pb += 1;
+	        pb.print();
+	    }
+	    endl(std::cout);
+	    std::cout << "acc is : " << acc * 1.f / datas.size() << std::endl;
+	}
+    void test(const std::string &image_path, const std::string &label_path) const {
+	    if (!load_dataset_func)
+	        throw std::runtime_error("load_dataset_func impl is null");
+	    auto dataset = load_dataset_func(image_path, label_path);
+	    test(dataset);
 	}
 
     void load(const std::string &module_path) {
@@ -527,7 +566,8 @@ public:
 	    for (int i = 0;i < layers_count; ++i) {
 	        LayerType layer_type;
 	        std::shared_ptr<Layer> layer;
-	        file.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
+	        file >> layer_type;
+	        // file.read(reinterpret_cast<char *>(&layer_type), sizeof(layer_type));
 	        switch (layer_type) {
 	        case LayerType::Conv:
 	            layer = std::make_shared<ConvLayer>();
