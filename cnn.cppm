@@ -11,11 +11,11 @@ import modforge.progress;
 import modforge.console;
 import modforge.deep_learning.tools;
 
-using PoolWindow = Tensor<float, 2>;
-using FeatureMap = Tensor<float, 3>;
+using Label      = Vector<float>;
 using Kernels    = Tensor<float, 4>;
 using Weights    = Tensor<float, 4>;
-using Label      = Vector<float>;
+using FeatureMap = Tensor<float, 3>;
+using PoolWindow = Tensor<float, 2>;
 
 struct FeatureExtent {
     int x{}, y{}, z{};
