@@ -9,7 +9,6 @@ file(GLOB module_files "*.cppm")
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     add_compile_options(-D_LIBCPP_ENABLE_EXPERIMENTAL)
-    set(libc_link c++experimental)
 endif()
 
 add_library(modforge STATIC)
