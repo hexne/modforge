@@ -3,15 +3,10 @@
  * @Date   : 2025/04/18 15:19:24
 ********************************************************************************/
 
-module;
-#include <functional>
-#include <thread>
-#include <algorithm>
-#include <mutex>
-#include <set>
 export module modforge.timer;
+import std;
 
-time_t GetNowTimeCount() {
+std::time_t GetNowTimeCount() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
@@ -23,9 +18,9 @@ export class Timer {
 
     struct TimerTask {
         CallbackFunc callback_func;
-        time_t end_time;
+        std::time_t end_time;
         bool is_repeat_task = false;
-        time_t interval_duration;
+        std::time_t interval_duration;
 
         bool operator < (const TimerTask& right) const {
             if (end_time < right.end_time)
@@ -77,19 +72,19 @@ public:
         return thread_.get_stop_token().stop_requested();
     }
 
-    void add_task(CallbackFunc func, const time_t time, const bool is_repeat_task = false) {
+    void add_task(CallbackFunc func, const std::time_t time, const bool is_repeat_task = false) {
         std::lock_guard lock(tasks_mutex_);
         tasks_.insert(
             { std::move(func) , GetNowTimeCount() + time, is_repeat_task, time }
         );
     }
 
-    void add_repeat_task(CallbackFunc func, const time_t time) {
+    void add_repeat_task(CallbackFunc func, const std::time_t time) {
         add_task(std::move(func), std::move(time), true);
     }
 
     [[nodiscard]]
-    size_t task_count(bool only_count_once_task = false) {
+    std::size_t task_count(bool only_count_once_task = false) {
         std::lock_guard lock(tasks_mutex_);
         if (only_count_once_task) {
             return std::ranges::count_if(tasks_, [](const TimerTask& task) {

@@ -4,18 +4,13 @@
 *******************************************************************************/
 
 module;
-#include <cctype>
-#include <ranges>
-#include <thread>
-#include <string>
-#include <functional>
-#include <vector>
-#include <stdexcept>
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
 export module modforge.keyevent;
+
+import std;
 
 export
 struct Key {

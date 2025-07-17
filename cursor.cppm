@@ -5,17 +5,13 @@
 
 module;
 
-#include <functional>
-#include <mutex>
-#include <thread>
-#include <chrono>
-#include <iostream>
-
 #ifdef _WIN32
 #include <Windows.h>
 #endif
 
 export module modforge.cursor;
+
+import std;
 
 export
 struct CursorPos {

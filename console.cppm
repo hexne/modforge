@@ -8,12 +8,12 @@ module;
 #ifdef _WIN32
 #include <Windows.h>
 #elif __linux__
-#include <iostream>
-#include <format>
 #include <sys/ioctl.h>  // ioctl() 和 TIOCGWINSZ
 #include <unistd.h>     // STDOUT_FILENO
 #endif
 export module modforge.console;
+
+import std;
 
 export 
 namespace Console {

@@ -5,7 +5,6 @@
 export module modforge.deep_learning.cnn;
 
 import std;
-
 import modforge.tensor;
 import modforge.progress;
 import modforge.console;

@@ -3,12 +3,6 @@
 * @Date   : 2025/05/17 02:12:33
 ********************************************************************************/
 module;
-#include <iostream>
-#include <thread>
-#include <future>
-#include <functional>
-#include <string>
-
 #ifdef _WIN32
 #include <windows.h>
 #include <windowsx.h>
@@ -16,6 +10,7 @@ module;
 #endif
 
 export module modforge.window;
+import std;
 
 export
 class Window {

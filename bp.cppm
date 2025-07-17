@@ -3,8 +3,8 @@
  * @Data   : 2024/12/06 22:51
 *******************************************************************************/
 export module modforge.deep_learning.bp;
-import std;
 
+import std;
 import modforge.tensor;
 import modforge.deep_learning.tools;
 import modforge.average_queue;

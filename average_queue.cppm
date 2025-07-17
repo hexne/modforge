@@ -3,8 +3,8 @@
  * @Data   : 2024/12/01 22:56
 *******************************************************************************/
 export module modforge.average_queue;
-import std;
 
+import std;
 
 template <typename T>
 concept AverageType = requires(T val1, T val2, T res, int count){
@@ -13,7 +13,6 @@ concept AverageType = requires(T val1, T val2, T res, int count){
 	res = val1 - val2;
 	res /= count;
 };
-
 
 export
 template <AverageType T, std::size_t MaxSize>
