@@ -67,7 +67,6 @@ public:
 
 
 
-module : private;
 
 
 std::array<std::string, 256> Key::key_map = {

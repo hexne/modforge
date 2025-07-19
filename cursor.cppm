@@ -55,7 +55,6 @@ public:
     ~Cursor();
 };
 
-module : private;
 #ifdef _WIN32
 class ClickEvent {
     bool state = false;

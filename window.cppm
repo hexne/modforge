@@ -48,7 +48,6 @@ public:
 
 };
 
-module :private;
 #ifdef _WIN32
 
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {

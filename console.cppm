@@ -31,7 +31,6 @@ namespace Console {
 
 };
 
-module : private;
 #ifdef _WIN32
 
 void Console::hind_cursor() {
