@@ -608,6 +608,9 @@ public:
 };
 
 char* read_file(const std::string &path) {
+    if (!std::filesystem::exists(path))
+        throw std::runtime_error("read_file " + path + " failed");
+
 	std::ifstream file(path, std::ios::binary | std::ios::ate);
 	std::streamsize size = file.tellg();
 	file.seekg(0, std::ios::beg);
