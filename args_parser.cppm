@@ -20,6 +20,7 @@ struct Arg {
     std::string value;
 };
 
+// 参数parser_callback : 是否在解析程序参数时调用相应的callback
 export template <bool parser_callback = true>
 class ArgsParser {
     std::vector<Arg> support_args_; // 支持的参数，通过add 添加
@@ -50,6 +51,8 @@ class ArgsParser {
     }
 public:
 
+    ArgsParser() = default;
+
     ArgsParser(int argc, char *argv[]) {
         for (int i = 1;i < argc; ++i)
             program_args_.emplace_back(argv[i]);
@@ -78,9 +81,8 @@ public:
 
     // 解析
     void parser() {
-
         // 对于短指令
-        for (int i = 1; i < program_args_.size(); ++i) {
+        for (int i = 0; i < program_args_.size(); ++i) {
             std::string cur_arg = program_args_[i];
 
             // -a -ah -cmake-version=4.0.0
@@ -92,7 +94,6 @@ public:
                     auto &arg = find_arg(key);
                     arg.enable = true;
                     arg.value = value;
-                    std::cout << std::format("{} = {}", key, value) << std::endl;
                 }
                 // 是短指令
                 else {
@@ -102,7 +103,6 @@ public:
                         arg.enable = true;
                         if (parser_callback)
                             arg.callback();
-                        std::cout << ch << std::endl;
                     }
                 }
             }
@@ -112,14 +112,13 @@ public:
                 arg.enable = true;
                 if (parser_callback)
                     arg.callback();
-                std::cout << cur_arg << std::endl;
             }
 
             // 其他传入的值
             else {
-                std::cout << "other value : " << cur_arg << std::endl;
                 other_arg_.emplace_back(std::move(cur_arg));
             }
         }
     }
+    ~ArgsParser() = default;
 };
