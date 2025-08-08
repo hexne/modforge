@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.0.0)
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "a9e1cf81-9932-4810-974b-6eccaf14e457")
 
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
@@ -16,5 +16,3 @@ target_sources(modforge
         FILE_SET cxx_modules TYPE CXX_MODULES FILES
         ${module_files}
 )
-
-target_compile_features(modforge PUBLIC cxx_std_23)

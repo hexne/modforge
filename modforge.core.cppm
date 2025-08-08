@@ -6,7 +6,7 @@
 ********************************************************************************/
 export module modforge.core;
 
-export import modforge.param;
+export import modforge.args_parser;
 export import modforge.time;
 export import modforge.timer;
 export import modforge.tensor;

@@ -15,6 +15,7 @@ export module modforge.console;
 
 import std;
 
+
 export 
 namespace Console {
 	void hind_cursor();

@@ -2,7 +2,7 @@
  * @Author : hexne
  * @Data   : 2024/11/19 21:15
 *******************************************************************************/
-export module args_parser;
+export module modforge.args_parser;
 import std;
 
 template <typename T>
