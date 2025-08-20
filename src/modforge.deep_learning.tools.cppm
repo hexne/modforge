@@ -22,7 +22,7 @@ struct Activate {
     virtual ~Activate() = default;
 };
 
-enum class ActivateType : u_char {
+enum class ActivateType : unsigned char {
     Sigmoid, Relu
 };
 
