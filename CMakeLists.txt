@@ -15,7 +15,7 @@ set(CMAKE_CXX_MODULE_STD 1)
 
 project(modforge LANGUAGES CXX)
 
-file(GLOB module_files "*.cppm")
+file(GLOB module_files "src/*.cppm")
 
 add_library(${PROJECT_NAME} STATIC)
 

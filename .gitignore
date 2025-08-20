@@ -33,6 +33,8 @@
 
 *.pbd
 
+vc140.pdb
+
 .vs
 .idea
 out/
