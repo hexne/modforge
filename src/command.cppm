@@ -11,27 +11,31 @@ export module command;
 
 import std;
 
-export class Command {  };
+export class Command {
+	std::string command_;
+	std::string command_out_;
+	explicit Command(std::string command) : command_(std::move(command));
+	std::string run();
+	std::string run(std::string command);
+};
+#ifdef _WIN32
+#elif __linux__
+Command::Command(std::string command) : command_(std::move(command)) {  }
 
-//export class Command {
-//    std::string command_;
-//    std::string command_out_;
-//public:
-//    explicit Command(std::string command) : command_(std::move(command)) {  }
-//
-//    std::string run() {
-//        auto pfile = popen(command_.data(),"r");
-//        if (!pfile)
-//            throw std::runtime_error("popen() failed!");
-//        char buffer[512] = "";
-//        while(fgets(buffer,sizeof(buffer),pfile))
-//            command_out_ += buffer;
-//        fclose(pfile);
-//        return command_out_;
-//    }
-//    static std::string run(std::string command) {
-//        Command cmd(std::move(command));
-//        return cmd.run();
-//    }
-//
-//};
+std::string Command::run() {
+	auto pfile = popen(command_.data(),"r");
+	if (!pfile)
+		throw std::runtime_error("popen() failed!");
+	char buffer[512] = "";
+	while(fgets(buffer,sizeof(buffer),pfile))
+		command_out_ += buffer;
+	fclose(pfile);
+	return command_out_;
+}
+
+std::string command::run(std::string command) {
+	Command cmd(std::move(command));
+	return cmd.run();
+}
+
+#endif
