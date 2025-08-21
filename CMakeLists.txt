@@ -13,13 +13,4 @@ endif()
 set(CMAKE_CXX_MODULE_STD 1)
 
 project(modforge LANGUAGES CXX)
-
-file(GLOB module_files "src/*.cppm")
-
-add_library(${PROJECT_NAME} STATIC)
-
-target_sources(${PROJECT_NAME}
-    PUBLIC
-    FILE_SET cxx_modules TYPE CXX_MODULES FILES
-    ${module_files}
-)
+add_subdirectory(src)
