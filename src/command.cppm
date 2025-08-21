@@ -14,8 +14,9 @@ import std;
 export class Command {
 	std::string command_;
 	std::string command_out_;
-	explicit Command(std::string command) : command_(std::move(command));
-	std::string run();
+public:
+	explicit Command(std::string command);
+    std::string run();
 	std::string run(std::string command);
 };
 #ifdef _WIN32
@@ -33,7 +34,7 @@ std::string Command::run() {
 	return command_out_;
 }
 
-std::string command::run(std::string command) {
+std::string Command::run(std::string command) {
 	Command cmd(std::move(command));
 	return cmd.run();
 }
