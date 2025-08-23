@@ -28,7 +28,7 @@ export class Time {
     std::chrono::zoned_time<std::chrono::system_clock::duration> time_;
 public:
     static Time now() {
-        return Time(std::chrono::system_clock::now());
+        return Time();
     }
     static Time FromDate(int year, int month, int day) {
         return Time(std::to_string(year) + "/"

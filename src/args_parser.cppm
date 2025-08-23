@@ -78,6 +78,9 @@ public:
     auto other_arg() {
         return other_arg_;
     }
+    auto arg_count() {
+        return program_args_.size();
+    }
 
     // 解析
     void parser() {
