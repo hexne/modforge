@@ -20,8 +20,7 @@ std::string get_name(const std::string &name, std::size_t width) {
 std::string get_remaining_time(const Time &begin_time, std::size_t current, std::size_t total, std::size_t width) {
     std::string ret;
     auto cur_time = Time::now();
-    // auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
-    int use_time{};
+    auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
 
     float percentage = current * 1.f / total;
     std::size_t total_time = use_time / percentage;

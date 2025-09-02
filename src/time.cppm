@@ -5,9 +5,6 @@
 export module modforge.time;
 import std;
 
-export
-{
-
 template <typename T>
 concept ClockType = std::is_same_v<T, std::chrono::nanoseconds>
                 ||  std::is_same_v<T, std::chrono::microseconds>
@@ -26,6 +23,7 @@ concept DateType = std::is_same_v<T, std::chrono::days>
 template <typename T>
 concept TimeType = ClockType<T> || DateType<T>;
 
+export
 enum class TimeZone {
     UTC, CST, Local
 };
@@ -162,8 +160,9 @@ auto zero_year_duration() {
     return std::chrono::days{366};
 }
 
+export
 template<TimeZone time_zone = TimeZone::UTC, typename TimePrecision = std::chrono::milliseconds>
-struct TimeImpl {
+class TimeImpl {
     using time_precision = TimePrecision;
 
     using ymd_t = std::chrono::year_month_day;
@@ -195,7 +194,9 @@ public:
         return TimeImpl {std::chrono::system_clock::now()};
     }
 
-    // 从date构造Time
+    /**
+     * @brief 从带有Date的字符串构造Time year-month-day 或 year/month/day
+    **/
     static TimeImpl from_date(std::string_view date) {
         std::array<int, 3> nums{};
         int pos{};
@@ -404,66 +405,71 @@ public:
         return *this;
     }
 
-    // 获取当前时间的某个部分
-    int get_second() const {
-
-    }
-
     /**
      * @brief 获取当前时间点在该日期中的各个部分，比如小时部分，分钟部分等
      * @return 获取部分的数值
     **/
     template <typename T>
-    int get() requires ( std::is_same_v<T, std::chrono::year>
+    int get() const requires ( std::is_same_v<T, std::chrono::year>
                             || std::is_same_v<T, std::chrono::month>
                             || std::is_same_v<T, std::chrono::day>
                             || TimeType<T> ) {
-
-
+        if constexpr (std::is_same_v<T, std::chrono::year> || std::is_same_v<T, std::chrono::years>)
+            return static_cast<int>(get_ymd().year().operator int());
+        else if constexpr (std::is_same_v<T, std::chrono::month> || std::is_same_v<T, std::chrono::months>)
+            return static_cast<int>(get_ymd().month().operator unsigned());
+        else if constexpr (std::is_same_v<T, std::chrono::day> || std::is_same_v<T, std::chrono::days>)
+            return static_cast<int>(get_ymd().day().operator unsigned());
+        else if constexpr (std::is_same_v<T, std::chrono::weeks>)
+            return static_cast<int>(std::chrono::weekday(get_hms()).iso_encoding());
+        else if constexpr (std::is_same_v<T, std::chrono::hours>)
+            return static_cast<int>(get_hms().hours().count());
+        else if constexpr (std::is_same_v<T, std::chrono::minutes>)
+            return static_cast<int>(get_hms().minutes().count());
+        else if constexpr (std::is_same_v<T, std::chrono::seconds>)
+            return static_cast<int>(get_hms().seconds().count());
+        else if constexpr (std::is_same_v<T, std::chrono::milliseconds>)
+            return static_cast<int>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    time_.get_sys_time().time_since_epoch()
+                    - std::chrono::floor<std::chrono::seconds>(time_.get_sys_time().time_since_epoch())).count()
+                );
+        throw std::invalid_argument("error type");
     }
-    int get_minute() const;
-    int get_hour() const;
-    int get_day() const;
-    int get_month() const;
-    int get_week() const;
-    int get_year() const;
 
+    /**
+     * @brief 获取std::chrono::year_month_day
+     * @return 返回当前时间对应的ymd
+    **/
     ymd_t get_ymd() const {
-        return std::chrono::year_month_day(get_utc_time_point_by_zone_time<time_precision>(time_));
-        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_sys_time()));
+        return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time()));
     }
 
     hms_t get_hms() const {
-        auto time_point = get_utc_time_point_by_zone_time<time_precision>(time_);
+        auto time_point = time_.get_local_time();
         const auto since_midnight = time_point - std::chrono::floor<std::chrono::days>(time_point);
         const auto since_midnight_sec = std::chrono::duration_cast<time_precision>(since_midnight);
         return hms_t(since_midnight_sec);
     }
 
-    std::string get_date_string() const {  }
-    std::string get_clock_string() const {  }
+    std::string get_date_string() const {
+        return std::format("{}-{}-{}", get<std::chrono::year>(), get<std::chrono::month>(), get<std::chrono::day>());
+    }
+    std::string get_clock_string() const {
+        return std::format("{}:{}:{}", get<std::chrono::hours>(), get<std::chrono::minutes>(), get<std::chrono::seconds>());
+    }
+    std::string get_string() const {
+        return get_date_string() + " " + get_clock_string();
+    }
 
-    std::string get_string(bool is_local_time_zone) const;
-
-    // 统计到现在过了多久
+    /**
+     * @brief 统计和基准时间相比过去了多久
+    **/
     template <TimeType T>
-    long long count() {
-        std::cout << "========================\n";
-        auto fix_time_point = std::chrono::time_point_cast<time_precision>(std::chrono::time_point<std::chrono::system_clock>());
-
-        std::println("cur time point is {}", time_.get_sys_time());
-        std::println("fix time point {}", fix_time_point);
-
-
-
+    long long count() const {
         auto fixup = std::chrono::time_point_cast<T>(std::chrono::system_clock::time_point()).time_since_epoch() - get_begin_time_point<time_precision>().time_since_epoch(); // 时间修正
         auto same_fixup = std::chrono::duration_cast<time_precision>(fixup);
-        std::println("fixup is {}", - fixup);
-
-
-
-        std::cout << "========================\n";
-        return std::chrono::duration_cast<T>(time_.get_sys_time().time_since_epoch()).count();
+        return std::chrono::duration_cast<T>(time_.get_sys_time().time_since_epoch() + same_fixup).count();
     }
 
     bool operator == (const TimeImpl &time) const {
@@ -482,15 +488,12 @@ public:
     }
 
     friend std::ostream &operator << (std::ostream &out, const TimeImpl &time) {
-        out << time.time_;
+        out <<time.get_string();
         return out;
     }
 
 };
 
+export using Time = TimeImpl<TimeZone::UTC, std::chrono::milliseconds>;
 
-using Time = TimeImpl<TimeZone::UTC, std::chrono::milliseconds>;
-
-using LocalTime = TimeImpl<TimeZone::Local, std::chrono::milliseconds>;
-
-}
+export using LocalTime = TimeImpl<TimeZone::Local, std::chrono::milliseconds>;
