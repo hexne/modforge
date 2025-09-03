@@ -2,8 +2,13 @@
  * @Author : hexne
  * @Data   : 2023/12/03
 *******************************************************************************/
+module;
+#include <string>
+#include <chrono>
+#include <print>
+#include <ranges>
 export module modforge.time;
-import std;
+// import std;
 
 template <typename T>
 concept ClockType = std::is_same_v<T, std::chrono::nanoseconds>
@@ -477,14 +482,7 @@ public:
     }
 
     auto operator <=> (const TimeImpl &time) const {
-        auto left_point = get_utc_time_point_by_zone_time(time_);
-        auto right_point = get_utc_time_point_by_zone_time(time.time_);
-        if (left_point < right_point)
-            return std::strong_ordering::less;
-        if (left_point == right_point)
-            return std::strong_ordering::equivalent;
-        if (left_point > right_point)
-            return std::strong_ordering::greater;
+        return time_.get_sys_time() <=> time.time_.get_sys_time();
     }
 
     friend std::ostream &operator << (std::ostream &out, const TimeImpl &time) {
@@ -497,3 +495,79 @@ public:
 export using Time = TimeImpl<TimeZone::UTC, std::chrono::milliseconds>;
 
 export using LocalTime = TimeImpl<TimeZone::Local, std::chrono::milliseconds>;
+
+/**
+ * @param 't' 完整的time
+ * @param 'd' date 时间
+ * @param 'c' clock 时间
+ * @param '' 为空时保持默认time输出
+ * @param 格式化输出样例: ':*^30d'
+**/
+export template <typename  T>
+struct FormatterIMPL {
+    constexpr auto parse(auto& context) {
+        auto d_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 'd';
+        });
+        if (d_it != context.end()) {
+            format_type_ = FormatType::Date;
+            format_ = "{:" + std::string(context.begin(), d_it) + "}";
+            return d_it + 1;
+        }
+
+        auto c_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 'c';
+        });
+        if (c_it != context.end()) {
+            format_type_ = FormatType::Clock;
+            format_ = "{:" + std::string(context.begin(), c_it) + "}";
+            return c_it + 1;
+        }
+        auto t_it = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == 't';
+        });
+        if (t_it != context.end()) {
+            format_type_ = FormatType::Time;
+            format_ = "{:" + std::string(context.begin(), t_it) + "}";
+            return t_it + 1;
+        }
+
+        auto end = std::find_if( context.begin(), context.end(),[](auto ch) {
+            return ch == '}';
+        });
+        format_type_ = FormatType::None;
+        format_ = "{:" + std::string(context.begin(), end) + "}";
+        return end;
+    }
+
+    constexpr auto format(const T& time, auto& context) const {
+        std::string time_str {};
+        switch (format_type_) {
+            case FormatType::None:
+            case FormatType::Time:
+                time_str = time.get_string();
+                break;
+            case FormatType::Date:
+                time_str = time.get_date_string();
+                break;
+            case FormatType::Clock:
+                time_str = time.get_clock_string();
+                break;
+            default:
+                break;
+        }
+        return std::vformat_to(context.out(), format_, std::make_format_args(time_str));
+    }
+private:
+    enum class FormatType {
+        None, Time, Date, Clock
+    } format_type_ {};
+    std::string format_ {};
+};
+
+template <>
+struct std::formatter<Time> : FormatterIMPL<Time> {  };
+
+template <>
+struct std::formatter<LocalTime> : FormatterIMPL<LocalTime> {  };
+
