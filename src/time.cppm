@@ -2,13 +2,8 @@
  * @Author : hexne
  * @Data   : 2023/12/03
 *******************************************************************************/
-module;
-#include <string>
-#include <chrono>
-#include <print>
-#include <ranges>
 export module modforge.time;
-// import std;
+import std;
 
 template <typename T>
 concept ClockType = std::is_same_v<T, std::chrono::nanoseconds>
