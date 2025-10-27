@@ -6,7 +6,7 @@ export module modforge.deep_learning.cnn;
 
 import std;
 import modforge.tensor;
-import modforge.progress;
+import modforge.progress_bar;
 import modforge.console;
 import modforge.deep_learning.tools;
 
@@ -478,9 +478,9 @@ public:
 	    backward(label);
 	}
     void train(const std::vector<Data> &datas,int train_count) const {
-	    Progress progress(false);
-	    for (int i = 0;i < train_count; ++i)
-	        progress.push("训练中...", datas.size());
+	    // Progress progress(false);
+	    // for (int i = 0;i < train_count; ++i)
+	        // progress.push("训练中...", datas.size());
 
 	    int flag = datas.size() / 100;
 	    for (int i = 0;i < train_count; ++i) {
@@ -488,12 +488,12 @@ public:
 	        std::thread print_thread;
 	        for (int cur = 0; cur < datas.size(); ++cur) {
 	            auto &[image, label] = datas[cur];
-	            progress.cur_bar() += 1;
+	            // progress.cur_bar() += 1;
 
 	            if (cur % flag == 0) {
-                    progress.set_info("acc is : " + std::to_string(acc / cur));
+                    // progress.set_info("acc is : " + std::to_string(acc / cur));
 	                print_thread = std::thread([&] {
-                        progress.print();
+                        // progress.print();
                     });
 	            }
 
@@ -505,8 +505,8 @@ public:
 	            if (cur % flag == 0)
 	                print_thread.join();
 	        }
-	        progress.print();
-	        progress += 1;
+	        // progress.print();
+	        // progress += 1;
 	    }
 
 	}
@@ -522,14 +522,14 @@ public:
 	    return out == lab;
 	}
     void test(const std::vector<Data> &datas) const {
-	    Progressbar pb("测试中...", datas.size());
+	    // Progressbar pb("测试中...", datas.size());
 
 	    int acc{};
 	    for (int i = 0;i < datas.size(); ++i) {
 	        auto [image, label] = datas[i];
 	        acc += test(image, label);
-	        pb += 1;
-	        pb.print();
+	        // pb += 1;
+	        // pb.print();
 	    }
 	    endl(std::cout);
 	    std::cout << "acc is : " << acc * 1.f / datas.size() << std::endl;
