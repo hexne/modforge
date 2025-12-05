@@ -4,7 +4,7 @@
 *******************************************************************************/
 
 module;
-#include <assert.h>
+#include <cassert>
 #include <cmath>
 #include <numbers>
 #include <ranges>
