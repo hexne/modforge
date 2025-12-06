@@ -1,8 +1,13 @@
 /********************************************************************************
 * @Author : hexne
-* @Date   : 2025/05/21 16:23:06
+* @Date   : 2025/12/06 17:01:59
 ********************************************************************************/
-module;
-export module modforge.deep_learning;
+import modforge.average_queue;
+
+int test_average_queue() {
+    AverageQueue<int, 10> average_queue_int;
 
 
+
+    return 0;
+}
