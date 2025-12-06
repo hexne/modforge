@@ -50,3 +50,15 @@ install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/modforgeConfigVersion.cmake"
         DESTINATION lib/cmake/modforge
 )
+
+
+# 在所有库定义之后，添加别名
+if(NOT TARGET modforge::core)
+    add_library(modforge::core ALIAS core)
+endif()
+if(NOT TARGET modforge::cv)
+    add_library(modforge::cv ALIAS cv)
+endif()
+if(NOT TARGET modforge::deep_learning)
+    add_library(modforge::deep_learning ALIAS deep_learning)
+endif()
