@@ -1,3 +1,40 @@
+# 模块
+## core
+|      类       | 功能                       |
+|:------------:|:-------------------------|
+|  ArgsParser  | 参数解析                     |
+| AverageQueue | 平均值队列                    |
+|   Command    | 指令命令行并获取stdout输出         |
+|   Console    | 终端控制，获取终端框高、以及控制光标的显示和隐藏 |
+|    Cursor    | 控制光标位置和按键点击              |
+| ProgressBar  | 进度条                      |
+|    Tensor    | 张量运算                     |
+|     Time     | 时间                       |
+|    Timer     | 计时器                      |
+|    Window    | 窗口                       |
+
+## cv
+|   类    | 功能      |
+|:------:|:--------|
+| Image  | 图片处理和显示 |
+| Video  | 视频加载和显示 |
+| Camera | 摄像头操作   |
+
+## deep_learning
+|  类  | 功能      |
+|:---:|:--------|
+| BP  | BP神经网络  |
+| CNN | CNN卷积网络 |
+
+
+
+
+
+
+
+
+
+
 cnn模块使用样例
 ```
 #include <iostream>
