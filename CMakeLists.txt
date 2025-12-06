@@ -34,7 +34,7 @@ configure_package_config_file(
 )
 
 # 安装导出的 targets
-install(TARGETS core cv deep_learning
+install(TARGETS core cv deep_learning modforge
         EXPORT modforgeTargets
         FILE_SET cxx_modules DESTINATION include
 )
@@ -52,7 +52,6 @@ install(FILES
 )
 
 
-# 在所有库定义之后，添加别名
 if(NOT TARGET modforge::core)
     add_library(modforge::core ALIAS core)
 endif()
@@ -61,4 +60,7 @@ if(NOT TARGET modforge::cv)
 endif()
 if(NOT TARGET modforge::deep_learning)
     add_library(modforge::deep_learning ALIAS deep_learning)
+endif()
+if(NOT TARGET modforge::modforge)
+    add_library(modforge::modforge ALIAS modforge)
 endif()

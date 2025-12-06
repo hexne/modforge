@@ -6,4 +6,5 @@
 export module modforge;
 
 export import modforge.core;
+export import modforge.cv;
 export import modforge.deep_learning;
