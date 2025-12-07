@@ -43,8 +43,7 @@ endforeach()
 
 file(APPEND ${MAIN_FILE} "\n")
 
-# 写 map 初始化
-file(APPEND ${MAIN_FILE} "std::map<std::string, std::function<int()>> test_funs {\n")
+file(APPEND ${MAIN_FILE} "std::map<std::string, std::function<int()>> test_funcs {\n")
 foreach(src ${TEST_SOURCES})
     get_filename_component(fname ${src} NAME_WE)
     file(RELATIVE_PATH relpath ${CMAKE_SOURCE_DIR} ${src})
@@ -52,12 +51,12 @@ foreach(src ${TEST_SOURCES})
 endforeach()
 file(APPEND ${MAIN_FILE} "};\n\n")
 
-# 写 main 函数
+
 file(APPEND ${MAIN_FILE} "int main() {\n")
-file(APPEND ${MAIN_FILE} "    for (const auto& [name, func] : test_funs) {\n")
+file(APPEND ${MAIN_FILE} "    for (const auto& [name, func] : test_funcs) {\n")
 file(APPEND ${MAIN_FILE} "        int line = func();\n")
 file(APPEND ${MAIN_FILE} "        if (line)\n")
-file(APPEND ${MAIN_FILE} "            std::println(\" [ FAILED ] {} : {}\", name, line);\n")
+file(APPEND ${MAIN_FILE} "            std::println(\" [ FAILED ] {} (LINE {})\", name, line);\n")
 file(APPEND ${MAIN_FILE} "        else\n")
 file(APPEND ${MAIN_FILE} "            std::println(\" [  PASS  ] {} \", name);\n")
 file(APPEND ${MAIN_FILE} "    }\n")
