@@ -10,10 +10,10 @@ template <typename T>
 concept CanAverageType = requires(T val1, T val2, T res, int count){
     T {};
     res = val1 + val2;
-    res = val1 - val2;
     res /= count;
-};export
+};
 
+export
 template <CanAverageType T, std::size_t N>
 class AverageQueue {
     int MAX_SIZE = N + 1;
@@ -22,9 +22,12 @@ class AverageQueue {
 public:
     AverageQueue() = default;
     AverageQueue(const std::initializer_list<T> &init_list) {
-        static_assert(init_list.size() <= N + 1, "Can't have more than MAX_SIZE");
-        rear_ = init_list.size();
-        copy(init_list.begin(), init_list.end(), data_.begin());
+        if (init_list.size() > N)
+            throw std::runtime_error(std::format("Can't have more than {}", N));
+
+        for (const auto& item : init_list) {
+            this->push(item);
+        }
     }
 
     void push(const T &val) {
@@ -40,6 +43,9 @@ public:
 
     T average() {
         int size = this->size();
+        if (size == 0)
+            return {};
+
         T ret{};
         for (int i = 0; i < size; ++i) {
             int pos = (front_ + i) % MAX_SIZE;
@@ -51,9 +57,8 @@ public:
 
     [[nodiscard]]
     std::size_t size() const {
-        int size = rear_ - front_;
-        if (size > 0)
-            return size;
-        return size + MAX_SIZE;
+        if (rear_ >= front_)
+            return rear_ - front_;
+        return MAX_SIZE - front_ + rear_;
     }
 };
