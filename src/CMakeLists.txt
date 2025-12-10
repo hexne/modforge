@@ -26,14 +26,14 @@ target_sources(core
         ${core_files}
 )
 
-#add_library(cv ${LibMod})
-#target_sources(cv
-#        PUBLIC
-#        FILE_SET cxx_modules TYPE CXX_MODULES FILES
-#        ${cv_files}
-#)
-#find_package(OpenCV REQUIRED)
-#target_link_libraries(cv PUBLIC ${OpenCV_LIBS})
+add_library(cv ${LibMod})
+target_sources(cv
+        PUBLIC
+        FILE_SET cxx_modules TYPE CXX_MODULES FILES
+        ${cv_files}
+)
+find_package(OpenCV REQUIRED)
+target_link_libraries(cv PUBLIC ${OpenCV_LIBS})
 
 
 add_library(deep_learning ${LibMod})
@@ -50,9 +50,9 @@ target_sources(modforge
         FILE_SET cxx_modules TYPE CXX_MODULES FILES
         ${modforge_files}
 )
-target_link_libraries(modforge PUBLIC core deep_learning)
+target_link_libraries(modforge PUBLIC core cv deep_learning)
 
 target_compile_features(core PUBLIC cxx_std_26)
-#target_compile_features(cv PUBLIC cxx_std_26)
+target_compile_features(cv PUBLIC cxx_std_26)
 target_compile_features(deep_learning PUBLIC cxx_std_26)
 

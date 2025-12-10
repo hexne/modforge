@@ -66,5 +66,5 @@ file(APPEND ${MAIN_FILE} "}\n")
 
 # 添加可执行文件
 add_executable(tests ${MAIN_FILE} ${TEST_SOURCES})
-target_link_libraries(tests modforge::modforge stdc++exp)
+target_link_libraries(tests modforge::modforge)
 
