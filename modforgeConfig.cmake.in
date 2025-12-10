@@ -4,9 +4,9 @@
 include("${CMAKE_CURRENT_LIST_DIR}/modforgeTargets.cmake")
 
 # 根据组件选择依赖
-if("cv" IN_LIST modforge_FIND_COMPONENTS)
-    find_package(OpenCV REQUIRED)
-endif()
+# if("cv" IN_LIST modforge_FIND_COMPONENTS)
+    # find_package(OpenCV REQUIRED)
+# endif()
 
 # 你可以在这里加更多逻辑，比如 deep_learning 依赖其他库时：
 # if("deep_learning" IN_LIST modforge_FIND_COMPONENTS)

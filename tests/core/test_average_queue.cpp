@@ -23,7 +23,7 @@ int test_average_queue() {
     if (aq.average() != 20 and aq.size() != 3)
         return __LINE__;
 
-    // 挤掉第一个元素
+    // 应当挤掉第一个元素
     aq.push(40);
     if (aq.average() != 30 and aq.size() != 3)
         return __LINE__;
