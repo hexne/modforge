@@ -13,7 +13,7 @@ template <typename T>
 struct IsContainer : std::false_type { };
 
 template <typename T>
-    requires requires (T t) { t.begin(); t.end(); }
+    requires requires (T t) { t.begin(); t.end(); t.size(); }
 struct IsContainer<T> : std::true_type { };
 
 
@@ -44,12 +44,16 @@ public:
             return val_ - other.val_;
         }
     };
+    explicit Range(int count) : Range(0, count) {  }
     Range(int begin, int end) : begin_(iterator(begin)), end_(iterator(end)) {  }
     iterator begin() {
         return begin_;
     }
     iterator end() {
         return end_;
+    }
+    [[nodiscard]] std::size_t distance() const {
+        return end_ - begin_;
     }
 private:
     iterator begin_, end_;
@@ -85,6 +89,9 @@ public:
     iterator end() {
         return end_;
     }
+    std::size_t distance() {
+        return end_ - begin_;
+    }
 private:
     iterator begin_, end_;
 };
@@ -103,6 +110,9 @@ public:
     Iterator end() {
         return end_;
     }
+    std::size_t distance() {
+        return end_ - begin_;
+    }
 
 };
 
@@ -111,6 +121,7 @@ public:
 template <typename T>
     requires IsContainer<T>::value
 class Range<T> {
+    T container_;
 public:
     class iterator {
         typename T::iterator iterator_{};
@@ -133,17 +144,23 @@ public:
         }
     };
 
-    explicit Range(T &container) : begin_(container.begin()), end_(container.end()) {  }
+    explicit Range(T &container) :
+        container_(container), begin_(container.begin()), end_(container.end()) {  }
     auto begin() {
         return begin_;
     }
     auto end() {
         return end_;
     }
+    std::size_t distance() {
+        return container_.size();
+    }
 private:
     iterator begin_, end_;
 };
 
+
+Range(int) -> Range<int>;
 
 // 数字和指针
 template <typename T>

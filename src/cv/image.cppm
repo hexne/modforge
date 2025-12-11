@@ -26,7 +26,6 @@ public:
     Image clone() const {
         Image ret;
         ret.image_ = image_.clone();
-        image_.copyTo(image_);
         return ret;
     }
 
@@ -36,7 +35,7 @@ public:
         return is_open();
     }
     bool is_open() const {
-        return image_.empty();
+        return !image_.empty();
     }
 
     // 保存
@@ -135,7 +134,6 @@ public:
     static auto get_window(const std::string &window_name) {
         return cvGetWindowHandle(window_name.data());
     }
-
 
     ~Image() = default;
 };

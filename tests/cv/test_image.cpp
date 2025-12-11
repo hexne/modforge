@@ -6,7 +6,6 @@
 import modforge.image;
 import std;
 
-
 bool test_equal(const Image &img1, const Image &img2) {
     auto [c, w, h] = img1.extent();
     auto [c2, w2, h2] = img2.extent();
@@ -26,8 +25,11 @@ bool test_equal(const Image &img1, const Image &img2) {
 
 int test_image() {
     Image image("image.jpg");
-    if (image.channels() != 3)
+    if (image.channels() != 3) {
+        std::println("{}", std::filesystem::current_path().string());
+
         return __LINE__;
+    }
 
     if (auto [w, h] = image.size(); w != 1920 or h != 1080)
         return __LINE__;
@@ -87,8 +89,7 @@ int test_image() {
     data = image6.get_histogram_data();
     auto tmp = image6.clone();
     tmp.to_binary(100);
-    tmp.show_and_wait("show", 1);
-
+    tmp.show_and_wait("show", 10);
 
 
     return 0;
