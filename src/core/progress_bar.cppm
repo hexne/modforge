@@ -20,23 +20,23 @@ std::string get_name(const std::string &name, std::size_t width) {
 }
 
 std::string get_remaining_time(const Time& begin_time, std::size_t current, std::size_t total, std::size_t width) {
-    std::string format = "{:^" + std::to_string(width) + "}";
-    return std::vformat(format, std::make_format_args("-"));
-    // std::string ret;
-    // auto cur_time = Time::now();
-    // auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
-    //
-    // float percentage = current * 1.f / total;
-    // std::size_t total_time = use_time / percentage;
-    // auto remaining_time = total_time - use_time;
-    // if (percentage >= 1.f)
-    //     remaining_time = 0;
-    // auto end_time = cur_time;
-    // end_time += std::chrono::seconds(remaining_time);
-    //
     // std::string format = "{:^" + std::to_string(width) + "}";
-    // auto arg = (end_time - cur_time).get_clock_string();
-    // return std::vformat(format, std::make_format_args(arg));
+    // return std::vformat(format, std::make_format_args("-"));
+    std::string ret;
+    auto cur_time = Time::now();
+    auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
+
+    float percentage = current * 1.f / total;
+    std::size_t total_time = use_time / percentage;
+    auto remaining_time = total_time - use_time;
+    if (percentage >= 1.f)
+        remaining_time = 0;
+    auto end_time = cur_time;
+    end_time += std::chrono::seconds(remaining_time);
+
+    std::string format = "{:^" + std::to_string(width) + "}";
+    auto arg = (end_time - cur_time).get_clock_string();
+    return std::vformat(format, std::make_format_args(arg));
 }
 
 std::string get_bar(std::size_t current, std::size_t total, std::size_t width) {
@@ -63,7 +63,7 @@ std::string get_percentage(std::size_t current, std::size_t total, std::size_t w
 export
 template <typename T>
 class ProgressBar {
-    Time begin_time_;
+    Time begin_time_ = Time::now();
     std::string name_;
     int total_{};
     int current_{};
