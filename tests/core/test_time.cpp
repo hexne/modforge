@@ -101,12 +101,18 @@ int test_time() {
     auto res1 = (cur_utc_time - utc_time).count<std::chrono::years>();
     auto res2 = (cur_cst_time - cst_time).count<std::chrono::years>();
 
-    std::cout << cur_utc_time << " - " << utc_time << " = " << (cur_utc_time - utc_time) << " , count is " << res1 << std::endl;
-    std::cout << cur_cst_time << " - " << cst_time << " = " << (cur_cst_time - cst_time) << " , count is " << res2 << std::endl;
+    // std::cout << cur_utc_time << " - " << utc_time << " = " << (cur_utc_time - utc_time) << " , count is " << res1 << std::endl;
+    // std::cout << cur_cst_time << " - " << cst_time << " = " << (cur_cst_time - cst_time) << " , count is " << res2 << std::endl;
     // std::cout << res1 << std::endl;
     // std::cout << res2 << std::endl;
 
+    if (std::format("{:*^30}", utc_time) != "*********1-1-1 0:10:0*********"
+        or std::format("{:*^30}", utc_time) != "*********1-1-1 0:10:0*********")
+        return __LINE__;
 
+    if (std::format("{:*^30c}", utc_time) != "************0:10:0************"
+        or std::format("{:*^30d}", utc_time) != "************1-1-1*************")
+        return __LINE__;
 
 
     return 0;
