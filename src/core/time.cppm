@@ -333,7 +333,7 @@ public:
         return time_ == other.time_;
     }
     auto operator <=> (const TimeImpl& other) const {
-        return time_ <=> other.time_;
+        return time_.get_sys_time() <=> other.time_.get_sys_time();
     }
 
     friend std::ostream& operator<< (std::ostream& out, const TimeImpl& time) {
