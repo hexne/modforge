@@ -2,7 +2,6 @@
  * @Author : hexne
  * @Date   : 2025/04/18
 ********************************************************************************/
-
 export module modforge.timer;
 import std;
 import modforge.time;
@@ -18,11 +17,12 @@ export class Timer {
         int id;
         CallbackFunc callback{};
         Interval interval{};
-        bool is_repeat_task{};
         Time end;
+        bool is_repeat_task{}; // 无限循环
+        int repeat_count{}; // 多次循环或者单词
 
         bool operator < (const Task& task) const {
-            return end >                              task.end;
+            return end > task.end;
         }
         bool operator == (const Task& task) const {
             return id == task.id;
@@ -53,7 +53,7 @@ export class Timer {
                     }
                     tasks_.pop();
                     task.callback();
-                    if (task.is_repeat_task) {
+                    if (task.is_repeat_task or -- task.repeat_count > 0) {
                         task.end += task.interval;
                         tasks_.push(task);
                     }
@@ -74,15 +74,46 @@ public:
         return thread_.get_stop_token().stop_requested();
     }
 
-    void add_task(CallbackFunc func, Interval interval, const bool is_repeat_task = false) {
-        std::lock_guard lock(mutex_);
-        tasks_.push(
-            { create_id(), std::move(func) , interval, is_repeat_task, Time::now() + interval }
-        );
+    int add_task(CallbackFunc callback, Interval interval, bool is_repeat = false) {
+        auto id = create_id();
+        tasks_.push(Task {
+            .id = id,
+            .callback = std::move(callback),
+            .interval = interval,
+            .is_repeat_task = is_repeat
+        });
+        return id;
+    }
+    int add_repeat_task(CallbackFunc callback, Interval interval) {
+        return add_task(std::move(callback), interval, true);
+    }
+    int add_task(CallbackFunc callback, Interval interval, int repeat_count) {
+        auto id = create_id();
+        tasks_.push(Task {
+            .id = id,
+            .callback = std::move(callback),
+            .interval = interval,
+            .repeat_count = repeat_count
+        });
+
+        return id;
     }
 
-    void add_repeat_task(CallbackFunc func, Interval interval) {
-        add_task(std::move(func), std::move(interval), true);
+    void remove(int id) {
+        std::lock_guard lock(mutex_);
+        std::priority_queue<Task> new_tasks;
+        while (!tasks_.empty()) {
+            auto task = tasks_.top();
+            tasks_.pop();
+            if (task.id != id)
+                new_tasks.push(task);
+        }
+        tasks_ = new_tasks;
+    }
+
+    int task_count() {
+        std::lock_guard lock(mutex_);
+        return tasks_.size();
     }
 
     ~Timer() = default;
