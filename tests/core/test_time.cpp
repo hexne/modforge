@@ -9,7 +9,6 @@ import std;
 
 
 int test_time() {
-
     auto begin_utc_time = Time();
     auto begin_cst_time = LocalTime();
     // std::cout << begin_utc_time << std::endl;
@@ -45,9 +44,9 @@ int test_time() {
     if (Time::from_date("2025/1/1") != Time::from_date(2025, 1 ,1)
         or LocalTime::from_date("2025/1/1") != LocalTime::from_date(2025, 1 ,1))
 
-    if (Time::from_clock("0:0:0") != Time::from_clock(0, 0, 0)
-        or LocalTime::from_clock("0:0:0") != LocalTime::from_clock(0, 0, 0))
-        return __LINE__;
+        if (Time::from_clock("0:0:0") != Time::from_clock(0, 0, 0)
+            or LocalTime::from_clock("0:0:0") != LocalTime::from_clock(0, 0, 0))
+            return __LINE__;
 
     if (Time("2025/1/1 0:0:0") != Time(2025, 1, 1, 0, 0, 0)
         or LocalTime("2025/1/1 0:0:0") != LocalTime(2025, 1, 1, 0, 0, 0))
@@ -106,14 +105,17 @@ int test_time() {
     // std::cout << res1 << std::endl;
     // std::cout << res2 << std::endl;
 
-    if (std::format("{:*^30}", utc_time) != "*********1-1-1 0:10:0*********"
-        or std::format("{:*^30}", utc_time) != "*********1-1-1 0:10:0*********")
+    if (std::format("{:*^30}", utc_time) != "********1-1-1 00:10:00********"
+        or std::format("{:*^30}", utc_time) != "********1-1-1 00:10:00********")
         return __LINE__;
 
-    if (std::format("{:*^30c}", utc_time) != "************0:10:0************"
+    if (std::format("{:*^30c}", utc_time) != "***********00:10:00***********"
         or std::format("{:*^30d}", utc_time) != "************1-1-1*************")
         return __LINE__;
 
+
+    // auto now = LocalTime::now() + LocalTime::from_string("5:0:0");
+    // std::println("{}", now);
 
     return 0;
 }

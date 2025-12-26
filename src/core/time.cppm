@@ -159,6 +159,25 @@ public:
         return from_clock(clock_vec[0], clock_vec[1], clock_vec[2]);
     }
 
+    static TimeImpl from_string(std::string str) {
+        bool have_date = std::ranges::find_if(str, [](const char& ch) {
+            if (ch == '-' or ch == '/')
+                return true;
+            return false;
+        }) != str.end();
+        bool have_clock = str.find(':') != std::string::npos;
+
+        auto split = split_string(str);
+        if (split.size() == 6)
+            return TimeImpl(split[0], split[1], split[2], split[3], split[4], split[5]);
+        if (split.size() == 3 and have_date)
+            return from_date(split[0], split[1], split[2]);
+        if (split.size() == 3 and have_clock)
+            return from_clock(split[0], split[1], split[2]);
+
+        throw std::runtime_error(std::format("time format is error => {}", str));
+    }
+
     // 构造函数
     TimeImpl(const TimeImpl& time) noexcept = default;
     TimeImpl(TimeImpl &&time) noexcept = default;
@@ -222,7 +241,7 @@ public:
         return std::format("{}-{}-{}", get<std::chrono::year>(), get<std::chrono::month>(), get<std::chrono::day>());
     }
     std::string get_clock_string() const {
-        return std::format("{}:{}:{}", get<std::chrono::hours>(), get<std::chrono::minutes>(), get<std::chrono::seconds>());
+        return std::format("{:02}:{:02}:{:02}", get<std::chrono::hours>(), get<std::chrono::minutes>(), get<std::chrono::seconds>());
     }
     std::string get_string() const {
         return get_date_string() + " " + get_clock_string();
