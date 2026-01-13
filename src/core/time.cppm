@@ -222,6 +222,15 @@ public:
         return *this;
     }
 
+    TimeImpl& today() {
+        return TimeImpl::from_date(
+            get<std::chrono::year>(),
+            get<std::chrono::month>(),
+            get<std::chrono::day>()
+            );
+    }
+
+
     /**
      * @brief 获取std::chrono::year_month_day
      * @return 返回当前时间对应的ymd
