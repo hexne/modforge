@@ -5,7 +5,7 @@
 module;
 #include <cstdio>
 #include <utility>
-export module command;
+export module modforge.command;
 
 import std;
 
