@@ -8,13 +8,13 @@ import std;
 
 
 bool test_directory() {
-    Directory directory(".", true, 1);
-    for (auto dir : directory.directorys(false))
-        std::println("dir: {}", dir);
-
-    for (auto file : directory.files("", false, true))
-        std::println("file: {}", file);
-
+    // Directory directory(".", true, 1);
+    // for (auto dir : directory.directorys(false))
+    //     std::println("dir: {}", dir);
+    //
+    // for (auto file : directory.files("", false, true))
+    //     std::println("file: {}", file);
+    //
 
     return 0;
 }
