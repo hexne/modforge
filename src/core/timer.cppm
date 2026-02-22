@@ -19,7 +19,7 @@ export class Timer {
         Interval interval{};
         Time end;
         bool is_repeat_task{}; // 无限循环
-        int repeat_count{}; // 多次循环或者单词
+        int repeat_count{}; // 多次循环或者单次
 
         bool operator < (const Task& task) const {
             return end > task.end;

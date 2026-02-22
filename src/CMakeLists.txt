@@ -52,7 +52,11 @@ target_sources(modforge
 )
 target_link_libraries(modforge PUBLIC core cv deep_learning)
 
+
 target_compile_features(core PUBLIC cxx_std_26)
 target_compile_features(cv PUBLIC cxx_std_26)
 target_compile_features(deep_learning PUBLIC cxx_std_26)
 
+target_compile_options(core PRIVATE -freflection)
+target_compile_definitions(core PRIVATE "NAMESPACE_BEGIN=namespace modforge {")
+target_compile_definitions(core PRIVATE "NAMESPACE_END=}")
