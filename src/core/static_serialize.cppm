@@ -46,7 +46,7 @@ struct BuildInSerialize {};
 
 template <typename T> requires is_base_type<T>
 struct BuildInSerialize<T> {
-    static void serialize(T obj, std::fstream &file) {
+    static void serialize(T &obj, std::fstream &file) {
         file.write(reinterpret_cast<const char*>(&obj), sizeof(T));
     }
 
@@ -104,8 +104,8 @@ void OP(T& obj, std::fstream& stream) {\
             std::meta::bases_of(^^T, std::meta::access_context::unchecked())\
         );\
         template for (constexpr auto base_class_info : bases_class_info) {\
-            using Base = typename [: std::meta::type_of(base_class_info) :];\
-            OP<Base>(static_cast<Base&>(obj), stream);\
+            auto &base = obj.[: base_class_info :];\
+            OP<std::remove_cvref_t<decltype(base)>>(base, stream);\
         }\
         /* 递归当前类中的每个成员 */ \
         static constexpr auto members = std::define_static_array(\

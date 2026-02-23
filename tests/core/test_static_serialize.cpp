@@ -7,16 +7,33 @@ import std;
 import modforge.static_serialize;
 
 
-struct Test {
-    int i;
-    double f;
-
+struct Base {
     struct Sub {
-        int sub_i;
-        double sub_f;
-    };
-    void serialize(std::fstream &stream) {
-        std::println("{}", "serialize(Test)");
+        int i;
+    }s;
+    int base;
+    Base() = default;
+    Base(int s, int b) : s(s), base(b) {  }
+
+    bool operator==(const Base& b) const {
+        return s.i == b.s.i and base==b.base;
+    }
+};
+
+class Base2 {
+    int val;
+};
+
+
+class Test : Base , public Base2 {
+    int i{};
+    double f{};
+public:
+    Test() = default;
+    Test(int s, int b, int i, double f) : Base(s, b), i(i), f(f) {  }
+    bool operator==(const Test& t) const {
+        return t.i == i and t.f == f
+            and Base::operator==(t);
     }
 };
 
@@ -24,16 +41,45 @@ struct Test {
 //
 int test_static_serialize() {
     using namespace modforge;
+    // Test test(1, 2, 3, 4.5f);
+    // static constexpr auto bases = std::define_static_array(
+    //     std::meta::bases_of(^^Test, std::meta::access_context::unchecked())
+    // );
+    // template for (constexpr auto info : bases) {
+    //     auto &base = test.[: info :];
+    //     std::println("{}", std::meta::display_string_of(^^decltype(base)));
+    // }
 
-    std::fstream file("serialize_test");
+
+
+    std::fstream out("serialize_test", std::ios::binary | std::ios::out);
+    if (!out.is_open())
+        return __LINE__;
+
+    // 序列化测试
     int test_i = 10;
-    serialize(test_i, file);
+    serialize(test_i, out);
 
-    Test val;
-    serialize(val, file);
-    deserialize(val, file);
+    Test val(1, 2, 3, 4.5f);
+    serialize(val, out);
 
     // serialize(&val); // 测试对指针的静态断言
+    out.close();
+    // 反序列化
+    std::fstream in("serialize_test", std::ios::binary | std::ios::in);
+    if (!in.is_open())
+        return __LINE__;
+
+    int test_i2{};
+    deserialize(test_i2, in);
+    if (test_i != test_i2)
+        return __LINE__;
+
+    Test val2;
+    deserialize(val2, in);
+    if (val != val2) {
+        return __LINE__;
+    }
 
 
 
