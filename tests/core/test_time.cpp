@@ -9,6 +9,7 @@ import std;
 
 
 int test_time() {
+    using namespace modforge;
     auto begin_utc_time = Time();
     auto begin_cst_time = LocalTime();
     // std::cout << begin_utc_time << std::endl;

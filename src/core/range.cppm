@@ -17,6 +17,7 @@ template <typename T>
 struct IsContainer<T> : std::true_type { };
 
 
+NAMESPACE_BEGIN
 export template <typename T>
 class Range;
 
@@ -170,3 +171,5 @@ Range(T, T) -> Range<T>;
 template <typename T>
 Range(T &) -> Range<T>;
 
+
+NAMESPACE_END

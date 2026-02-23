@@ -34,7 +34,7 @@ configure_package_config_file(
 )
 
 # 安装导出的 targets
-install(TARGETS core cv deep_learning modforge
+install(TARGETS core cv deep_learning modforge namespace_definitions
         EXPORT modforgeTargets
         FILE_SET cxx_modules DESTINATION include
 )

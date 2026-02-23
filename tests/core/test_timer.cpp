@@ -7,6 +7,7 @@ import modforge.timer;
 import std;
 
 int test_timer() {
+    using namespace modforge;
     Timer timer;
     int count1{};
     int count2{};

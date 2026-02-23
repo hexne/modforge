@@ -10,6 +10,7 @@ import modforge.range;
 import modforge.console;
 import modforge.time;
 
+NAMESPACE_BEGIN
 std::string get_name(const std::string &name, std::size_t width) {
     if (name.size() <= width) {
         std::string format = std::string() + "{:" + std::to_string(width) + "}";
@@ -142,3 +143,4 @@ ProgressBar(std::string, int, bool) -> ProgressBar<int>;
 // ProgressBar(std::string, Range<T>) -> ProgressBar<T>;
 // export template <typename T>
 // ProgressBar(std::string, Range<T>, bool) -> ProgressBar<T>;
+NAMESPACE_END

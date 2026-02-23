@@ -9,7 +9,7 @@ module;
 export module modforge.console;
 
 import std;
-
+NAMESPACE_BEGIN
 export
 namespace Console {
 	void hind_cursor() {
@@ -39,3 +39,4 @@ namespace Console {
 	}
 
 };
+NAMESPACE_END

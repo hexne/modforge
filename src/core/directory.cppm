@@ -6,6 +6,7 @@
 export module modforge.directory;
 import std;
 
+NAMESPACE_BEGIN
 export class Directory {
     std::filesystem::path cur_root_;
     int deep_;
@@ -72,3 +73,4 @@ public:
     }
 
 };
+NAMESPACE_END

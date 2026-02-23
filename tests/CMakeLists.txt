@@ -64,7 +64,6 @@ file(APPEND ${MAIN_FILE} "    return 0;\n")
 file(APPEND ${MAIN_FILE} "}\n")
 
 
-# 添加可执行文件
 add_executable(tests ${MAIN_FILE} ${TEST_SOURCES})
 target_link_libraries(tests modforge::modforge)
 target_compile_options(tests PRIVATE -freflection)

@@ -6,6 +6,7 @@
 import modforge.image;
 import std;
 
+using namespace modforge;
 bool test_equal(const Image &img1, const Image &img2) {
     auto [c, w, h] = img1.extent();
     auto [c2, w2, h2] = img2.extent();

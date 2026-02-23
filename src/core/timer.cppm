@@ -7,6 +7,7 @@ import std;
 import modforge.time;
 
 
+NAMESPACE_BEGIN
 export class Timer {
     using Interval = std::chrono::milliseconds;
     using Time = UTCTime<Interval>;
@@ -120,3 +121,4 @@ public:
 
 
 };
+NAMESPACE_END

@@ -5,6 +5,7 @@
 import modforge.average_queue;
 
 int test_average_queue() {
+    using modforge::AverageQueue;
     AverageQueue<int, 3> aq;
     // 初始化应该均值为0
     if (aq.average() != 0 or aq.size() != 0)

@@ -371,6 +371,7 @@ public:
 };
 
 
+NAMESPACE_BEGIN
 export using Time = TimeImpl<TimeZone::utc, std::chrono::seconds>;
 
 export using LocalTime = TimeImpl<TimeZone::local, std::chrono::seconds>;
@@ -380,6 +381,8 @@ using UTCTime = TimeImpl<TimeZone::utc, TimePrecision>;
 
 export template <typename TimePrecision = std::chrono::microseconds>
 using CSTTime = TimeImpl<TimeZone::cst, TimePrecision>;
+
+NAMESPACE_END
 
 /**
  * @param 't' 完整的time
@@ -451,7 +454,7 @@ private:
 };
 
 template <>
-struct std::formatter<Time> : FormatterIMPL<Time> {  };
+struct std::formatter<modforge::Time> : FormatterIMPL<modforge::Time> {  };
 
 template <>
-struct std::formatter<LocalTime> : FormatterIMPL<LocalTime> {  };
+struct std::formatter<modforge::LocalTime> : FormatterIMPL<modforge::LocalTime> {  };

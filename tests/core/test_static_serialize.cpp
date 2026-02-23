@@ -23,14 +23,15 @@ struct Test {
 
 //
 int test_static_serialize() {
+    using namespace modforge;
 
     std::fstream file("serialize_test");
     int test_i = 10;
-    modforge::serialize(test_i, file);
+    serialize(test_i, file);
 
     Test val;
-    modforge::serialize(val, file);
-    modforge::deserialize(val, file);
+    serialize(val, file);
+    deserialize(val, file);
 
     // serialize(&val); // 测试对指针的静态断言
 

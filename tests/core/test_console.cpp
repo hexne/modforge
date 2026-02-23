@@ -7,7 +7,7 @@ import std;
 import modforge.console;
 
 int test_console() {
-
+    using namespace modforge;
     int w = Console::width();
     int h = Console::height();
 

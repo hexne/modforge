@@ -13,6 +13,8 @@ concept CanAverageType = requires(T val1, T val2, T res, int count){
     res /= count;
 };
 
+NAMESPACE_BEGIN
+
 export
 template <CanAverageType T, std::size_t N>
 class AverageQueue {
@@ -62,3 +64,5 @@ public:
         return MAX_SIZE - front_ + rear_;
     }
 };
+
+NAMESPACE_END

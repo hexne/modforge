@@ -9,6 +9,7 @@ export module modforge.command;
 
 import std;
 
+NAMESPACE_BEGIN
 export class Command {
     std::string command_;
     std::string command_out_;
@@ -31,3 +32,4 @@ public:
     }
 
 };
+NAMESPACE_END

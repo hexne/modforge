@@ -7,10 +7,11 @@ import std;
 import modforge.range;
 
 int test_range() {
+    using modforge::Range;
     int flag{};
 
     // 使用数字圈定范围
-    auto range1 = Range(1, 5);
+    auto range1 = modforge::Range(1, 5);
     if (range1.distance() != 4)
         return __LINE__;
     flag = 1;

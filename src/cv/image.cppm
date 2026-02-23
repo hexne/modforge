@@ -8,7 +8,7 @@ module;
 #include <opencv2/highgui/highgui_c.h>
 export module modforge.image;
 import std;
-
+NAMESPACE_BEGIN
 export class Image {
     cv::Mat image_;
 public:
@@ -137,3 +137,5 @@ public:
 
     ~Image() = default;
 };
+
+NAMESPACE_END

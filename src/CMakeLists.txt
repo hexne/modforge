@@ -1,3 +1,9 @@
+add_library(namespace_definitions INTERFACE)
+target_compile_definitions(namespace_definitions INTERFACE
+        "NAMESPACE_BEGIN=namespace modforge {"
+        "NAMESPACE_END=}"
+)
+
 file(GLOB cv_files "./cv/*.cppm")
 file(GLOB core_files "./core/*.cppm")
 file(GLOB deep_learning_files "./deep_learning/*.cppm")
@@ -25,6 +31,7 @@ target_sources(core
         FILE_SET cxx_modules TYPE CXX_MODULES FILES
         ${core_files}
 )
+target_link_libraries(core PRIVATE namespace_definitions)
 
 add_library(cv ${LibMod})
 target_sources(cv
@@ -33,7 +40,7 @@ target_sources(cv
         ${cv_files}
 )
 find_package(OpenCV REQUIRED)
-target_link_libraries(cv PUBLIC ${OpenCV_LIBS})
+target_link_libraries(cv PRIVATE ${OpenCV_LIBS} namespace_definitions)
 
 
 add_library(deep_learning ${LibMod})
@@ -42,7 +49,7 @@ target_sources(deep_learning
         FILE_SET cxx_modules TYPE CXX_MODULES FILES
         ${deep_learning_files}
 )
-target_link_libraries(deep_learning PUBLIC core)
+target_link_libraries(deep_learning PRIVATE core namespace_definitions)
 
 add_library(modforge ${LibMod})
 target_sources(modforge
@@ -58,5 +65,3 @@ target_compile_features(cv PUBLIC cxx_std_26)
 target_compile_features(deep_learning PUBLIC cxx_std_26)
 
 target_compile_options(core PRIVATE -freflection)
-target_compile_definitions(core PRIVATE "NAMESPACE_BEGIN=namespace modforge {")
-target_compile_definitions(core PRIVATE "NAMESPACE_END=}")
