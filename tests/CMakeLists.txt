@@ -52,17 +52,25 @@ endforeach()
 file(APPEND ${MAIN_FILE} "};\n\n")
 
 
+
+
 file(APPEND ${MAIN_FILE} "int main() {\n")
+file(APPEND ${MAIN_FILE} "    std::vector<std::string> res;\n")
 file(APPEND ${MAIN_FILE} "    for (const auto& [name, func] : test_funcs) {\n")
 file(APPEND ${MAIN_FILE} "        int line = func();\n")
 file(APPEND ${MAIN_FILE} "        if (line)\n")
-file(APPEND ${MAIN_FILE} "            std::println(\" [ FAILED ] {} (LINE {})\", name, line);\n")
+file(APPEND ${MAIN_FILE} "            res.emplace_back(\n")
+file(APPEND ${MAIN_FILE} "                std::format(\" [ FAILED ] {} (LINE {})\", name, line)\n")
+file(APPEND ${MAIN_FILE} "            );\n")
 file(APPEND ${MAIN_FILE} "        else\n")
-file(APPEND ${MAIN_FILE} "            std::println(\" [  PASS  ] {} \", name);\n")
+file(APPEND ${MAIN_FILE} "            res.emplace_back(\n")
+file(APPEND ${MAIN_FILE} "                std::format(\" [  PASS  ] {}\", name)\n")
+file(APPEND ${MAIN_FILE} "            );\n")
 file(APPEND ${MAIN_FILE} "    }\n")
+file(APPEND ${MAIN_FILE} "    for (auto str : res)\n")
+file(APPEND ${MAIN_FILE} "        std::println(\"{}\", str);\n")
 file(APPEND ${MAIN_FILE} "    return 0;\n")
 file(APPEND ${MAIN_FILE} "}\n")
-
 
 add_executable(tests ${MAIN_FILE} ${TEST_SOURCES})
 target_link_libraries(tests modforge::modforge)
