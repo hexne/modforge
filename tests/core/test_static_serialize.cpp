@@ -9,9 +9,9 @@ import modforge.static_serialize;
 
 struct Base {
     struct Sub {
-        int i;
+        int i{};
     }s;
-    int base;
+    int base{};
     Base() = default;
     Base(int s, int b) : s(s), base(b) {  }
 
@@ -21,7 +21,16 @@ struct Base {
 };
 
 class Base2 {
-    int val;
+    int val{};
+    std::vector<int> vec{};
+    std::array<int, 5> arr{};
+public:
+    Base2() = default;
+    Base2(const std::initializer_list<int> &list) : vec(list) {
+        val = static_cast<int>(list.size());
+        for (auto &num : arr)
+            num = val;
+    }
 };
 
 
@@ -30,7 +39,7 @@ class Test : Base , public Base2 {
     double f{};
 public:
     Test() = default;
-    Test(int s, int b, int i, double f) : Base(s, b), i(i), f(f) {  }
+    Test(int s, int b, int i, double f, const std::initializer_list<int> &list) : Base(s, b), i(i), f(f), Base2(list) {  }
     bool operator==(const Test& t) const {
         return t.i == i and t.f == f
             and Base::operator==(t);
@@ -60,7 +69,7 @@ int test_static_serialize() {
     int test_i = 10;
     serialize(test_i, out);
 
-    Test val(1, 2, 3, 4.5f);
+    Test val(1, 2, 3, 4.5f, {1, 2, 3, 4, 5});
     serialize(val, out);
 
     // serialize(&val); // 测试对指针的静态断言

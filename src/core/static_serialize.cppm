@@ -28,6 +28,8 @@ template <typename T>
 struct is_std_type<std::vector<T>> : std::true_type {};
 template <typename T, size_t N>
 struct is_std_type<std::array<T, N>> : std::true_type {};
+template <>
+struct is_std_type<std::string> : std::true_type {};
 
 
 template <typename T>
@@ -58,23 +60,54 @@ struct BuildInSerialize<T> {
 
 template <typename T>
 struct BuildInSerialize<std::vector<T>> {
-    static void serialize(T &obj, std::fstream &file) {
-
+    static void serialize(std::vector<T>& vec, std::fstream& file) {
+        size_t size = vec.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (auto& item : vec) {
+            BuildInSerialize<T>::serialize(item, file);  // 明确调用
+        }
     }
-    static void deserialize(T &obj, std::fstream &file) {
 
+    static void deserialize(std::vector<T>& vec, std::fstream& file) {
+        size_t size = 0;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        vec.resize(size);
+        for (auto& item : vec) {
+            BuildInSerialize<T>::deserialize(item, file);  // 明确调用
+        }
     }
 
 };
 
 template <typename T, size_t N>
 struct BuildInSerialize<std::array<T, N>> {
-    static void serialize(std::array<T, N> &obj, std::fstream &file) {
-
+    static void serialize(std::array<T, N>& arr, std::fstream& file) {
+        for (auto& item : arr) {
+            BuildInSerialize<T>::serialize(item, file);  // 明确调用
+        }
     }
-    static void deserialize(std::array<T, N> &obj, std::fstream &file) {
 
+    static void deserialize(std::array<T, N>& arr, std::fstream& file) {
+        for (auto& item : arr) {
+            BuildInSerialize<T>::deserialize(item, file);  // 明确调用
+        }
     }
+};
+
+template <>
+struct BuildInSerialize<std::string> {
+    static void serialize(std::string& obj, std::fstream& file) {
+        size_t size = obj.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        file.write(obj.data(), static_cast<long>(size));
+    }
+    static void deserialize(std::string& obj, std::fstream& file) {
+        size_t size = 0;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        obj.resize(size);
+        file.read(obj.data(), static_cast<long>(size));
+    }
+
 };
 
 #define def(OP)\
