@@ -6,6 +6,7 @@ import modforge.average_queue;
 
 
 void use_average_queue() {
+    using modforge::AverageQueue;
     // AverageQueue的模板参数T 需要支持 operator + (T), operator / (int), T {} 三个操作
     // 默认初始化
     AverageQueue<int, 3> aq1;

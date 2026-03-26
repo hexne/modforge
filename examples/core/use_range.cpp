@@ -13,6 +13,7 @@ import std;
 import modforge.range;
 
 void test_range() {
+    using modforge::Range;
 
     // 使用数字圈定范围
     for (auto val : Range(1, 5))

@@ -39,8 +39,5 @@ vc140.pdb
 .idea
 out/
 CMakeLists.txt.user
-cmake-build-debug
-cmake-build-release
-
-build
+*build*/
 .cache
