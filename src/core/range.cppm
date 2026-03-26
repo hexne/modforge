@@ -122,7 +122,7 @@ public:
 template <typename T>
     requires IsContainer<T>::value
 class Range<T> {
-    T container_;
+    T *container_{};
 public:
     class iterator {
         typename T::iterator iterator_{};
@@ -146,7 +146,7 @@ public:
     };
 
     explicit Range(T &container) :
-        container_(container), begin_(container.begin()), end_(container.end()) {  }
+        container_(&container), begin_(container.begin()), end_(container.end()) {  }
     auto begin() {
         return begin_;
     }
@@ -154,7 +154,7 @@ public:
         return end_;
     }
     std::size_t distance() {
-        return container_.size();
+        return container_->size();
     }
 private:
     iterator begin_, end_;

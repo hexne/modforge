@@ -17,13 +17,14 @@ public:
     explicit Command(std::string command) : command_(std::move(command)) {  }
 
     std::string run() {
+        command_out_.clear();
         auto pfile = popen(command_.data(),"r");
         if (!pfile)
             throw std::runtime_error("popen() failed!");
         char buffer[512] = "";
         while(fgets(buffer,sizeof(buffer),pfile))
             command_out_ += buffer;
-        fclose(pfile);
+        pclose(pfile);
         return command_out_;
     }
     static std::string run(std::string command) {

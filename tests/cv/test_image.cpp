@@ -83,18 +83,15 @@ int test_image() {
 
     // 测试缩放
     image.zoom(0.5);
-    image.show_and_wait("show", 10);
 
     image6.width(512);
     image6.height(256);
-    image6.show_and_wait("show", 10);
 
     auto data = image6.get_histogram_data();
     image6.to_grayscale();
     data = image6.get_histogram_data();
     auto tmp = image6.clone();
     tmp.to_binary(100);
-    tmp.show_and_wait("show", 10);
 
 
     return 0;

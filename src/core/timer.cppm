@@ -33,6 +33,7 @@ export class Timer {
     std::mutex mutex_;
     std::priority_queue<Task> tasks_;
     std::jthread thread_;
+    bool have_running_task_{};
 
     int id_{};
     int create_id() {
@@ -43,24 +44,30 @@ export class Timer {
 
     void run() {
         while (!is_finish()) {
+            std::optional<Task> task;
             {
                 std::lock_guard lock(mutex_);
-                // 首先不能为空, 为空直接结束遍历
-                while (!tasks_.empty()) {
-                    auto task = tasks_.top();
-                    // 优先队列，如果当前不需要执行后面就不需要执行了
-                    if (task.end > Time::now()) {
-                        break;
-                    }
+                if (!tasks_.empty() and tasks_.top().end <= Time::now()){
+                    task = tasks_.top();
                     tasks_.pop();
-                    task.callback();
-                    if (task.is_repeat_task or -- task.repeat_count > 0) {
-                        task.end += task.interval;
-                        tasks_.push(task);
+                    have_running_task_ = true;
+                }
+            }
+            if (task)
+                task->callback();
+            {
+                std::lock_guard lock(mutex_);
+                if (task) {
+                    if (task->is_repeat_task or --task->repeat_count > 0) {
+                        task->end += task->interval;
+                        tasks_.push(*task);
                     }
+                    task.reset();
+                    have_running_task_ = false;
                 }
 
             }
+
             std::this_thread::sleep_for(Interval {1});
         }
     }
@@ -76,11 +83,13 @@ public:
     }
 
     int add_task(CallbackFunc callback, Interval interval, bool is_repeat = false) {
+        std::lock_guard lock(mutex_);
         auto id = create_id();
         tasks_.push(Task {
             .id = id,
             .callback = std::move(callback),
             .interval = interval,
+            .end = Time::now() + interval,
             .is_repeat_task = is_repeat
         });
         return id;
@@ -89,11 +98,13 @@ public:
         return add_task(std::move(callback), interval, true);
     }
     int add_task(CallbackFunc callback, Interval interval, int repeat_count) {
+        std::lock_guard lock(mutex_);
         auto id = create_id();
         tasks_.push(Task {
             .id = id,
             .callback = std::move(callback),
             .interval = interval,
+            .end = Time::now() + interval,
             .repeat_count = repeat_count
         });
 
@@ -114,7 +125,7 @@ public:
 
     int task_count() {
         std::lock_guard lock(mutex_);
-        return tasks_.size();
+        return static_cast<int>(tasks_.size()) + have_running_task_;
     }
 
     ~Timer() = default;

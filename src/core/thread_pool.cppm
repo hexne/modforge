@@ -3,7 +3,7 @@
 * @Date   : 2026/03/10 20:09:52
 ********************************************************************************/
 module;
-export module thread_pool;
+export module modforge.thread_pool;
 import std;
 
 NAMESPACE_BEGIN

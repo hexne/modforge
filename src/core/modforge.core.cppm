@@ -11,5 +11,6 @@ export import modforge.console;
 export import modforge.directory;
 export import modforge.progress_bar;
 export import modforge.range;
+export import modforge.thread_pool;
 export import modforge.time;
 export import modforge.timer;

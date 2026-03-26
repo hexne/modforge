@@ -20,14 +20,22 @@ std::string get_name(const std::string &name, std::size_t width) {
     return std::vformat(format, std::make_format_args(name));
 }
 
+float get_progress_percentage(std::size_t current, std::size_t total) {
+    if (total == 0)
+        return 0.f;
+    float percentage = current * 1.f / total;
+    return std::clamp(percentage, 0.f, 1.f);
+}
+
 std::string get_remaining_time(const Time& begin_time, std::size_t current, std::size_t total, std::size_t width) {
-    // std::string format = "{:^" + std::to_string(width) + "}";
-    // return std::vformat(format, std::make_format_args("-"));
-    std::string ret;
     auto cur_time = Time::now();
     auto use_time = (cur_time - begin_time).count<std::chrono::seconds>();
 
-    float percentage = current * 1.f / total;
+    float percentage = get_progress_percentage(current, total);
+    if (percentage <= 0.f) {
+        std::string format = "{:^" + std::to_string(width) + "}";
+        return std::vformat(format, std::make_format_args("-"));
+    }
     std::size_t total_time = use_time / percentage;
     auto remaining_time = total_time - use_time;
     if (percentage >= 1.f)
@@ -44,7 +52,7 @@ std::string get_bar(std::size_t current, std::size_t total, std::size_t width) {
     std::string bar(width, ' ');
     bar.front() = '[';
     bar.back() = ']';
-    float percentage = current * 1.f / total;
+    float percentage = get_progress_percentage(current, total);
     int cur_bar_width = (width - 2) * percentage ;
     for (int i = 0;i < cur_bar_width; ++i)
         bar[i+1] = '-';
@@ -55,7 +63,7 @@ std::string get_bar(std::size_t current, std::size_t total, std::size_t width) {
 
 
 std::string get_percentage(std::size_t current, std::size_t total, std::size_t width) {
-    float percentage = current * 1.f / total;
+    float percentage = get_progress_percentage(current, total);
     std::string format = "{:>" + std::to_string(width) + "}%";
     int arg = percentage * 100;
     return std::vformat(format, std::make_format_args(arg));
