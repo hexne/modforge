@@ -64,4 +64,6 @@ target_compile_features(core PUBLIC cxx_std_26)
 target_compile_features(cv PUBLIC cxx_std_26)
 target_compile_features(deep_learning PUBLIC cxx_std_26)
 
-target_compile_options(core PRIVATE -freflection)
+foreach(target IN ITEMS core cv deep_learning modforge)
+    target_compile_options(${target} PRIVATE ${MODFORGE_REFLECTION_OPTIONS})
+endforeach()

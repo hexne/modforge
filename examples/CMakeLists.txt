@@ -30,3 +30,4 @@ add_executable(examples main.cpp ${EXAMPLES_SOURCES})
 
 
 target_link_libraries(examples PRIVATE modforge::modforge)
+target_compile_options(examples PRIVATE ${MODFORGE_REFLECTION_OPTIONS})

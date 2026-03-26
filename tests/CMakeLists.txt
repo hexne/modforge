@@ -74,4 +74,4 @@ file(APPEND ${MAIN_FILE} "}\n")
 
 add_executable(tests ${MAIN_FILE} ${TEST_SOURCES})
 target_link_libraries(tests modforge::modforge)
-target_compile_options(tests PRIVATE -freflection)
+target_compile_options(tests PRIVATE ${MODFORGE_REFLECTION_OPTIONS})
