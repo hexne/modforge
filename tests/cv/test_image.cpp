@@ -25,7 +25,11 @@ bool test_equal(const Image &img1, const Image &img2) {
 }
 
 int test_image() {
-    Image image("image.jpg");
+    static constexpr unsigned char image_bytes[] = {
+#embed "image.jpg"
+    };
+
+    Image image(image_bytes, std::size(image_bytes));
     if (image.channels() != 3) {
         std::println("{}", std::filesystem::current_path().string());
 

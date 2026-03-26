@@ -7,9 +7,16 @@ import modforge.image;
 
 void use_image() {
 
+    using modforge::Image;
+
     // 实现了默认构造函数，拷贝构造函数，移动构造函数以及相应的赋值运算符
+
+    static constexpr unsigned char image_bytes[] = {
+#embed "image.jpg"
+    };
+
     Image image;
-    image.open("image.jpg");
+    image.open(image_bytes, std::size(image_bytes));
     auto is_open = image.is_open();
 
     Image image2("image.jpg");

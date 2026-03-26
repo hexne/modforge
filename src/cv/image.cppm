@@ -10,11 +10,33 @@ export module modforge.image;
 import std;
 NAMESPACE_BEGIN
 export class Image {
+    template <typename T>
+    static constexpr bool is_char_type =
+        std::is_same_v<std::remove_cv_t<T>, char> ||
+        std::is_same_v<std::remove_cv_t<T>, unsigned char>;
+
+    template <typename T>
+    bool open_from_memory(const T *ptr, std::size_t size) {
+        if (!ptr or size == 0) {
+            image_.release();
+            return false;
+        }
+        auto begin = reinterpret_cast<const unsigned char *>(ptr);
+        std::vector<unsigned char> bytes(begin, begin + size);
+        image_ = cv::imdecode(bytes, cv::IMREAD_COLOR);
+        return is_open();
+    }
+
     cv::Mat image_;
 public:
     Image() = default;
     explicit Image(const std::string &path) : image_(cv::imread(path)) { }
 
+    template<typename T>
+        requires is_char_type<T>
+    Image(const T *prt, std::size_t size) {
+        open_from_memory(prt, size);
+    }
 
     Image(const Image & image) {
         image_ = image.image_;
@@ -33,6 +55,11 @@ public:
     bool open(const std::string &path) {
         image_ = cv::imread(path);
         return is_open();
+    }
+    template <typename T>
+        requires is_char_type<T>
+    bool open(const T *ptr, std::size_t size) {
+        return open_from_memory(ptr, size);
     }
     bool is_open() const {
         return !image_.empty();
