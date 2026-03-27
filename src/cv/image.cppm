@@ -129,7 +129,7 @@ public:
         std::vector<std::array<size_t, 256>> ret;
         auto [z, x, y] = extent();
         for (int c = 0; c < z; c++) {
-            std::array<size_t, 256> data;
+            std::array<size_t, 256> data{};
             for (int i = 0; i < x; i++) {
                 for (int j = 0; j < y; j++) {
                     data[operator[](c, i, j)] ++;
@@ -142,7 +142,13 @@ public:
 
 
     // B G R
-    uchar& operator[](int z, int x, int y) const {
+    uchar& operator[](int z, int x, int y) {
+        if (image_.channels() == 1 && z != 0)
+            throw std::out_of_range("channels is 1, and z is not 0");
+        return image_.data[y * image_.step + x * image_.channels() + z];
+    }
+
+    const uchar& operator[](int z, int x, int y) const {
         if (image_.channels() == 1 && z != 0)
             throw std::out_of_range("channels is 1, and z is not 0");
         return image_.data[y * image_.step + x * image_.channels() + z];

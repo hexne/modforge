@@ -93,8 +93,8 @@ int test_time() {
         or cst_time.count<std::chrono::minutes>() != 10)
         return __LINE__;
 
-    if (cur_utc_time.count<std::chrono::years>() != 2025
-        or cur_cst_time.count<std::chrono::years>() != 2025)
+    if (cur_utc_time.count<std::chrono::years>() != cur_utc_time.get<std::chrono::year>()
+        or cur_cst_time.count<std::chrono::years>() != cur_cst_time.get<std::chrono::year>())
         return __LINE__;
 
 

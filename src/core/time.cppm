@@ -222,7 +222,7 @@ public:
         return *this;
     }
 
-    TimeImpl& today() {
+    TimeImpl today() {
         return TimeImpl::from_date(
             get<std::chrono::year>(),
             get<std::chrono::month>(),

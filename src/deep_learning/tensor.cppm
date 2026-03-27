@@ -20,7 +20,10 @@ class Vector {
 public:
     Vector() = default;
     explicit Vector(int n) : data_(std::make_shared<std::vector<T>>(n)) {  }
-    Vector(T *ptr, std::size_t size) : data_(std::make_shared<std::vector<T>>(size)) {  }
+    Vector(T *ptr, std::size_t size) : data_(std::make_shared<std::vector<T>>(size)) {
+        if (ptr && size)
+            std::copy(ptr, ptr + size, data_->begin());
+    }
 
     Vector(const Vector &) = default;
     Vector(Vector &&) = default;
@@ -75,7 +78,9 @@ public:
     }
 
     void foreach(std::function<void(T &)> func) {
-        for (auto &val : data_)
+        if (!data_)
+            return;
+        for (auto &val : *data_)
             func(val);
     }
 
@@ -83,10 +88,14 @@ public:
         int size{};
         in.read(reinterpret_cast<char *>(&size), sizeof(size));
         data_ = std::make_shared<std::vector<T>>(size);
+        if (size > 0)
+            in.read(reinterpret_cast<char *>(data_->data()), sizeof(T) * static_cast<std::size_t>(size));
     }
     void write(std::ostream &out) const {
-        int size = data_->size();
+        int size = data_ ? static_cast<int>(data_->size()) : 0;
         out.write(reinterpret_cast<const char *>(&size), sizeof(size));
+        if (size > 0)
+            out.write(reinterpret_cast<const char *>(data_->data()), sizeof(T) * static_cast<std::size_t>(size));
     }
 
     friend std::istream &operator >> (std::istream &in, Vector &vec) {
