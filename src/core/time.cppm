@@ -273,7 +273,7 @@ public:
         else if constexpr (std::is_same_v<T, std::chrono::day> || std::is_same_v<T, std::chrono::days>)
             return static_cast<int>(get_ymd().day().operator unsigned());
         else if constexpr (std::is_same_v<T, std::chrono::weeks>)
-            return static_cast<int>(std::chrono::weekday(get_hms()).iso_encoding());
+            return static_cast<int>(std::chrono::weekday{std::chrono::sys_days{get_ymd()}}.iso_encoding());
         else if constexpr (std::is_same_v<T, std::chrono::hours>)
             return static_cast<int>(get_hms().hours().count());
         else if constexpr (std::is_same_v<T, std::chrono::minutes>)
