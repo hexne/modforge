@@ -33,7 +33,7 @@ export class ThreadPool {
 
 
 public:
-    explicit ThreadPool(const unsigned int n = std::thread::hardware_concurrency()) {
+    explicit ThreadPool(const unsigned int n = std::max(1u, std::thread::hardware_concurrency())) {
         for (int i = 0; i < n; ++i)
             threads_.emplace_back([this] {
                 loop();
