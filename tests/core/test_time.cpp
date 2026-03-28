@@ -44,10 +44,11 @@ int test_time() {
 
     if (Time::from_date("2025/1/1") != Time::from_date(2025, 1 ,1)
         or LocalTime::from_date("2025/1/1") != LocalTime::from_date(2025, 1 ,1))
+        return __LINE__;
 
-        if (Time::from_clock("0:0:0") != Time::from_clock(0, 0, 0)
-            or LocalTime::from_clock("0:0:0") != LocalTime::from_clock(0, 0, 0))
-            return __LINE__;
+    if (Time::from_clock("0:0:0") != Time::from_clock(0, 0, 0)
+        or LocalTime::from_clock("0:0:0") != LocalTime::from_clock(0, 0, 0))
+        return __LINE__;
 
     if (Time("2025/1/1 0:0:0") != Time(2025, 1, 1, 0, 0, 0)
         or LocalTime("2025/1/1 0:0:0") != LocalTime(2025, 1, 1, 0, 0, 0))
@@ -93,8 +94,12 @@ int test_time() {
         or cst_time.count<std::chrono::minutes>() != 10)
         return __LINE__;
 
-    if (cur_utc_time.count<std::chrono::years>() != cur_utc_time.get<std::chrono::year>()
-        or cur_cst_time.count<std::chrono::years>() != cur_cst_time.get<std::chrono::year>())
+    auto utc_year_count = cur_utc_time.count<std::chrono::years>();
+    auto cst_year_count = cur_cst_time.count<std::chrono::years>();
+    auto utc_next_year_count = (cur_utc_time + std::chrono::years{1}).count<std::chrono::years>();
+    auto cst_next_year_count = (cur_cst_time + std::chrono::years{1}).count<std::chrono::years>();
+    if (utc_next_year_count - utc_year_count != 1
+        or cst_next_year_count - cst_year_count != 1)
         return __LINE__;
 
 
@@ -107,7 +112,7 @@ int test_time() {
     // std::cout << res2 << std::endl;
 
     if (std::format("{:*^30}", utc_time) != "********1-1-1 00:10:00********"
-        or std::format("{:*^30}", utc_time) != "********1-1-1 00:10:00********")
+        or std::format("{:*^30}", cst_time) != "********1-1-1 00:10:00********")
         return __LINE__;
 
     if (std::format("{:*^30c}", utc_time) != "***********00:10:00***********"
