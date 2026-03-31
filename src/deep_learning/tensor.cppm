@@ -219,7 +219,8 @@ class Tensor {
 
     template<std::size_t... I>
     void create_tensor(std::vector<int>& dims, std::index_sequence<I...>) {
-        new (this) Tensor(dims[I]...);
+        Tensor tmp(dims[I]...);
+        *this = std::move(tmp);
     }
 public:
     Tensor() = default;
