@@ -68,14 +68,57 @@ public:
 
 export template <typename T>
 class MPSCQueue {
+
+    struct Node {
+        T val_{};
+        std::atomic<Node*> next_{};
+
+        Node() = default;
+        explicit Node(const T &node) : val_(node) {  }
+    };
+
+    alignas(64)
+    std::atomic<Node *> read_{};
+    alignas(64)
+    std::atomic<Node *> write_{};
+
 public:
-    MPSCQueue() = default;
+    MPSCQueue() {
+        auto head = new Node();
+
+        read_.store(head, std::memory_order_relaxed);
+        write_.store(head, std::memory_order_relaxed);
+    }
 
     void push(const T& item) {
+        auto node = new Node(item);
+
+        auto pre = write_.exchange(node, std::memory_order_acq_rel);
+        pre->next_.store(node, std::memory_order_release);
 
     }
     std::optional<T> pop() {
+        auto head = read_.load(std::memory_order_relaxed);
+        auto next = head->next_.load(std::memory_order_acquire);
 
+        if (next == nullptr)
+            return std::nullopt;
+
+        auto ret = std::optional<T>(std::move(next->val_));
+        read_.store(next, std::memory_order_relaxed);
+
+        delete head;
+        return ret;
+    }
+
+    ~MPSCQueue() {
+        Node *node = read_.load(std::memory_order_relaxed);
+
+        while (node) {
+            auto next = node->next_.load(std::memory_order_relaxed);
+            delete node;
+            node = next;
+        }
     }
 };
 
