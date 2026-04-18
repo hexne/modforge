@@ -125,17 +125,41 @@ public:
 
 export template <typename T>
 class SPMCQueue {
+    std::vector<T> queue_{};
+    alignas(64)
+    std::atomic<size_t> read_{};
+    alignas(64)
+    std::atomic<size_t> write_{};
+    size_t capacity_{};
 public:
-    SPMCQueue() = default;
-    explicit SPMCQueue(size_t capacity) {
-
+    explicit SPMCQueue(size_t capacity) : capacity_(capacity + 1) {
+        queue_.resize(capacity_);
     }
 
-    void push(const T& item) {
+    bool push(const T& item) {
+        auto pos = write_.load(std::memory_order_relaxed);
+        auto next = (pos + 1) % capacity_;
 
+        if (next == read_.load(std::memory_order_acquire))
+            return false;
+        queue_[pos] = item;
+        write_.store(next, std::memory_order_release);
+        return true;
     }
     std::optional<T> pop() {
+        size_t old_pos = read_.load(std::memory_order_acquire);
 
+        while (true) {
+            size_t write_pos = write_.load(std::memory_order_acquire);
+
+            if (old_pos == write_pos)
+                return std::nullopt;
+
+            auto next = (old_pos + 1) % capacity_;
+            if (read_.compare_exchange_weak(old_pos, next, std::memory_order_acquire, std::memory_order_relaxed)) {
+                return std::move(queue_[old_pos]);
+            }
+        }
     }
 };
 
@@ -143,7 +167,7 @@ public:
 export template <typename T>
 class MPMCQueue {
 public:
-    void push(const T& item) {
+    bool push(const T& item) {
 
     }
     std::optional<T> pop() {
