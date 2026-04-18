@@ -3,7 +3,6 @@
 * @Date   : 2026/02/20 21:57:13
 ********************************************************************************/
 module;
-#include <meta>
 export module modforge.static_serialize;
 import std;
 import std.compat;
