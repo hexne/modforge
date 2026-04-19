@@ -166,12 +166,75 @@ public:
 
 export template <typename T>
 class MPMCQueue {
+    struct Cell {
+        std::atomic<size_t> seq{};
+        T data;
+    };
+
+    std::vector<Cell> queue_{};
+    alignas(64)
+    std::atomic<size_t> read_{};
+    alignas(64)
+    std::atomic<size_t> write_{};
+    size_t capacity_{};
 public:
-    bool push(const T& item) {
-
+    explicit MPMCQueue(size_t capacity) : capacity_(capacity) {
+        queue_.resize(capacity_);
+        for (int i = 0; i < capacity_; ++i)
+            queue_[i].seq.store(i, std::memory_order_relaxed);
     }
-    std::optional<T> pop() {
 
+    bool push(const T& item) {
+        auto pos = write_.load(std::memory_order_relaxed);
+
+        while (true) {
+            Cell& cell = queue_[pos % capacity_];
+            auto seq = cell.seq.load(std::memory_order_acquire);
+            std::intptr_t diff = static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(pos);
+
+            if (diff == 0) {
+                if (write_.compare_exchange_weak(
+                        pos, pos + 1,
+                        std::memory_order_relaxed, std::memory_order_relaxed
+                    )) {
+                    cell.data = item;
+                    cell.seq.store(pos + 1, std::memory_order_release);
+                    return true;
+                }
+            }
+            else if (diff < 0) {
+                return false;
+            }
+            else {
+                pos = write_.load(std::memory_order_relaxed);
+            }
+        }
+    }
+
+    std::optional<T> pop() {
+        size_t pos = read_.load(std::memory_order_relaxed);
+
+        while (true) {
+            Cell& cell = queue_[pos % capacity_];
+            auto seq = cell.seq.load(std::memory_order_acquire);
+            std::intptr_t diff = static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(pos + 1);
+
+            if (diff == 0) {
+                if (read_.compare_exchange_weak(pos, pos + 1,
+                    std::memory_order_relaxed, std::memory_order_relaxed
+                    )) {
+                    T ret = std::move(cell.data);
+                    cell.seq.store(pos + capacity_, std::memory_order_release);
+                    return ret;
+                }
+            }
+            else if (diff < 0) {
+                return std::nullopt;
+            }
+            else {
+                pos = read_.load(std::memory_order_relaxed);
+            }
+        }
     }
 };
 
