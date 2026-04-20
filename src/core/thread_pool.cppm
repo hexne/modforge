@@ -6,7 +6,7 @@ module;
 export module modforge.thread_pool;
 import std;
 import std.compat;
-import lock_free_queue;
+import modforge.lock_free_queue;
 
 NAMESPACE_BEGIN
 export class ThreadPool {

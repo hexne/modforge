@@ -3,7 +3,7 @@
 * @Date   : 2026/04/17 18:15:55
 ********************************************************************************/
 module;
-export module lock_free_queue;
+export module modforge.lock_free_queue;
 import std;
 import std.compat;
 
