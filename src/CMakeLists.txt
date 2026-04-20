@@ -9,21 +9,6 @@ file(GLOB core_files "./core/*.cppm")
 file(GLOB deep_learning_files "./deep_learning/*.cppm")
 file(GLOB modforge_files "./*.cppm")
 
-
-#if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-#    # 移除 cv 中的 image 和 video 文件
-#    list(REMOVE_ITEM cv_files
-#            "${CMAKE_CURRENT_SOURCE_DIR}/cv/image.cppm"
-#            "${CMAKE_CURRENT_SOURCE_DIR}/cv/modforge.cv.cppm"
-#    )
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # 移除 core 中的 time 文件
-    list(REMOVE_ITEM core_files
-            "${CMAKE_CURRENT_SOURCE_DIR}/core/time.cppm"
-    )
-endif()
-
-
 set(LibMod STATIC)
 add_library(core ${LibMod})
 target_sources(core
@@ -63,7 +48,3 @@ target_link_libraries(modforge PUBLIC core cv deep_learning)
 target_compile_features(core PUBLIC cxx_std_26)
 target_compile_features(cv PUBLIC cxx_std_26)
 target_compile_features(deep_learning PUBLIC cxx_std_26)
-
-foreach(target IN ITEMS core cv deep_learning modforge)
-    target_compile_options(${target} PRIVATE ${MODFORGE_REFLECTION_OPTIONS})
-endforeach()

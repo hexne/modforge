@@ -17,15 +17,14 @@ else()
 endif()
 
 set(CMAKE_CXX_MODULE_STD 1)
-add_compile_options(-freflection)
-
-project(modforge VERSION 0.0.1 LANGUAGES CXX)
 
 set(MODFORGE_EMBED_DIR "${CMAKE_CURRENT_LIST_DIR}/resource" CACHE INTERNAL "modforge embed resource directory" FORCE)
-set(MODFORGE_REFLECTION_OPTIONS
+add_compile_options(
+        -freflection
         --embed-dir=${MODFORGE_EMBED_DIR}
-        CACHE INTERNAL "modforge reflection and embed compile options" FORCE
 )
+
+project(modforge VERSION 0.0.1 LANGUAGES CXX)
 
 add_subdirectory(src)
 
