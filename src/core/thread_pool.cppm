@@ -5,72 +5,75 @@
 module;
 export module modforge.thread_pool;
 import std;
+import std.compat;
+import lock_free_queue;
 
 NAMESPACE_BEGIN
 export class ThreadPool {
-    std::vector<std::jthread> threads_;
-    std::queue<std::function<void()>> tasks_;
-    std::mutex mutex_;
-    std::condition_variable cv_;
-    bool stop_{};
+    using Task = std::function<void()>;
 
-    void loop() {
+    size_t thread_count_;
+    size_t idx_{};
+    std::vector<std::thread> workers_;
+    std::vector<std::unique_ptr<SPMCQueue<Task>>> local_queues_;
+    std::atomic_bool stop_{false};
+
+    void loop(size_t idx) {
         while (true) {
-            std::function<void()> task;
-            {
-                std::unique_lock lock(mutex_);
-                cv_.wait(lock, [this]{ return stop_ || !tasks_.empty(); });
+            std::optional<Task> task;
 
-                if (stop_ && tasks_.empty())
-                    return;
-
-                task = std::move(tasks_.front());
-                tasks_.pop();
+            for (size_t j = 0; j < thread_count_; ++j) {
+                task = local_queues_[(idx + j) % thread_count_]->pop();
+                if (task) break;
             }
-            task();
+
+            if (task) {
+                (*task)();
+            } else if (stop_.load(std::memory_order_acquire)) {
+                break;
+            } else {
+                std::this_thread::yield();
+            }
         }
     }
-
 
 public:
-    explicit ThreadPool(const unsigned int n = std::max(1u, std::thread::hardware_concurrency())) {
-        for (int i = 0; i < n; ++i)
-            threads_.emplace_back([this] {
-                loop();
-            });
+    explicit ThreadPool(
+        size_t n = std::max(1u, std::thread::hardware_concurrency()),
+        size_t capacity = 1024)
+        : thread_count_(n)
+    {
+        local_queues_.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            local_queues_.emplace_back(std::make_unique<SPMCQueue<Task>>(capacity));
 
+        workers_.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            workers_.emplace_back([this, i]{ loop(i); });
     }
-    ~ThreadPool() {
-        {
-            std::unique_lock lock(mutex_);
-            stop_ = true;
-        }
-        cv_.notify_all();
-    }
 
-    template <typename F, typename... Args>
-    auto submit(F&& f, Args&&... args)  {
-        using Ret = std::invoke_result_t<F, Args...>;
-
+    template <typename Fun, typename... Args>
+    auto submit(Fun&& func, Args&&... args) {
+        using Ret = std::invoke_result_t<Fun, Args...>;
         auto task = std::make_shared<std::packaged_task<Ret()>>(
-            [f = std::forward<F>(f), ...args = std::forward<Args>(args)]() mutable {
-                return f(std::forward<Args>(args) ...);
-            }
-        );
+            [func = std::forward<Fun>(func),
+             ...args = std::forward<Args>(args)]() mutable {
+                return func(std::forward<Args>(args)...);
+            });
         auto future = task->get_future();
 
-        {
-            std::lock_guard lk(mutex_);
-            if (stop_)
-                throw std::runtime_error("ThreadPool is stopped");
-            tasks_.emplace([task] {
-                (*task)();
-            });
+        size_t idx = idx_++ % thread_count_;
+        while (!local_queues_[idx]->push([task]{ (*task)(); })) {
+            std::this_thread::yield();
         }
-        cv_.notify_one();
+
         return future;
     }
 
+    ~ThreadPool() {
+        stop_.store(true, std::memory_order_release);
+        for (auto& w : workers_)
+            if (w.joinable()) w.join();
+    }
 };
-
 NAMESPACE_END

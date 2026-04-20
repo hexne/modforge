@@ -2,12 +2,10 @@
 * @Author : hexne
 * @Date   : 2026/04/17 18:15:55
 ********************************************************************************/
-
 module;
 export module lock_free_queue;
 import std;
 import std.compat;
-
 
 NAMESPACE_BEGIN
 export template <typename T>
@@ -125,39 +123,74 @@ public:
 
 export template <typename T>
 class SPMCQueue {
-    std::vector<T> queue_{};
+    struct Cell {
+        std::atomic<size_t> seq{};
+        T data{};
+    };
+
+    size_t capacity_{};
+    std::unique_ptr<Cell[]> queue_;
     alignas(64)
     std::atomic<size_t> read_{};
     alignas(64)
     std::atomic<size_t> write_{};
-    size_t capacity_{};
+
 public:
-    explicit SPMCQueue(size_t capacity) : capacity_(capacity + 1) {
-        queue_.resize(capacity_);
+    explicit SPMCQueue(size_t capacity)
+        : capacity_(capacity),
+          queue_(std::make_unique<Cell[]>(capacity))
+    {
+        for (size_t i = 0; i < capacity_; ++i)
+            queue_[i].seq.store(i, std::memory_order_relaxed);
     }
 
     bool push(const T& item) {
-        auto pos = write_.load(std::memory_order_relaxed);
-        auto next = (pos + 1) % capacity_;
+        size_t pos = write_.load(std::memory_order_relaxed);
+        Cell& cell = queue_[pos % capacity_];
+        size_t seq = cell.seq.load(std::memory_order_acquire);
+        intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
 
-        if (next == read_.load(std::memory_order_acquire))
-            return false;
-        queue_[pos] = item;
-        write_.store(next, std::memory_order_release);
+        if (diff < 0) return false;
+
+        cell.data = item;
+        cell.seq.store(pos + 1, std::memory_order_release);
+        write_.store(pos + 1, std::memory_order_relaxed);
         return true;
     }
+
+    bool push(T&& item) {
+        size_t pos = write_.load(std::memory_order_relaxed);
+        Cell& cell = queue_[pos % capacity_];
+        size_t seq = cell.seq.load(std::memory_order_acquire);
+        intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
+
+        if (diff < 0) return false;
+
+        cell.data = std::move(item);
+        cell.seq.store(pos + 1, std::memory_order_release);
+        write_.store(pos + 1, std::memory_order_relaxed);
+        return true;
+    }
+
     std::optional<T> pop() {
-        size_t old_pos = read_.load(std::memory_order_acquire);
-
+        size_t pos = read_.load(std::memory_order_relaxed);
         while (true) {
-            size_t write_pos = write_.load(std::memory_order_acquire);
+            Cell& cell = queue_[pos % capacity_];
+            size_t seq = cell.seq.load(std::memory_order_acquire);
+            intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
 
-            if (old_pos == write_pos)
+            if (diff == 0) {
+                if (read_.compare_exchange_weak(pos, pos + 1,
+                        std::memory_order_acq_rel,
+                        std::memory_order_relaxed)) {
+                    T ret = std::move(cell.data);
+                    cell.seq.store(pos + capacity_, std::memory_order_release);
+                    return ret;
+                }
+            } else if (diff < 0) {
                 return std::nullopt;
-
-            auto next = (old_pos + 1) % capacity_;
-            if (read_.compare_exchange_weak(old_pos, next, std::memory_order_acquire, std::memory_order_relaxed)) {
-                return std::move(queue_[old_pos]);
+            } else {
+                pos = read_.load(std::memory_order_relaxed);
             }
         }
     }
@@ -168,19 +201,22 @@ export template <typename T>
 class MPMCQueue {
     struct Cell {
         std::atomic<size_t> seq{};
-        T data;
+        T data{};
     };
 
-    std::vector<Cell> queue_{};
+    size_t capacity_{};
+    std::unique_ptr<Cell[]> queue_;
     alignas(64)
     std::atomic<size_t> read_{};
     alignas(64)
     std::atomic<size_t> write_{};
-    size_t capacity_{};
+
 public:
-    explicit MPMCQueue(size_t capacity) : capacity_(capacity) {
-        queue_.resize(capacity_);
-        for (int i = 0; i < capacity_; ++i)
+    explicit MPMCQueue(size_t capacity)
+        : capacity_(capacity),
+          queue_(std::make_unique<Cell[]>(capacity))
+    {
+        for (size_t i = 0; i < capacity_; ++i)
             queue_[i].seq.store(i, std::memory_order_relaxed);
     }
 
@@ -195,7 +231,8 @@ public:
             if (diff == 0) {
                 if (write_.compare_exchange_weak(
                         pos, pos + 1,
-                        std::memory_order_relaxed, std::memory_order_relaxed
+                        std::memory_order_acq_rel,
+                        std::memory_order_relaxed
                     )) {
                     cell.data = item;
                     cell.seq.store(pos + 1, std::memory_order_release);
@@ -221,7 +258,8 @@ public:
 
             if (diff == 0) {
                 if (read_.compare_exchange_weak(pos, pos + 1,
-                    std::memory_order_relaxed, std::memory_order_relaxed
+                    std::memory_order_acq_rel,
+                    std::memory_order_relaxed
                     )) {
                     T ret = std::move(cell.data);
                     cell.seq.store(pos + capacity_, std::memory_order_release);
