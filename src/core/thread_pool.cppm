@@ -3,10 +3,40 @@
 * @Date   : 2026/03/10 20:09:52
 ********************************************************************************/
 module;
+#if defined(__linux__)
+#include <pthread.h>
+#include <sched.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#endif
 export module modforge.thread_pool;
+import modforge.lock_free_queue;
 import std;
 import std.compat;
-import modforge.lock_free_queue;
+
+
+void bind_thread_to_core(std::thread &t, int core_id) {
+#if defined(__linux__)
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    int rc = pthread_setaffinity_np(t.native_handle(),
+                                    sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+#elif defined(_WIN32)
+    DWORD_PTR mask = 1ULL << core_id;
+    HANDLE hThread = (HANDLE)t.native_handle();
+    DWORD_PTR result = SetThreadAffinityMask(hThread, mask);
+    if (result == 0) {
+        std::cerr << "Error calling SetThreadAffinityMask\n";
+    }
+#else
+    (void)t; (void)core_id;
+    std::cerr << "CPU affinity not supported on this platform.\n";
+#endif
+}
 
 NAMESPACE_BEGIN
 export class ThreadPool {
@@ -48,8 +78,10 @@ public:
             local_queues_.emplace_back(std::make_unique<SPMCQueue<Task>>(capacity));
 
         workers_.reserve(n);
-        for (size_t i = 0; i < n; ++i)
+        for (size_t i = 0; i < n; ++i) {
             workers_.emplace_back([this, i]{ loop(i); });
+            bind_thread_to_core(workers_[i], i);
+        }
     }
 
     template <typename Fun, typename... Args>
