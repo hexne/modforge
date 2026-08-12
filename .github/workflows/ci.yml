@@ -1,0 +1,29 @@
+name: C++ CI (GCC 16)
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container: gcc:16   # 使用官方 gcc:16 镜像
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Install tools
+        run: apt-get update && apt-get install -y cmake ninja-build
+
+      - name: Configure
+        run: cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+

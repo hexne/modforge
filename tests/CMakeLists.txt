@@ -1,8 +1,4 @@
-cmake_minimum_required(VERSION 4.4)
 project(modforge_tests)
-
-set(CMAKE_CXX_STANDARD 26)
-
 add_executable(tests
     tests.cpp
     test_time.cpp
