@@ -1,8 +1,14 @@
 import std;
 
+int test_args_parser();
+int test_directory();
+int test_file();
+int test_lock_free_queue();
+int test_modforge();
 int test_time();
 int test_timer();
 int test_thread_pool();
+int test_utils();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -10,9 +16,15 @@ int main(int argc, char** argv) {
     }
 
     std::map<std::string, std::function<int()>> tests = {
+        {"test_args_parser", test_args_parser},
+        {"test_directory", test_directory},
+        {"test_file", test_file},
+        {"test_lock_free_queue", test_lock_free_queue},
+        {"test_modforge", test_modforge},
         {"test_time", test_time},
         {"test_timer", test_timer},
         {"test_thread_pool", test_thread_pool},
+        {"test_utils", test_utils},
     };
 
     const std::string name = argv[1];
