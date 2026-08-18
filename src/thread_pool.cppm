@@ -53,7 +53,7 @@ export class ThreadPool {
             std::optional<Task> task;
 
             for (size_t j = 0; j < thread_count_; ++j) {
-                task = local_queues_[(idx + j) % thread_count_]->try_pop();
+                task = local_queues_[(idx + j) % thread_count_]->pop();
                 if (task) break;
             }
 
