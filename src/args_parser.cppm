@@ -6,30 +6,143 @@ module;
 export module modforge.args_parser;
 
 import std;
+import utils;
 
-export class ArgsParser {
+NAMESPACE_BEGIN
+
+
+
+export class ArgsParser;
+export class InputArgs;
+
+template <typename T>
+constexpr bool is_support_type_v = is_string<T> || std::is_invocable_v<T, std::optional<InputArgs>>;
+
+class InputArgs {
+
+    std::vector<std::string> args{};
+    std::string value{};
+    friend class ArgsParser;
+
 public:
-    explicit ArgsParser(std::vector<std::string> args = {}) {
-        for (std::size_t i = 1; i < args.size(); ++i) {
-            auto pos = args[i].find('=');
-            if (pos != std::string::npos) {
-                options_[args[i].substr(0, pos)] = args[i].substr(pos + 1);
-            } else {
-                flags_.push_back(args[i]);
+    InputArgs() = default;
+    explicit InputArgs(std::initializer_list<std::string> args) : args(args) {  }
+
+
+    // 比较只涉及参数
+    bool operator < (const InputArgs &other) const {
+        if (args.size() != other.args.size())
+            return args.size() < other.args.size();
+
+        for (int i = 0;i < args.size(); ++i) {
+            const auto &arg1 = args[i];
+            const auto &arg2 = other.args[i];
+
+            if (arg1 == arg2)
+                continue;
+
+            return arg1 < arg2;
+        }
+        return false;
+    }
+
+    std::string get_value() const {
+        return value;
+    }
+    void set_value(std::string value) {
+        this->value = value;
+    }
+};
+
+// -s j k
+// --short --join --kill
+class ArgsParser {
+    using Callback = std::function<void(std::optional<InputArgs>)>;
+    std::vector<std::tuple<InputArgs, Callback>> support_args_;
+
+    std::string remove_front_char(const std::string &arg) {
+        auto pos = arg.find_last_of('-');
+        if (pos == std::string::npos)
+            throw format_runtime_error("No support args format {}", arg);
+
+        return arg.substr(pos + 1);
+    }
+    // 这里的arg已经移除了-、--
+    std::tuple<InputArgs&, Callback&> find_args(const std::string& cur_arg) {
+
+        auto it = std::ranges::find_if(support_args_, [&cur_arg](const auto &arg) {
+            auto &[input_args, callback] = arg;
+            return std::ranges::any_of(input_args.args, [&cur_arg](const std::string &s) {
+                return cur_arg == s;
+            });
+        });
+
+        if (it == support_args_.end())
+            throw format_runtime_error("No support args {}", cur_arg);
+
+        return *it;
+    }
+
+    template <typename Tuple, std::size_t... index>
+    void add_args_impl(Tuple &&tuple, std::index_sequence<index...>) {
+        auto &callback = std::get<sizeof...(index)>(tuple);
+        InputArgs input_args { remove_front_char(std::get<index>(tuple)) ... };
+        support_args_.emplace_back(std::move(input_args),
+            std::function<void(std::optional<InputArgs>)>(std::forward<decltype(callback)>(callback)));
+    }
+public:
+    template <typename ...Args>
+        requires (is_support_type_v<Args> && ...)
+    void add_args(Args &&...args) {
+        constexpr auto args_size = sizeof...(Args);
+        auto tuple = std::forward_as_tuple(std::forward<Args>(args)...);
+        add_args_impl(std::move(tuple), std::make_index_sequence<args_size - 1>{});
+    }
+
+    // -sjk
+    // -s=value
+    // --short=value
+    void analysis(int argc, char *argv[]) {
+        std::vector<std::string> input_args(argv + 1, argv + argc);
+        for (const auto &arg : input_args) {
+            // 赋值
+            if (arg.find('=') != std::string::npos) {
+                auto removed_front_arg = remove_front_char(arg);
+                auto tuple = split(removed_front_arg, '=');
+
+                if (tuple.size() != 2)
+                    throw format_runtime_error("no support args format {}", arg);
+
+                auto find_res = find_args(tuple.front());
+
+                auto &[input_arg, callback] = find_res;
+                input_arg.value = tuple.back();
+
+                callback(input_arg);
+            }
+            // 长指令
+            else if (arg.find("--") != std::string::npos) {
+                auto cur_arg = remove_front_char(arg);
+                auto find_res = find_args(cur_arg);
+
+                auto &[input_arg, callback] = find_res;
+
+                callback(std::nullopt);
+            }
+            // 短指令
+            else if (arg.find('-') != std::string::npos) {
+                auto args = remove_front_char(arg);
+                for (auto ch : args) {
+                    auto find_res = find_args(std::string(1, ch));
+                    auto &[input_arg, callback] = find_res;
+                    callback(std::nullopt);
+                }
+            }
+            else {
+                throw format_runtime_error("no support args format {}", arg);
             }
         }
     }
-
-    bool has_flag(const std::string& flag) const {
-        return std::find(flags_.begin(), flags_.end(), flag) != flags_.end();
-    }
-
-    std::string get_value(const std::string& name, const std::string& default_value = "") const {
-        auto it = options_.find(name);
-        return it == options_.end() ? default_value : it->second;
-    }
-
-private:
-    std::vector<std::string> flags_;
-    std::map<std::string, std::string> options_;
 };
+
+NAMESPACE_END

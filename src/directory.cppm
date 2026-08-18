@@ -16,7 +16,7 @@ export class Directory {
 
 
     auto get_deep(const std::filesystem::path& path) const {
-        auto str = path.lexically_relative(root_).lexically_normal().generic_string();
+        auto str = path.lexically_relative(root_).lexically_normal().display_string();
         return std::ranges::count(str.begin(), str.end(), '/') + 1;
     }
 
@@ -38,7 +38,7 @@ public:
 
         traverser_directory([&](std::filesystem::path path) {
             // 如果要有文件夹就会自动处理，不要的时候外层已经过滤过了
-            auto ext = path.extension().string();
+            auto ext = path.extension().display_string();
             if (!check_extent(ext))
                 return;
 
