@@ -15,25 +15,4 @@ std::runtime_error
     return std::runtime_error{std::format<Ts...>(fmt, std::forward<Ts>(vs)...)};
 }
 
-
-// 字符串分割
-std::vector<std::string> split(const std::string &extents, char split_char = ';') {
-    auto view = extents
-        | std::views::split(split_char)
-        | std::views::transform([](auto&& range) {
-            return std::string(range.begin(), range.end());
-        });
-    return std::vector<std::string>(view.begin(), view.end());
-}
-
-template <typename T>
-concept is_string =
-    std::is_same_v<std::decay_t<T>, std::string> ||
-    std::is_same_v<std::decay_t<T>, std::string_view> ||
-    std::is_same_v<std::decay_t<T>, char*> ||
-    std::is_same_v<std::decay_t<T>, const char*> ||
-    std::is_same_v<std::decay_t<T>, wchar_t*> ||
-    std::is_same_v<std::decay_t<T>, const wchar_t*>;
-
-
 NAMESPACE_END

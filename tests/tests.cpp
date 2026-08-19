@@ -4,6 +4,7 @@ int test_args_parser();
 int test_directory();
 int test_file();
 int test_lock_free_queue();
+int test_string_utils();
 int test_time();
 int test_timer();
 int test_thread_pool();
@@ -20,6 +21,7 @@ int main(int argc, char** argv) {
         {"test_directory", test_directory},
         {"test_file", test_file},
         {"test_lock_free_queue", test_lock_free_queue},
+        {"test_string_utils", test_string_utils},
         {"test_time", test_time},
         {"test_timer", test_timer},
         {"test_thread_pool", test_thread_pool},

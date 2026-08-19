@@ -15,4 +15,5 @@ export import modforge.time;
 export import modforge.timer;
 export import modforge.tree;
 export import modforge.utils;
+export import modforge.string_utils;
 

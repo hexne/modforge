@@ -6,17 +6,16 @@ module;
 export module modforge.args_parser;
 
 import std;
+import modforge.string_utils;
 import modforge.utils;
 
 NAMESPACE_BEGIN
-
-
 
 export class ArgsParser;
 export class InputArgs;
 
 template <typename T>
-constexpr bool is_support_type_v = is_string<T> || std::is_invocable_v<T, std::optional<InputArgs>>;
+constexpr bool is_support_type_v = StringUtils::is_string<T> || std::is_invocable_v<T, std::optional<InputArgs>>;
 
 class InputArgs {
 
@@ -108,7 +107,7 @@ public:
             // 赋值
             if (arg.find('=') != std::string::npos) {
                 auto removed_front_arg = remove_front_char(arg);
-                auto tuple = split(removed_front_arg, '=');
+                auto tuple = StringUtils::split(removed_front_arg, '=');
 
                 if (tuple.size() != 2)
                     throw format_runtime_error("no support args format {}", arg);

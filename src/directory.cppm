@@ -6,7 +6,7 @@
 module;
 export module modforge.directory;
 import std;
-import modforge.utils;
+import modforge.string_utils;
 
 NAMESPACE_BEGIN
 export class Directory {
@@ -29,7 +29,7 @@ public:
     // only name 表示没有路径和后缀
     // only file 表示没有文件夹
     std::vector<std::string> files(std::string extent, bool only_name = false, bool only_file = false) {
-        auto extents = split(extent, ';');
+        auto extents = StringUtils::split(extent, ';');
 
         std::vector<std::string> ret;
         auto check_extent = [&](std::string ext) -> bool {
