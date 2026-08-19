@@ -7,6 +7,7 @@ int test_lock_free_queue();
 int test_time();
 int test_timer();
 int test_thread_pool();
+int test_tree();
 int test_utils();
 
 int main(int argc, char** argv) {
@@ -22,6 +23,7 @@ int main(int argc, char** argv) {
         {"test_time", test_time},
         {"test_timer", test_timer},
         {"test_thread_pool", test_thread_pool},
+        {"test_tree", test_tree},
         {"test_utils", test_utils},
     };
 
