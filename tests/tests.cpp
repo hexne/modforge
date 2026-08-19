@@ -10,6 +10,7 @@ int test_timer();
 int test_thread_pool();
 int test_tree();
 int test_utils();
+int test_static_serialize();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -27,6 +28,7 @@ int main(int argc, char** argv) {
         {"test_thread_pool", test_thread_pool},
         {"test_tree", test_tree},
         {"test_utils", test_utils},
+        {"test_static_serialize", test_static_serialize},
     };
 
     const std::string name = argv[1];
