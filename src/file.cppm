@@ -4,9 +4,9 @@
 ********************************************************************************/
 
 module;
-export module file;
+export module modforge.file;
 import std;
-import utils;
+import modforge.utils;
 
 NAMESPACE_BEGIN
 

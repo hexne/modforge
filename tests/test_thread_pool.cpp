@@ -1,5 +1,5 @@
 import std;
-import modforge.thread_pool;
+import modforge;
 
 int test_thread_pool() {
     modforge::ThreadPool pool(2, 8);

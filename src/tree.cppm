@@ -4,7 +4,7 @@
 ********************************************************************************/
 
 module;
-export module tree;
+export module modforge.tree;
 import std;
 
 NAMESPACE_BEGIN

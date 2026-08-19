@@ -1,5 +1,5 @@
 import std;
-import tree;
+import modforge;
 
 struct IntHasher {
     std::size_t operator()(const int& value) const {

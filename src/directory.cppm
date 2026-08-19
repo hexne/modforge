@@ -4,9 +4,9 @@
 ********************************************************************************/
 
 module;
-export module directory;
+export module modforge.directory;
 import std;
-import utils;
+import modforge.utils;
 
 NAMESPACE_BEGIN
 export class Directory {

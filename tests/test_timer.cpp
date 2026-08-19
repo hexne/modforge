@@ -1,5 +1,5 @@
 import std;
-import modforge.timer;
+import modforge;
 
 int test_timer() {
     std::atomic_int fired{0};

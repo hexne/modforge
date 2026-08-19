@@ -1,5 +1,5 @@
 import std;
-import modforge.time;
+import modforge;
 
 int test_time() {
     using namespace std::chrono;

@@ -1,5 +1,5 @@
 import std;
-import utils;
+import modforge;
 
 int test_utils() {
     auto err = modforge::format_runtime_error("bad {} {}", "value", 123);

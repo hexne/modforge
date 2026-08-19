@@ -1,5 +1,5 @@
 import std;
-import file;
+import modforge;
 
 int test_file() {
     const auto root = std::filesystem::temp_directory_path() / "modforge_tests_file";

@@ -1,5 +1,5 @@
 import std;
-import modforge.lock_free_queue;
+import modforge;
 
 int test_lock_free_queue() {
     // SPSCQueue: bounded, FIFO, full/empty checks

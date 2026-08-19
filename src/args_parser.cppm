@@ -6,7 +6,7 @@ module;
 export module modforge.args_parser;
 
 import std;
-import utils;
+import modforge.utils;
 
 NAMESPACE_BEGIN
 
