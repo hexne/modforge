@@ -45,6 +45,7 @@ graph TD
     modforge --> utils
     modforge --> string_utils
     modforge --> static_serialize
+    modforge --> signal
 
     args_parser --> string_utils
     args_parser --> utils
@@ -62,7 +63,6 @@ graph TD
 
 ### 通信与事件
 
-- [ ] Signal / Slot
 - [ ] Event Bus
 
 ### 终端与配置
