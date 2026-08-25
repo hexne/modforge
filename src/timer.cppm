@@ -33,7 +33,7 @@ export class Timer {
     std::mutex mutex_;
     std::priority_queue<Task> tasks_;
     std::jthread thread_;
-    bool have_running_task_{};
+    std::condition_variable cv_{};
 
     int id_{};
     int create_id() {
@@ -44,35 +44,37 @@ export class Timer {
 
     void run() {
         while (!is_finish()) {
-            std::optional<Task> task;
-            {
-                std::lock_guard lock(mutex_);
-                if (!tasks_.empty() and tasks_.top().end <= Time::now()){
+            if (tasks_.empty()) {
+                std::unique_lock lock(mutex_);
+                cv_.wait(lock, [this] { return is_finish() || !tasks_.empty(); });
+            }
+            else {
+                Task task;
+                {
+                    std::unique_lock lock(mutex_);
                     task = tasks_.top();
+
+                    cv_.wait_until(lock, task.end.time_point(), [this] {
+                        return is_finish() || tasks_.empty() || tasks_.top().end <= Time::now();
+                    });
+                }
+                if (is_finish())
+                    break;
+                if (tasks_.empty())
+                    continue;
+                task = tasks_.top();
+                task.callback();
+                {
+                    std::lock_guard lock(mutex_);
                     tasks_.pop();
-                    have_running_task_ = true;
-                }
-            }
-            if (task)
-                task->callback();
-            {
-                std::lock_guard lock(mutex_);
-                if (task) {
-                    if (task->is_repeat_task or --task->repeat_count > 0) {
-                        task->end += task->interval;
-                        tasks_.push(*task);
+                    if (task.is_repeat_task || --task.repeat_count > 0) {
+                        task.end += task.interval;
+                        tasks_.push(task);
                     }
-                    task.reset();
-                    have_running_task_ = false;
                 }
-
             }
-
-            std::this_thread::sleep_for(Interval {1});
         }
     }
-
-
 
 public:
     Timer() : thread_(std::jthread(&Timer::run,this)) {  }
@@ -92,6 +94,7 @@ public:
             .end = Time::now() + interval,
             .is_repeat_task = is_repeat
         });
+        cv_.notify_one();
         return id;
     }
     int add_repeat_task(CallbackFunc callback, Interval interval) {
@@ -107,7 +110,7 @@ public:
             .end = Time::now() + interval,
             .repeat_count = repeat_count
         });
-
+        cv_.notify_one();
         return id;
     }
 
@@ -125,10 +128,14 @@ public:
 
     int task_count() {
         std::lock_guard lock(mutex_);
-        return static_cast<int>(tasks_.size()) + have_running_task_;
+        return tasks_.size();
     }
 
-    ~Timer() = default;
+    ~Timer() {
+        cv_.notify_all();
+        thread_.request_stop();
+        thread_.join();
+    }
 
 
 };

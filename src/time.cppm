@@ -127,7 +127,6 @@ template<TimeZone time_zone = TimeZone::utc, typename TimePrecision = std::chron
 class TimeImpl {
     using ymd_t = std::chrono::year_month_day;
     using hms_t = std::chrono::hh_mm_ss<TimePrecision>;
-    using time_point_t = std::chrono::time_point<std::chrono::system_clock, TimePrecision>;
     std::chrono::zoned_time<TimePrecision> time_;
 public:
     static constexpr int get_days_in_month(int year, int month) {
@@ -297,6 +296,10 @@ public:
         auto fixup = std::chrono::time_point_cast<T>(std::chrono::system_clock::time_point()).time_since_epoch() - get_begin_zone_time<time_zone, TimePrecision>().get_sys_time().time_since_epoch(); // 时间修正
         auto same_fixup = std::chrono::duration_cast<TimePrecision>(fixup);
         return std::chrono::duration_cast<T>(time_.get_sys_time().time_since_epoch() + same_fixup).count();
+    }
+
+    std::chrono::time_point<std::chrono::system_clock> time_point() {
+        return time_.get_sys_time();
     }
 
     template <TimeType T>
