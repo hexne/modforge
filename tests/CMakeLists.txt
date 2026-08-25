@@ -13,6 +13,9 @@ add_executable(tests
     test_utils.cpp
     test_static_serialize.cpp
     test_signal.cpp
+    test_event.cpp
+    test_table.cpp
+    test_terminal.cpp
 )
 target_link_libraries(tests PRIVATE modforge)
 target_compile_features(tests PUBLIC cxx_std_26)
@@ -30,3 +33,6 @@ add_test(NAME test_tree COMMAND tests "test_tree")
 add_test(NAME test_utils COMMAND tests "test_utils")
 add_test(NAME test_static_serialize COMMAND tests "test_static_serialize")
 add_test(NAME test_signal COMMAND tests "test_signal")
+add_test(NAME test_event COMMAND tests "test_event")
+add_test(NAME test_table COMMAND tests "test_table")
+add_test(NAME test_terminal COMMAND tests "test_terminal")

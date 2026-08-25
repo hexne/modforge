@@ -12,6 +12,9 @@ int test_tree();
 int test_utils();
 int test_static_serialize();
 int test_signal();
+int test_event();
+int test_table();
+int test_terminal();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -31,6 +34,9 @@ int main(int argc, char** argv) {
         {"test_utils", test_utils},
         {"test_static_serialize", test_static_serialize},
         {"test_signal", test_signal},
+        {"test_event", test_event},
+        {"test_table", test_table},
+        {"test_terminal", test_terminal},
     };
 
     const std::string name = argv[1];
