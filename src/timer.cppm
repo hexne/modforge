@@ -139,4 +139,97 @@ public:
 
 
 };
+
+
+export class CoroutineTimer {
+    struct Task {
+        Time end;
+        std::coroutine_handle<> handle;
+        bool operator<(const Task &other) const { return end > other.end; }
+    };
+    std::priority_queue<Task> tasks_;
+
+    void add_task(const Time &deadline, std::coroutine_handle<> handle) {
+        tasks_.push(Task{deadline, handle});
+    }
+
+public:
+    class TimerAwaiter {
+        CoroutineTimer *timer_;
+        Time deadline_;
+    public:
+        TimerAwaiter(CoroutineTimer *timer, const Time &deadline)
+            : timer_(timer), deadline_(deadline) {}
+
+        bool await_ready() const { return deadline_ <= Time::now(); }
+        void await_suspend(std::coroutine_handle<> handle) {
+            timer_->add_task(deadline_, handle);
+        }
+        void await_resume() const {}
+    };
+
+    TimerAwaiter sleep_for(std::chrono::steady_clock::duration d) {
+        return TimerAwaiter{this, Time::now() + d};
+    }
+    TimerAwaiter sleep_until(const Time &time_point) {
+        return TimerAwaiter{this, time_point};
+    }
+
+    std::optional<Time> resume() {
+        const Time now = Time::now();
+        while (!tasks_.empty() && tasks_.top().end <= now) {
+            auto handle = tasks_.top().handle;
+            tasks_.pop();
+            handle.resume();
+        }
+        if (tasks_.empty()) return std::nullopt;
+        return tasks_.top().end;
+    }
+
+    bool empty() const { return tasks_.empty(); }
+};
+
+export template <typename T>
+struct TimerTaskPromise;
+
+export template <typename T>
+class TimerTask {
+public:
+    using promise_type = TimerTaskPromise<T>;
+
+    explicit TimerTask(std::coroutine_handle<promise_type> h) : handle_(h) {}
+    TimerTask(TimerTask &&other) noexcept : handle_(other.handle_) { other.handle_ = nullptr; }
+    TimerTask(const TimerTask &) = delete;
+    TimerTask &operator=(TimerTask &&other) noexcept {
+        if (this != &other) {
+            if (handle_) handle_.destroy();
+            handle_ = other.handle_;
+            other.handle_ = nullptr;
+        }
+        return *this;
+    }
+    ~TimerTask() { if (handle_) handle_.destroy(); }
+
+    bool done() const { return handle_.done(); }
+    T result() const { return handle_.promise().value; }
+    std::coroutine_handle<> raw_handle() const { return handle_; }
+
+private:
+    std::coroutine_handle<promise_type> handle_;
+};
+
+template <typename T>
+struct TimerTaskPromise {
+    T value{};
+
+    TimerTask<T> get_return_object() {
+        return TimerTask<T>{std::coroutine_handle<TimerTaskPromise>::from_promise(*this)};
+    }
+    std::suspend_never initial_suspend() noexcept { return {}; }
+    std::suspend_always final_suspend() noexcept { return {}; }
+    void return_value(T v) { value = std::move(v); }
+    void unhandled_exception() { std::terminate(); }
+};
+
+
 NAMESPACE_END

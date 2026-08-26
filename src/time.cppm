@@ -304,16 +304,44 @@ public:
 
     template <TimeType T>
     TimeImpl& operator += (T count) {
-        auto tmp = TimeImpl(count);
-        *this += tmp;
+        auto tp = get_utc_time_point_by_zone_time(time_);
+
+        tp += std::chrono::duration_cast<TimePrecision>(count);
+
+        time_ = get_zoned_time_by_utc_time_point<
+            time_zone,
+            TimePrecision
+        >(tp);
+
         return *this;
     }
 
     template <TimeType T>
     TimeImpl& operator -= (T count) {
-        auto tmp = TimeImpl(count);
-        *this -= tmp;
+        auto tp = get_utc_time_point_by_zone_time(time_);
+
+        tp -= std::chrono::duration_cast<TimePrecision>(count);
+
+        time_ = get_zoned_time_by_utc_time_point<
+            time_zone,
+            TimePrecision
+        >(tp);
+
         return *this;
+    }
+
+    template <TimeType T>
+    TimeImpl operator + (T count) {
+        TimeImpl ret(*this);
+        ret += count;
+        return ret;
+    }
+
+    template <TimeType T>
+    TimeImpl operator - (T count) {
+        TimeImpl ret(*this);
+        ret -= count;
+        return ret;
     }
 
     TimeImpl& operator += (const TimeImpl &time) {
@@ -329,20 +357,6 @@ public:
         tp -= time_duration;
         time_ = get_zoned_time_by_utc_time_point<time_zone, TimePrecision>(tp);
         return *this;
-    }
-
-    template <TimeType T>
-    TimeImpl operator + (T count) {
-        TimeImpl ret(*this);
-        ret += TimeImpl(count);
-        return ret;
-    }
-
-    template <TimeType T>
-    TimeImpl operator - (T count) {
-        TimeImpl ret(*this);
-        ret -= TimeImpl(count);
-        return ret;
     }
 
     TimeImpl operator + (const TimeImpl &time) {
@@ -384,7 +398,6 @@ using UTCTime = TimeImpl<TimeZone::utc, TimePrecision>;
 
 export template <typename TimePrecision = std::chrono::microseconds>
 using CSTTime = TimeImpl<TimeZone::cst, TimePrecision>;
-
 NAMESPACE_END
 
 /**
