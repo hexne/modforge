@@ -7,10 +7,10 @@ module;
 #include <cerrno>
 #include <cstring>
 #include <sys/socket.h>
-export module tcp;
+export module modforge.tcp;
 import std;
-import address;
-import socket;
+import modforge.address;
+import modforge.socket;
 
 // 阻塞式 TCP 连接：组合持有 socket 底座，对外只声明 TCP 该有的接口。
 //   - listen / accept（UDP 没有）

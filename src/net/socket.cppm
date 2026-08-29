@@ -10,9 +10,9 @@ module;
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-export module socket;
+export module modforge.socket;
 import std;
-import address;
+import modforge.address;
 
 // socket 类型：构造时传入，类内不写死 SOCK_STREAM / SOCK_DGRAM
 export enum class SocketType {

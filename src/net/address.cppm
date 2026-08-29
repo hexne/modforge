@@ -6,7 +6,7 @@ module;
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-export module address;
+export module modforge.address;
 import std;
 
 // 端点抽象：IPv4 地址 + 端口，为 TCP / UDP 共用。

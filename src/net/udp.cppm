@@ -8,10 +8,10 @@ module;
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-export module udp;
+export module modforge.udp;
 import std;
-import address;
-import socket;
+import modforge.address;
+import modforge.socket;
 
 // 阻塞式 UDP：组合持有 socket 底座，对外只声明 UDP 该有的接口。
 // 与 TCP 的关键区别（这就是它不共用 TCP 接口的理由）：

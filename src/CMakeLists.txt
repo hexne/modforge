@@ -9,6 +9,11 @@ if(NOT MODFORGE_ENABLE_REFLECTION)
     list(REMOVE_ITEM modforge_files "${CMAKE_CURRENT_SOURCE_DIR}/static_serialize.cppm")
 endif()
 
+# 网络子模块（src/net/）：address / socket / tcp / udp / http / websocket，
+# 同样编入 modforge 目标，但不接入 modforge.cppm 总入口，使用时单独 import。
+file(GLOB net_files "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cppm")
+list(APPEND modforge_files ${net_files})
+
 set(LibMod STATIC)
 add_library(modforge ${LibMod})
 target_sources(modforge
