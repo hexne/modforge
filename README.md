@@ -73,9 +73,9 @@ graph TD
 需要反射模块时**必须**用 GCC trunk —— `std::meta` 等 C++26 反射设施在 16.2.1 的标准库中并不完整。
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER="/path/to/g++" .. 
-cmake --build .
-ctest --output-on-failure
+cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER="/path/to/g++"
+cmake --build build --target tests
+ctest --test-dir build --output-on-failure
 ```
 
 > `directory` 模块内置了一个轻量辅助模板 `path_string()`：用 `has_generic_display_string`
@@ -106,20 +106,86 @@ add_subdirectory(modforge)
 开启后 `-freflection` 会随 `modforge` 目标传递给下游，**下游整体将切入反射方言**——
 不用反射的项目保持默认 OFF 即可，不受影响。
 
+安装分发时反射能力在安装那一刻固化：通过 `find_package` 拿到的包是否带反射，
+取决于安装时 `MODFORGE_ENABLE_REFLECTION` 的取值，消费方无需也无法在 `find_package` 之后切换。
+
 ## 📖 在项目中引入
 
 `import std` 目前仍是实验特性，两项开关**必须在 `project()` 之前**设置，否则 configure 阶段就会报
-`Experimental import std support not enabled`：
+`Experimental import std support not enabled`。推荐 include 库自带的 init 脚本
+（自动按 CMake 版本选 UUID，源码树与安装包中都带）：
 
 ```cmake
-# UUID 随 CMake 版本变化，取值见 modforge 根 CMakeLists.txt
+cmake_minimum_required(VERSION 3.30.0)
+include("/path/to/modforge/cmake/modforge-init.cmake")  # 必须在 project() 之前
+project(my_app LANGUAGES CXX)
+```
+
+也可以手动设置（UUID 随 CMake 版本变化，见 `cmake/modforge-init.cmake`）：
+
+```cmake
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "<UUID>")
 set(CMAKE_CXX_MODULE_STD 1)
 project(my_app LANGUAGES CXX)
+```
 
+### 方式一：add_subdirectory
+
+```cmake
 add_subdirectory(modforge)
 target_link_libraries(my_app PRIVATE modforge)
 ```
+
+### 方式二：find_package（需先安装）
+
+先构建并安装 modforge（默认安装到 `/usr/local`，可用 `--prefix` 指定前缀）：
+
+```bash
+cmake --build <modforge构建目录>
+cmake --install <modforge构建目录>                       # 安装到默认前缀
+cmake --install <modforge构建目录> --prefix /your/prefix  # 或指定前缀
+```
+
+消费方工程（configure 时用 `-DCMAKE_PREFIX_PATH=/your/prefix` 指向安装前缀）：
+
+```cmake
+find_package(modforge CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE modforge::modforge)
+```
+
+卸载（按构建目录里的 `install_manifest.txt` 删除安装产物）：
+
+```bash
+cmake --build <modforge构建目录> --target uninstall
+```
+
+#### find_package 下使用反射序列化
+
+反射能力在**安装那一刻固化**：只有安装时以 `MODFORGE_ENABLE_REFLECTION=ON` 构建并安装，
+`find_package` 拿到的包才带 `static_serialize`。消费方**不需要**（也无法）在自己的工程里开任何选项：
+
+```bash
+# 安装一个带反射的包
+cmake -S . -B build -G Ninja -DMODFORGE_ENABLE_REFLECTION=ON
+cmake --build build
+cmake --install build --prefix /your/prefix
+```
+
+```cpp
+import modforge;
+
+// 接口与 add_subdirectory 方式完全一致，直接用即可
+modforge::ArchivePointer ar(buf);
+modforge::serialize(s, ar);
+modforge::deserialize(s2, ar2);
+```
+
+两点注意：
+
+- 包是否带反射，消费方代码可以用 `#ifdef MODFORGE_ENABLE_REFLECTION` 判断
+  （该宏随 `modforge::modforge` 目标的接口自动传播到消费方编译）。
+- 带反射的包会把 `-freflection` 自动传给消费方编译（含消费方自己的代码），
+  因此消费方编译器**也必须支持 `-freflection`**（如 gcc-trunk 17）。
 
 之后即可 `import modforge;` 使用，各模块的接口见 `src/*.cppm` 与 `tests/` 下对应的用例。
 
@@ -174,4 +240,4 @@ ctest --test-dir build-check --output-on-failure
 
 ### 工程化
 
-- [ ] `find_package` 安装分发（install / export 规则）
+- [x] `find_package` 安装分发（install / export 规则）

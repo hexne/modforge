@@ -1,0 +1,28 @@
+# cmake/uninstall.cmake.in
+# 卸载安装产物，用法：
+#   cmake --build <build目录> --target uninstall
+# 脚本读取构建目录下的 install_manifest.txt（由 cmake --install 生成），逐个删除。
+
+if(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+    message(FATAL_ERROR
+        "Cannot find install manifest: @CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt\n"
+        "请先执行 cmake --install 后再 uninstall。")
+endif()
+
+file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
+string(REGEX REPLACE "\n" ";" files "${files}")
+foreach(file ${files})
+    if(NOT file STREQUAL "")
+        message(STATUS "Uninstalling: $ENV{DESTDIR}${file}")
+        if(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} -E rm -f "$ENV{DESTDIR}${file}"
+                RESULT_VARIABLE rm_result)
+            if(NOT rm_result EQUAL 0)
+                message(FATAL_ERROR "Failed to remove: $ENV{DESTDIR}${file}")
+            endif()
+        else()
+            message(STATUS "File does not exist: $ENV{DESTDIR}${file}")
+        endif()
+    endif()
+endforeach()

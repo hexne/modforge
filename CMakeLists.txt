@@ -2,25 +2,11 @@ cmake_minimum_required(VERSION 3.30.0)
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "")
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0 AND CMAKE_VERSION VERSION_LESS 3.31.8)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
-elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 3.31.8 AND CMAKE_VERSION VERSION_LESS 4.0.0)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
-elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0.0 AND CMAKE_VERSION VERSION_LESS 4.0.3)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "a9e1cf81-9932-4810-974b-6eccaf14e457")
-elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0.3 AND CMAKE_VERSION VERSION_LESS 4.3.0)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
-elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 4.3.0 AND CMAKE_VERSION VERSION_LESS 4.4.0)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-elseif(CMAKE_VERSION VERSION_GREATER_EQUAL 4.4.0)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "f35a9ac6-8463-4d38-8eec-5d6008153e7d")
-endif()
-
-set(CMAKE_CXX_MODULE_STD 1)
+include(cmake/modforge-init.cmake)
 
 option(MODFORGE_ENABLE_REFLECTION "启用 C++26 静态反射序列化模块（需要编译器支持 -freflection）" OFF)
 
-project(modforge)
+project(modforge VERSION 0.1.0)
 add_subdirectory(src)
 add_subdirectory(tests)
 
@@ -32,3 +18,48 @@ if(MODFORGE_ENABLE_REFLECTION)
 endif()
 
 include(CTest)
+
+# ---- install / find_package 分发 ----
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS modforge
+        EXPORT modforgeTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        FILE_SET cxx_modules DESTINATION ${CMAKE_INSTALL_LIBDIR}/modforge)
+
+install(TARGETS namespace_definitions
+        EXPORT modforgeTargets)
+
+install(EXPORT modforgeTargets
+        FILE modforgeTargets.cmake
+        NAMESPACE modforge::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/modforge)
+
+configure_package_config_file(
+        cmake/modforgeConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/modforgeConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/modforge)
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/modforgeConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/modforgeConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/modforgeConfigVersion.cmake
+        cmake/modforge-init.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/modforge)
+
+# ---- uninstall ----
+if(NOT TARGET uninstall)
+    configure_file(
+            cmake/uninstall.cmake.in
+            ${CMAKE_CURRENT_BINARY_DIR}/uninstall.cmake
+            @ONLY)
+    add_custom_target(uninstall
+            COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/uninstall.cmake)
+endif()
