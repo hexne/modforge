@@ -11,7 +11,6 @@ add_executable(tests
     test_timer.cpp
     test_tree.cpp
     test_utils.cpp
-    test_static_serialize.cpp
     test_signal.cpp
     test_event.cpp
     test_table.cpp
@@ -31,8 +30,12 @@ add_test(NAME test_timer COMMAND tests "test_timer")
 add_test(NAME test_thread_pool COMMAND tests "test_thread_pool")
 add_test(NAME test_tree COMMAND tests "test_tree")
 add_test(NAME test_utils COMMAND tests "test_utils")
-add_test(NAME test_static_serialize COMMAND tests "test_static_serialize")
 add_test(NAME test_signal COMMAND tests "test_signal")
 add_test(NAME test_event COMMAND tests "test_event")
 add_test(NAME test_table COMMAND tests "test_table")
 add_test(NAME test_terminal COMMAND tests "test_terminal")
+
+if(MODFORGE_ENABLE_REFLECTION)
+    target_sources(tests PRIVATE test_static_serialize.cpp)
+    add_test(NAME test_static_serialize COMMAND tests "test_static_serialize")
+endif()

@@ -10,7 +10,9 @@ int test_timer();
 int test_thread_pool();
 int test_tree();
 int test_utils();
+#ifdef MODFORGE_ENABLE_REFLECTION
 int test_static_serialize();
+#endif
 int test_signal();
 int test_event();
 int test_table();
@@ -32,7 +34,9 @@ int main(int argc, char** argv) {
         {"test_thread_pool", test_thread_pool},
         {"test_tree", test_tree},
         {"test_utils", test_utils},
+#ifdef MODFORGE_ENABLE_REFLECTION
         {"test_static_serialize", test_static_serialize},
+#endif
         {"test_signal", test_signal},
         {"test_event", test_event},
         {"test_table", test_table},

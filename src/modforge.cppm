@@ -12,7 +12,9 @@ export import modforge.file;
 export import modforge.lock_free_queue;
 export import modforge.thread_pool;
 export import modforge.string_utils;
+#ifdef MODFORGE_ENABLE_REFLECTION
 export import modforge.static_serialize;
+#endif
 export import modforge.table;
 export import modforge.terminal;
 export import modforge.signal;
