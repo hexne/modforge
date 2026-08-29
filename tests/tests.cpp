@@ -17,6 +17,9 @@ int test_signal();
 int test_event();
 int test_table();
 int test_terminal();
+int test_socket();
+int test_tcp();
+int test_udp();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -41,6 +44,9 @@ int main(int argc, char** argv) {
         {"test_event", test_event},
         {"test_table", test_table},
         {"test_terminal", test_terminal},
+        {"test_socket", test_socket},
+        {"test_tcp", test_tcp},
+        {"test_udp", test_udp},
     };
 
     const std::string name = argv[1];

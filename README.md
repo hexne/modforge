@@ -32,8 +32,18 @@
 | `utils`            | 通用工具                           |  ✅   |
 | `static_serialize` | C++26 静态反射序列化               |  🔌   |
 | `event`            | 事件模块（当前为空壳，未接入总入口） |  🚧   |
+| `net/address`      | 网络端点（IPv4 + 端口）            |  ✅   |
+| `net/socket`       | socket 底座：fd 生命周期与通用调用  |  ✅   |
+| `net/tcp`          | 阻塞式 TCP（字节流 + 长度前缀分帧） |  ✅   |
+| `net/udp`          | 阻塞式 UDP（数据报收发）           |  ✅   |
+| `net/http`         | HTTP（当前为空壳）                 |  🚧   |
+| `net/websocket`    | WebSocket（当前为空壳）            |  🚧   |
 
 图例：✅ 默认构建 · 🔌 可选，需显式开启 · 🚧 占位未实现
+
+> `net/` 下的模块**不接入总入口**——`import modforge;` 拿不到它们，需要时单独
+> `import modforge.tcp;` / `import modforge.udp;`。这样也带来一个好处：
+> 不 import 的模块不会被编译（模块库天然按需编译）。
 
 ## 🔗 Module Dependencies
 
@@ -191,7 +201,7 @@ modforge::deserialize(s2, ar2);
 
 ## 🧪 测试
 
-项目使用 CTest，默认为 14 个用例，开启反射后为 15 个。
+项目使用 CTest，默认为 17 个用例，开启反射后为 18 个。
 
 ```bash
 ctest --test-dir build-check --output-on-failure
@@ -213,6 +223,9 @@ ctest --test-dir build-check --output-on-failure
 | `test_event` | `event`（空测试） |
 | `test_table` | `table` |
 | `test_terminal` | `terminal` |
+| `test_socket` | `net/socket` |
+| `test_tcp` | `net/tcp` |
+| `test_udp` | `net/udp` |
 | `test_static_serialize` | `static_serialize`（🔌 可选） |
 
 单个测试可直接运行：
