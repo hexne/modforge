@@ -10,13 +10,18 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     container: ghcr.io/hexne/modforge/gcc-latest:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 默认关闭反射，CI 在命令行传选项覆盖两个配置，保证全部模块都被编译和测试
+        reflection: [ OFF, ON ]
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
 
       - name: Configure
-        run: cmake -S . -B build -GNinja -DCMAKE_CXX_COMPILER="/opt/gcc/bin/g++" -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -GNinja -DCMAKE_CXX_COMPILER="/opt/gcc/bin/g++" -DCMAKE_BUILD_TYPE=Release -DMODFORGE_ENABLE_REFLECTION=${{ matrix.reflection }}
 
       - name: Build
         run: cmake --build build --parallel
