@@ -40,16 +40,18 @@ public:
     // only file 表示没有文件夹
     std::vector<std::string> files(std::string extent, bool only_name = false, bool only_file = false) {
         auto extents = StringUtils::split(extent, ';');
+        std::erase_if(extents, [](const std::string& e) { return e.empty(); });
 
         std::vector<std::string> ret;
-        auto check_extent = [&](std::string ext) -> bool {
-            return std::ranges::find(extents, ext) != extents.end();
+        auto check_extent = [&](std::string path) -> bool {
+            return std::ranges::any_of(extents, [&](const std::string &ext) {
+                return path.ends_with(ext);
+            });
         };
 
         traverser_directory([&](std::filesystem::path path) {
             // 如果要有文件夹就会自动处理，不要的时候外层已经过滤过了
-            auto ext = path_string(path.extension());
-            if (!check_extent(ext))
+            if (!check_extent(path))
                 return;
 
             if (only_name)
