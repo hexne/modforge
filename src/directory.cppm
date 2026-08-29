@@ -7,7 +7,6 @@ module;
 export module modforge.directory;
 import std;
 import modforge.string_utils;
-import modforge.utils;
 
 template <typename P>
 concept has_generic_display_string = requires(const P& p) { p.generic_display_string(); };
@@ -25,8 +24,6 @@ NAMESPACE_BEGIN
 export class Directory {
     std::filesystem::path root_{};
     int deep_{};
-
-
 
     auto get_deep(const std::filesystem::path& path) const {
         auto str = path_string(path.lexically_relative(root_).lexically_normal());

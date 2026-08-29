@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_CXX_MODULE_STD 1)
 
-option(MODFORGE_ENABLE_REFLECTION "启用 C++26 静态反射序列化模块（需要编译器支持 -freflection）" ON)
+option(MODFORGE_ENABLE_REFLECTION "启用 C++26 静态反射序列化模块（需要编译器支持 -freflection）" OFF)
 
 project(modforge)
 add_subdirectory(src)

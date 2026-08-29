@@ -57,6 +57,7 @@ graph TD
     args_parser --> string_utils
     args_parser --> utils
     directory --> string_utils
+    directory --> utils
     file --> utils
     thread_pool --> lock_free_queue
     timer --> time
@@ -68,12 +69,19 @@ graph TD
 
 ## 🔨 Build
 
-需要 **GCC trunk**（17.0.0 experimental）。系统 GCC 16.2.1 无法构建：`directory` 模块用到
-`std::filesystem::path::display_string()`，该接口在 16.2.1 的 libstdc++ 中尚不存在。
+关闭反射时 GCC 16.2.1 与 GCC trunk（17.0.0 experimental）都可构建，测试全部通过；
+需要反射模块时**必须**用 GCC trunk —— `std::meta` 等 C++26 反射设施在 16.2.1 的标准库中并不完整。
 
 ```bash
-cmake -GNinja -DCMAKE_CXX_COMPILER="/path/gcc-trunk/bin/g++" ..      
+cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER="/path/to/g++" .. 
+cmake --build .
+ctest --output-on-failure
 ```
+
+> `directory` 模块内置了一个轻量辅助模板 `path_string()`：用 `has_generic_display_string`
+> concept 探测标准库能力，有 `generic_display_string()`（GCC 17）就走它，否则回退到
+> `generic_string()`（GCC 16）。这样 GCC 16 不会有缺失符号、GCC 17 也不会触发 `generic_string()`
+> 的弃用警告，关闭反射时两个版本都能干净构建。
 
 ## 🔌 可选模块
 
@@ -100,7 +108,15 @@ add_subdirectory(modforge)
 
 ## 📖 在项目中引入
 
+`import std` 目前仍是实验特性，两项开关**必须在 `project()` 之前**设置，否则 configure 阶段就会报
+`Experimental import std support not enabled`：
+
 ```cmake
+# UUID 随 CMake 版本变化，取值见 modforge 根 CMakeLists.txt
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "<UUID>")
+set(CMAKE_CXX_MODULE_STD 1)
+project(my_app LANGUAGES CXX)
+
 add_subdirectory(modforge)
 target_link_libraries(my_app PRIVATE modforge)
 ```
@@ -154,7 +170,6 @@ ctest --test-dir build-check --output-on-failure
 
 ### 终端与配置
 
-- [x] Terminal Table
 - [ ] Configuration
 
 ### 工程化
