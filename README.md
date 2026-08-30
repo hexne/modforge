@@ -11,7 +11,7 @@
 - 🧵 并发与无锁数据结构（SPSC / MPSC / SPMC / MPMC）
 - 🔍 C++26 静态反射序列化（可选模块，默认关闭）
 - 🧪 以单文件单测试函数方式维护模块测试
-- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号与终端辅助模块
+- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器与终端辅助模块
 
 ## 📦 Modules
 
@@ -54,6 +54,7 @@ graph TD
     modforge --> directory
     modforge --> file
     modforge --> lock_free_queue
+    modforge --> id_generator
     modforge --> thread_pool
     modforge --> time
     modforge --> timer
@@ -71,12 +72,24 @@ graph TD
     directory --> utils
     file --> utils
     thread_pool --> lock_free_queue
+    signal --> id_generator
+    timer --> id_generator
     timer --> time
     table --> terminal
+
+    subgraph net["net/ 子模块（不接入总入口）"]
+        tcp --> socket
+        tcp --> address
+        udp --> socket
+        udp --> address
+        socket --> address
+    end
 ```
 
 虚线表示 `static_serialize` 仅在开启 `MODFORGE_ENABLE_REFLECTION` 时存在。
-`event` 未接入总入口，如需使用得单独 `import modforge.event;`。
+`event` 未接入总入口；`net/` 子模块同样不接入（见上方独立分组）——这两者都需单独
+`import modforge.event;` / `import modforge.tcp;` 使用。`id_generator` 被 `signal` 与
+`timer` 依赖，且经总入口对外导出。
 
 ## 🔨 Build
 
