@@ -7,6 +7,7 @@ module;
 export module modforge.signal;
 
 import std;
+import modforge.id_generator;
 
 NAMESPACE_BEGIN
 
@@ -18,12 +19,12 @@ struct Callback {
 };
 
 export class Signal {
-    int id_create_{};
+    IDGenerator id_gen_;
 
     std::list<Callback> callbacks_;
 
     int connect_impl(std::function<void()> callback, int n) {
-        const int id = id_create_++;
+        const int id = id_gen_.next();
 
         callbacks_.push_front(Callback{
             .id = id,

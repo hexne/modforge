@@ -20,6 +20,7 @@ int test_terminal();
 int test_socket();
 int test_tcp();
 int test_udp();
+int test_id_generator();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -47,6 +48,7 @@ int main(int argc, char** argv) {
         {"test_socket", test_socket},
         {"test_tcp", test_tcp},
         {"test_udp", test_udp},
+        {"test_id_generator", test_id_generator},
     };
 
     const std::string name = argv[1];

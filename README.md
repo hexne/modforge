@@ -21,6 +21,7 @@
 | `directory`        | 目录操作                           |  ✅   |
 | `file`             | 文件操作                           |  ✅   |
 | `lock_free_queue`  | SPSC / MPSC / SPMC / MPMC 无锁队列 |  ✅   |
+| `id_generator`     | 原子递增 id 生成器（线程安全）      |  ✅   |
 | `thread_pool`      | 线程池                             |  ✅   |
 | `time`             | 时间工具（UTC / 本地时间、解析与格式化） |  ✅   |
 | `timer`            | 定时器、协程定时器                 |  ✅   |
@@ -201,7 +202,7 @@ modforge::deserialize(s2, ar2);
 
 ## 🧪 测试
 
-项目使用 CTest，默认为 17 个用例，开启反射后为 18 个。
+项目使用 CTest，默认为 18 个用例，开启反射后为 19 个。
 
 ```bash
 ctest --test-dir build-check --output-on-failure
@@ -226,6 +227,7 @@ ctest --test-dir build-check --output-on-failure
 | `test_socket` | `net/socket` |
 | `test_tcp` | `net/tcp` |
 | `test_udp` | `net/udp` |
+| `test_id_generator` | `id_generator` |
 | `test_static_serialize` | `static_serialize`（🔌 可选） |
 
 单个测试可直接运行：

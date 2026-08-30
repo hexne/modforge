@@ -5,6 +5,7 @@
 export module modforge.timer;
 import std;
 import modforge.time;
+import modforge.id_generator;
 
 
 NAMESPACE_BEGIN
@@ -35,9 +36,9 @@ export class Timer {
     std::jthread thread_;
     std::condition_variable cv_{};
 
-    int id_{};
+    IDGenerator id_gen_;
     int create_id() {
-        return id_ ++;
+        return id_gen_.next();
     }
 
 

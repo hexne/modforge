@@ -8,5 +8,8 @@ export module modforge.event;
 import std;
 
 NAMESPACE_BEGIN
+export class Event {
+
+};
 NAMESPACE_END
 

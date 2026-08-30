@@ -10,6 +10,7 @@ export import modforge.args_parser;
 export import modforge.directory;
 export import modforge.file;
 export import modforge.lock_free_queue;
+export import modforge.id_generator;
 export import modforge.thread_pool;
 export import modforge.string_utils;
 #ifdef MODFORGE_ENABLE_REFLECTION
