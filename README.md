@@ -48,7 +48,7 @@
 ## 🔗 Module Dependencies
 
 ```mermaid
-graph TD
+graph LR
     modforge --> args_parser
     modforge --> directory
     modforge --> file
@@ -77,7 +77,7 @@ graph TD
     timer --> time
     table --> terminal
 
-    subgraph net["net/ 子模块（经 modforge.net 接入总入口）"]
+    subgraph net_group["net/ 子模块（经 modforge.net 接入总入口）"]
         net --> tcp
         net --> udp
         net --> socket
