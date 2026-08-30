@@ -13,9 +13,6 @@ export import modforge.lock_free_queue;
 export import modforge.id_generator;
 export import modforge.thread_pool;
 export import modforge.string_utils;
-#ifdef MODFORGE_ENABLE_REFLECTION
-export import modforge.static_serialize;
-#endif
 export import modforge.table;
 export import modforge.terminal;
 export import modforge.signal;
@@ -23,4 +20,8 @@ export import modforge.time;
 export import modforge.timer;
 export import modforge.tree;
 export import modforge.utils;
+export import modforge.net;
 
+#ifdef MODFORGE_ENABLE_REFLECTION
+export import modforge.static_serialize;
+#endif

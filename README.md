@@ -42,9 +42,8 @@
 
 图例：✅ 默认构建 · 🔌 可选，需显式开启 · 🚧 占位未实现
 
-> `net/` 下的模块**不接入总入口**——`import modforge;` 拿不到它们，需要时单独
-> `import modforge.tcp;` / `import modforge.udp;`。这样也带来一个好处：
-> 不 import 的模块不会被编译（模块库天然按需编译）。
+> `net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` **已接入总入口**——`import modforge;`
+> 即可直接使用；`http` / `websocket` 仍是空壳，未导出。
 
 ## 🔗 Module Dependencies
 
@@ -65,6 +64,7 @@ graph TD
     modforge --> terminal
     modforge --> table
     modforge -.-> static_serialize
+    modforge --> net
 
     args_parser --> string_utils
     args_parser --> utils
@@ -77,7 +77,11 @@ graph TD
     timer --> time
     table --> terminal
 
-    subgraph net["net/ 子模块（不接入总入口）"]
+    subgraph net["net/ 子模块（经 modforge.net 接入总入口）"]
+        net --> tcp
+        net --> udp
+        net --> socket
+        net --> address
         tcp --> socket
         tcp --> address
         udp --> socket
@@ -87,9 +91,9 @@ graph TD
 ```
 
 虚线表示 `static_serialize` 仅在开启 `MODFORGE_ENABLE_REFLECTION` 时存在。
-`event` 未接入总入口；`net/` 子模块同样不接入（见上方独立分组）——这两者都需单独
-`import modforge.event;` / `import modforge.tcp;` 使用。`id_generator` 被 `signal` 与
-`timer` 依赖，且经总入口对外导出。
+`net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` 接入总入口（`import modforge;` 即得）；
+`event` 仍未接入总入口，`http / websocket` 仍是空壳且未导出——用它们需单独 `import`。
+`id_generator` 被 `signal` 与 `timer` 依赖，且经总入口对外导出。
 
 ## 🔨 Build
 
