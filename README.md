@@ -83,7 +83,7 @@ graph LR
     timer --> time
     table --> terminal
 
-    subgraph net_group["net module"]
+    subgraph "net module"
         net --> tcp
         net --> udp
         net --> socket
