@@ -2,16 +2,16 @@
 
 > Modern C++ Utility Library
 
-一个基于现代 C++ 的通用基础库，提供容器、并发、文件、时间、字符串、静态反射序列化等常用模块。
+一个基于现代 C++ 的通用基础库，提供容器、并发、文件、时间、字符串、静态反射（序列化 / 配置生成）等常用模块。
 
 ## ✨ Features
 
 - 🧩 以 C++20 modules 组织，全部通过 `import modforge;` 使用
 - 🚀 现代 C++ / C++26，无第三方依赖
 - 🧵 并发与无锁数据结构（SPSC / MPSC / SPMC / MPMC）
-- 🔍 C++26 静态反射序列化（可选模块，默认关闭）
+- 🔍 C++26 静态反射（可选模块，默认关闭）：反射序列化 + 配置驱动生成类型化 Config
 - 🧪 以单文件单测试函数方式维护模块测试
-- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器与终端辅助模块
+- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器、配置生成与终端辅助模块
 
 ## 📦 Modules
 
@@ -32,6 +32,7 @@
 | `tree`             | 通用 N 叉树与索引树                |  ✅   |
 | `utils`            | 通用工具                           |  ✅   |
 | `static_serialize` | C++26 静态反射序列化               |  🔌   |
+| `config_generator` | 配置→类型化 Config（编译期生成 + 运行时加载） |  🔌   |
 | `event`            | 事件模块（当前为空壳，未接入总入口） |  🚧   |
 | `net/address`      | 网络端点（IPv4 + 端口）            |  ✅   |
 | `net/socket`       | socket 底座：fd 生命周期与通用调用  |  ✅   |
@@ -44,6 +45,9 @@
 
 > `net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` **已接入总入口**——`import modforge;`
 > 即可直接使用；`http` / `websocket` 仍是空壳，未导出。
+>
+> 🔌 反射可选模块中，`static_serialize` 与 `config_generator` 在开启 `MODFORGE_ENABLE_REFLECTION` 时
+> 也经总入口导出（`import modforge;` 即得）；`event` 仍未接入总入口，需单独 `import`。
 
 ## 🔗 Module Dependencies
 
@@ -64,12 +68,14 @@ graph LR
     modforge --> terminal
     modforge --> table
     modforge -.-> static_serialize
+    modforge -.-> config_generator
     modforge --> net
 
     args_parser --> string_utils
     args_parser --> utils
+    config_generator --> string_utils
+    config_generator --> utils
     directory --> string_utils
-    directory --> utils
     file --> utils
     thread_pool --> lock_free_queue
     signal --> id_generator
@@ -90,7 +96,7 @@ graph LR
     end
 ```
 
-虚线表示 `static_serialize` 仅在开启 `MODFORGE_ENABLE_REFLECTION` 时存在。
+虚线表示 `static_serialize` 与 `config_generator` 仅在开启 `MODFORGE_ENABLE_REFLECTION` 时存在。
 `net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` 接入总入口（`import modforge;` 即得）；
 `event` 仍未接入总入口，`http / websocket` 仍是空壳且未导出——用它们需单独 `import`。
 `id_generator` 被 `signal` 与 `timer` 依赖，且经总入口对外导出。
@@ -113,9 +119,9 @@ ctest --test-dir build --output-on-failure
 
 ## 🔌 可选模块
 
-| 选项                          | 默认 | 影响的模块            |
-|-----------------------------|------|------------------|
-| `MODFORGE_ENABLE_REFLECTION` | OFF  | `static_serialize` |
+| 选项                          | 默认 | 影响的模块                          |
+|-----------------------------|------|--------------------------------|
+| `MODFORGE_ENABLE_REFLECTION` | OFF  | `static_serialize`、`config_generator` |
 
 命令行开启：
 
@@ -130,7 +136,7 @@ set(MODFORGE_ENABLE_REFLECTION ON CACHE BOOL "" FORCE)
 add_subdirectory(modforge)
 ```
 
-关闭时 `static_serialize` 不参与编译，`test_static_serialize` 也不会注册到 CTest。
+关闭时 `static_serialize`、`config_generator` 不参与编译，对应的两个测试也不会注册到 CTest。
 开启后 `-freflection` 会随 `modforge` 目标传递给下游，**下游整体将切入反射方言**——
 不用反射的项目保持默认 OFF 即可，不受影响。
 
@@ -190,7 +196,7 @@ cmake --build <modforge构建目录> --target uninstall
 #### find_package 下使用反射序列化
 
 反射能力在**安装那一刻固化**：只有安装时以 `MODFORGE_ENABLE_REFLECTION=ON` 构建并安装，
-`find_package` 拿到的包才带 `static_serialize`。消费方**不需要**（也无法）在自己的工程里开任何选项：
+`find_package` 拿到的包才带 `static_serialize` 与 `config_generator`。消费方**不需要**（也无法）在自己的工程里开任何选项：
 
 ```bash
 # 安装一个带反射的包
@@ -219,7 +225,7 @@ modforge::deserialize(s2, ar2);
 
 ## 🧪 测试
 
-项目使用 CTest，默认为 18 个用例，开启反射后为 19 个。
+项目使用 CTest，关闭反射为 18 个用例，开启反射后为 20 个。
 
 ```bash
 ctest --test-dir build-check --output-on-failure
@@ -246,6 +252,7 @@ ctest --test-dir build-check --output-on-failure
 | `test_udp` | `net/udp` |
 | `test_id_generator` | `id_generator` |
 | `test_static_serialize` | `static_serialize`（🔌 可选） |
+| `test_config_generator` | `config_generator`（🔌 可选） |
 
 单个测试可直接运行：
 
@@ -268,7 +275,7 @@ ctest --test-dir build-check --output-on-failure
 
 ### 终端与配置
 
-- [ ] Configuration
+- [x] Configuration（`config_generator`：编译期从配置生成类型化 Config + 运行时加载）
 
 ### 工程化
 

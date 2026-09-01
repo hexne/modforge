@@ -12,6 +12,7 @@ int test_tree();
 int test_utils();
 #ifdef MODFORGE_ENABLE_REFLECTION
 int test_static_serialize();
+int test_config_generator();
 #endif
 int test_signal();
 int test_event();
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
         {"test_utils", test_utils},
 #ifdef MODFORGE_ENABLE_REFLECTION
         {"test_static_serialize", test_static_serialize},
+        {"test_config_generator", test_config_generator},
 #endif
         {"test_signal", test_signal},
         {"test_event", test_event},

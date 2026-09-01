@@ -24,4 +24,5 @@ export import modforge.net;
 
 #ifdef MODFORGE_ENABLE_REFLECTION
 export import modforge.static_serialize;
+export import modforge.config_generator;
 #endif

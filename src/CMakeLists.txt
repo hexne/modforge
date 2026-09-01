@@ -7,6 +7,7 @@ target_compile_definitions(namespace_definitions INTERFACE
 file(GLOB modforge_files "${CMAKE_CURRENT_SOURCE_DIR}/*.cppm")
 if(NOT MODFORGE_ENABLE_REFLECTION)
     list(REMOVE_ITEM modforge_files "${CMAKE_CURRENT_SOURCE_DIR}/static_serialize.cppm")
+    list(REMOVE_ITEM modforge_files "${CMAKE_CURRENT_SOURCE_DIR}/config_generator.cppm")
 endif()
 
 # 网络子模块（src/net/）：address / socket / tcp / udp / http / websocket，

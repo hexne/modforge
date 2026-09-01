@@ -44,6 +44,7 @@ add_test(NAME test_udp COMMAND tests "test_udp")
 add_test(NAME test_id_generator COMMAND tests "test_id_generator")
 
 if(MODFORGE_ENABLE_REFLECTION)
-    target_sources(tests PRIVATE test_static_serialize.cpp)
+    target_sources(tests PRIVATE test_static_serialize.cpp test_config_generator.cpp)
     add_test(NAME test_static_serialize COMMAND tests "test_static_serialize")
+    add_test(NAME test_config_generator COMMAND tests "test_config_generator")
 endif()
