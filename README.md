@@ -83,7 +83,7 @@ graph LR
     timer --> time
     table --> terminal
 
-    subgraph net_group["net/ 子模块（经 modforge.net 接入总入口）"]
+    subgraph net_group["net 子模块"]
         net --> tcp
         net --> udp
         net --> socket
