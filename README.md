@@ -83,7 +83,7 @@ graph LR
     timer --> time
     table --> terminal
 
-    subgraph net_group["net 子模块"]
+    subgraph net_group["net module"]
         net --> tcp
         net --> udp
         net --> socket
