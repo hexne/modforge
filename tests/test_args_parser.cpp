@@ -117,5 +117,76 @@ int test_args_parser() {
     } catch (const std::runtime_error&) {
     }
 
+    // ---- flag 绑定：成员引用自动置位（组合参数支持）----
+    {
+        struct FlagCfg { bool long_f = false; bool all = false; bool verbose = false; };
+        FlagCfg fc;
+        modforge::ArgsParser p;
+        p.add_flag("-l", "--long", fc.long_f);
+        p.add_flag("-a", fc.all);
+        p.add_flag("-v", fc.verbose);
+        const char* av[] = {"app", "-la"};   // 组合参数，无 -v
+        p.analysis(2, const_cast<char**>(av));
+        if (!fc.long_f || !fc.all || fc.verbose) return 15;
+    }
+
+    // ---- flag 长参无值：--long 出现即置 true ----
+    {
+        bool long_f = false;
+        modforge::ArgsParser p;
+        p.add_flag("-l", "--long", long_f);
+        const char* av[] = {"app", "--long"};   // 长参，无 =
+        p.analysis(2, const_cast<char**>(av));
+        if (!long_f) return 16;
+    }
+
+    // ---- flag 泛型绑定：数值/string 带值解析 ----
+    {
+        int port = 0;
+        std::string host;
+        double ratio = 0.0;
+        modforge::ArgsParser p;
+        p.add_flag("--port", "-p", port);
+        p.add_flag("--host", "-h", host);
+        p.add_flag("--ratio", ratio);
+        const char* av[] = {"app", "--port=8080", "--host=alice.example", "--ratio=0.5"};
+        p.analysis(4, const_cast<char**>(av));
+        if (port != 8080 || host != "alice.example" || ratio != 0.5) return 17;
+    }
+
+    // ---- 绑定版与旧回调共存不冲突 ----
+    {
+        bool flag = false;
+        bool cb_seen = false;
+        modforge::ArgsParser p;
+        p.add_flag("-f", flag);
+        p.add_args("-c", std::function<void(std::optional<modforge::InputArgs>)>([&](auto){ cb_seen = true; }));
+        const char* av[] = {"app", "-f", "-c"};
+        p.analysis(3, const_cast<char**>(av));
+        if (!flag || !cb_seen) return 18;
+    }
+
+    // ---- bool 带值解析：--flag=true/false ----
+    {
+        bool verbose = true;   // 初值 true
+        modforge::ArgsParser p;
+        p.add_flag("--verbose", "-v", verbose);
+        const char* av[] = {"app", "--verbose=false"};
+        p.analysis(2, const_cast<char**>(av));
+        if (verbose) return 19;   // --verbose=false 应置 false
+    }
+
+    // ---- flag 未出现保持初值（不误置）----
+    {
+        bool verbose = true;   // 初值 true
+        bool other = false;    // 初值 false
+        modforge::ArgsParser p;
+        p.add_flag("--verbose", "-v", verbose);
+        p.add_flag("-x", other);
+        const char* av[] = {"app", "-x"};   // 只触发 -x，不动 --verbose
+        p.analysis(2, const_cast<char**>(av));
+        if (!verbose || !other) return 20;   // verbose 保持 true，other 被置 true
+    }
+
     return 0;
 }

@@ -89,6 +89,30 @@ class ArgsParser {
         support_args_.emplace_back(std::move(input_args),
             std::function<void(std::optional<InputArgs>)>(std::forward<decltype(callback)>(callback)));
     }
+
+    template <typename Tuple, std::size_t... index>
+    void add_flag_impl(Tuple &&tuple, std::index_sequence<index...>) {
+        auto &obj = std::get<sizeof...(index)>(tuple);   // obj 是成员引用
+        using MemberType = std::remove_reference_t<decltype(obj)>;
+        (add_args(std::get<index>(tuple), [&obj](std::optional<InputArgs> value) {
+            if (value) {
+                // --flag=value：解析并赋给成员
+                std::string_view s = value->get_value();
+                if constexpr (std::is_same_v<MemberType, std::string>)
+                    obj = std::string(s);
+                else if constexpr (std::is_same_v<MemberType, bool>)
+                    obj = (s == "true" || s == "1");
+                else if constexpr (std::is_same_v<MemberType, int>)
+                    obj = std::stoi(std::string(s));
+                else if constexpr (std::is_same_v<MemberType, double>)
+                    obj = std::stod(std::string(s));
+                else static_assert(sizeof(MemberType) == 0, "unsupported member type");
+            } else if constexpr (std::is_same_v<MemberType, bool>) {
+                obj = true;   // -la / --long 无值：bool 置 true，其他类型忽略
+            }
+        }), ...);
+    }
+
 public:
     template <typename ...Args>
         requires (is_support_type_v<Args> && ...)
@@ -96,6 +120,17 @@ public:
         constexpr auto args_size = sizeof...(Args);
         auto tuple = std::forward_as_tuple(std::forward<Args>(args)...);
         add_args_impl(std::move(tuple), std::make_index_sequence<args_size - 1>{});
+    }
+
+    template <typename ...Args>
+        requires ((std::is_same_v<std::remove_reference_t<Args>, int>
+                || std::is_same_v<std::remove_reference_t<Args>, double>
+                || std::is_same_v<std::remove_reference_t<Args>, bool>
+                || is_support_type_v<Args>) && ...)
+    void add_flag(Args &&...args) {
+        constexpr auto args_size = sizeof...(Args);
+        auto tuple = std::forward_as_tuple(std::forward<Args>(args)...);
+        add_flag_impl(std::move(tuple), std::make_index_sequence<args_size - 1>{});
     }
 
     // -sjk
