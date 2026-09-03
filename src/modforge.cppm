@@ -7,6 +7,7 @@ module;
 export module modforge;
 
 export import modforge.args_parser;
+export import modforge.cursor;
 export import modforge.directory;
 export import modforge.file;
 export import modforge.lock_free_queue;
