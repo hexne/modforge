@@ -5,7 +5,16 @@
 
 module;
 #include <cerrno>
-#ifndef _WIN32
+#ifdef _WIN32
+// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
+#include <cstddef>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#include <winsock2.h>
+#else
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -15,45 +24,46 @@ import std;
 import modforge.address;
 import modforge.socket;
 
-// 阻塞式 UDP：组合持有 socket 底座，对外只声明 UDP 该有的接口。
-// 与 TCP 的关键区别（这就是它不共用 TCP 接口的理由）：
-//   - 一次调用 = 一个数据报，绝不循环补齐
-//   - 缓冲区小于数据报时，多余部分被内核静默丢弃（不报错、不排队）
-//   - recv_from 返回 0 是"收到合法的空数据报"，不是对端关闭（UDP 没有"对端关闭"）
-//   - 每个数据报都可能来自不同对端，地址由 recv_from 的出参带回
-//
-// 平台说明（2026-09-04）：
-//   - POSIX：真实实现，send_to/recv_from 直接调用系统调用。
-//   - Windows：当前为空实现（仅保证编译/链接通过），send_to/recv_from 返回 -1。
+/** @brief 阻塞式 UDP：组合持有 socket 底座
+ *  @note  一次调用 = 一个数据报（不循环补齐）；缓冲区小于数据报时多余部分被内核丢弃；
+ *         recv_from 返回 0 是合法空数据报（UDP 无"对端关闭"）；每个数据报可来自不同对端，
+ *         地址由 recv_from 出参带回
+ */
 export class UDP {
 public:
     UDP() : socket_(SocketType::datagram) {}
+
+    /** @brief 指定端点构造
+     *  @param addr 关联的本地或对端地址
+     */
     explicit UDP(const Address& addr) : socket_(SocketType::datagram, addr) {}
 
     UDP(UDP&&) noexcept = default;
     UDP& operator=(UDP&&) noexcept = default;
 
-    [[nodiscard]] int fd() const { return socket_.fd(); }
+    [[nodiscard]] auto fd() const { return socket_.fd(); }
 
     int bind()    { return socket_.bind(); }
 
-    // 连接态 UDP：只记下默认对端（不发任何包），此后内核只把该对端的数据报交给你。
-    // connect 之后仍用 send_to / recv_from 收发即可。
+    /** @brief 连接态 UDP：记下默认对端（不发包），此后仅收该对端数据报 */
     int connect() { return socket_.connect(); }
 
-    // 查询本机绑定的地址。bind 到端口 0 时用它拿到内核分配的实际端口。
+    /** @brief 本机绑定地址（bind 端口 0 后取内核分配的实际端口） */
     [[nodiscard]] Address local_address() const { return socket_.local_address(); }
 
-    // 发送一个数据报到指定对端。数据报要么整体发出，要么失败，没有"发了一半"。
-    // 返回 >=0 为发出的字节数（一般等于 data.size()）；-1 表示出错（errno 有效）。
+    /** @brief 发送一个数据报到指定对端（整体发出或失败，无"发一半"）
+     *  @param data 待发送数据，作为一个数据报
+     *  @param peer 目标对端地址
+     *  @return >=0 发出的字节数（通常等于 data.size()）；-1 出错
+     */
     std::ptrdiff_t send_to(std::span<const char> data, const Address& peer) {
 #ifdef _WIN32
-        (void)data;
-        (void)peer;
-        return -1; // Windows 空实现
+        const int n = ::sendto(fd(), data.data(), static_cast<int>(data.size()), 0,
+                               peer.socket_address(), static_cast<int>(peer.size()));
+        return n == SOCKET_ERROR ? -1 : static_cast<std::ptrdiff_t>(n);
 #else
         while (true) {
-            std::ptrdiff_t n = ::sendto(socket_.fd(), data.data(), data.size(), 0,
+            std::ptrdiff_t n = ::sendto(fd(), data.data(), data.size(), 0,
                                         peer.socket_address(), peer.size());
             if (n >= 0)
                 return static_cast<std::ptrdiff_t>(n);
@@ -64,19 +74,27 @@ public:
 #endif
     }
 
-    // 接收一个数据报并带回发送方地址。
-    // 返回 >=0 为收到的字节数（0 = 空数据报，合法）；-1 表示出错（errno 有效）。
-    // 注意：buf 应不小于单个数据报的最大长度，否则多余部分被静默截断。
+    /** @brief 接收一个数据报并带回发送方地址
+     *  @param buf 接收缓冲区，应不小于最大数据报长度
+     *  @param peer 出参，收到数据报的发送方地址
+     *  @return >=0 收到的字节数（0 = 空数据报，合法）；-1 出错
+     *  @note  buf 不足时多余部分被内核静默截断
+     */
     std::ptrdiff_t recv_from(std::span<char> buf, Address& peer) {
 #ifdef _WIN32
-        (void)buf;
-        (void)peer;
-        return -1; // Windows 空实现
+        sockaddr_in sa{};
+        int len = sizeof(sa);
+        const int n = ::recvfrom(fd(), buf.data(), static_cast<int>(buf.size()), 0,
+                                 reinterpret_cast<sockaddr*>(&sa), &len);
+        if (n == SOCKET_ERROR)
+            return -1;
+        peer = Address(sa);
+        return static_cast<std::ptrdiff_t>(n);
 #else
         while (true) {
             sockaddr_in sa{};
             socklen_t len = sizeof(sa);
-            std::ptrdiff_t n = ::recvfrom(socket_.fd(), buf.data(), buf.size(), 0,
+            std::ptrdiff_t n = ::recvfrom(fd(), buf.data(), buf.size(), 0,
                                           reinterpret_cast<sockaddr*>(&sa), &len);
             if (n >= 0) {
                 peer = Address(sa);
@@ -89,7 +107,11 @@ public:
 #endif
     }
 
-    // 读写超时，由内核在阻塞读写上生效
+    /** @brief 设置阻塞读写的内核超时
+     *  @param recv_timeout 接收超时（毫秒）
+     *  @param send_timeout 发送超时（毫秒）
+     *  @return 两个方向均设置成功时为 true
+     */
     bool set_timeout(std::chrono::milliseconds recv_timeout,
                      std::chrono::milliseconds send_timeout) {
         return socket_.set_timeout(recv_timeout, send_timeout);

@@ -1,8 +1,7 @@
 import std;
 import modforge.config_generator;
 
-// ===== 场景 1：编译期生成类型（config_generator）=====
-// 前向声明（未完成），由 config_generator 编译期补全定义
+// 场景 1：编译期生成类型（config_generator）——前向声明，由 config_generator 补全定义
 struct GenConfig;
 
 static constexpr char gen_cfg[] =
@@ -15,8 +14,7 @@ consteval {
     modforge::config_generator<^^GenConfig>(gen_cfg);
 }
 
-// ===== 场景 2：运行时加载（config_load）=====
-// config_load 需要完整类型（与 config_generator 的未完成类型互斥，故用两个类型）
+// 场景 2：运行时加载（config_load）——需完整类型，故用独立类型
 struct LoadConfig {
     std::string name;
     int age;

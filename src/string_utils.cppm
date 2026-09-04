@@ -23,14 +23,21 @@ export namespace StringUtils {
         std::is_same_v<std::decay_t<T>, wchar_t*> ||
         std::is_same_v<std::decay_t<T>, const wchar_t*>;
 
-    // 去除首尾空白（空格/制表/回车）
+    /** @brief 去除首尾空白（空格/制表/回车）
+     *  @param s 待处理的字符串视图
+     *  @return 去除首尾空白后的视图（全空白时返回空）
+     */
     constexpr std::string_view trim(std::string_view s) {
         auto b = s.find_first_not_of(" \t\r");
         if (b == std::string_view::npos) return std::string_view{};
         return s.substr(b, s.find_last_not_of(" \t\r") - b + 1);
     }
 
-    // 字符串分割
+    /** @brief 按分隔符分割字符串（运行时）
+     *  @param extents 待分割的字符串
+     *  @param delimiter 分隔符，字符串或字符
+     *  @return 分割结果
+     */
     template <typename String>
         requires is_string<String> || is_char<String>
     std::vector<std::string> split(const std::string &extents, String delimiter) {
@@ -42,11 +49,12 @@ export namespace StringUtils {
         return std::vector<std::string>(view.begin(), view.end());
     }
 
-    // consteval 版本：编译期把字符串按分隔符拆成固定大小数组。
-    // 注意不能返回 std::vector<std::string>——consteval 函数返回值必须是
-    // 可常量初始化的字面量，堆分配（operator new）的容器不能作为 consteval 返回。
-    // 返回 std::array<std::string_view, N>，结果可在 constexpr 上下文使用。
-    // N 必须 >= 实际字段数（多余槽位为空 string_view）。
+    /** @brief 编译期分割为固定大小数组
+     *  @param N 目标槽位数，须 >= 实际字段数（多余槽位为空 string_view）
+     *  @param extents 待分割的字符串
+     *  @param delimiter 分隔符字符
+     *  @return 固定大小数组（consteval 不可返回 vector）
+     */
     template <std::size_t N>
     consteval std::array<std::string_view, N> split_to_array(std::string_view extents,
                                                              char delimiter) {
@@ -62,8 +70,11 @@ export namespace StringUtils {
         return ret;
     }
 
-    // 数组重载：直接接收 const char[N]（如 #embed 数组），按分隔符拆成 array<string_view, OutN>。
-    // 在 constexpr（非 consteval）调用方里传形参数组可用（实测：ConfigGenerator 复用此版）。
+    /** @brief 编译期分割重载：直接接收字符数组（如 #embed 数组）
+     *  @param extents 待分割的字符数组
+     *  @param delimiter 分隔符字符
+     *  @return 固定大小数组（constexpr 形参数组可用）
+     */
     template <std::size_t OutN, std::size_t N>
     consteval std::array<std::string_view, OutN> split_to_array(const char (&extents)[N],
                                                                 char delimiter) {
@@ -81,6 +92,11 @@ export namespace StringUtils {
         return ret;
     }
 
+    /** @brief 用分隔符连接多个字符串
+     *  @param delimiter 连接用的分隔符
+     *  @param strings 待连接的字符串（可多个）
+     *  @return 连接后的字符串
+     */
     template <typename ...Strings, typename Delimiter>
         requires ((is_string<Strings> || is_char<Strings>) && ...) && (is_string<Delimiter> || is_char<Delimiter>)
     std::string join(Delimiter delimiter, Strings ...strings) {

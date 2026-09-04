@@ -117,7 +117,7 @@ int test_args_parser() {
     } catch (const std::runtime_error&) {
     }
 
-    // ---- flag 绑定：成员引用自动置位（组合参数支持）----
+    // flag 绑定：成员引用自动置位（组合参数支持）
     {
         struct FlagCfg { bool long_f = false; bool all = false; bool verbose = false; };
         FlagCfg fc;
@@ -130,7 +130,7 @@ int test_args_parser() {
         if (!fc.long_f || !fc.all || fc.verbose) return 15;
     }
 
-    // ---- flag 长参无值：--long 出现即置 true ----
+    // flag 长参无值：--long 出现即置 true
     {
         bool long_f = false;
         modforge::ArgsParser p;
@@ -140,7 +140,7 @@ int test_args_parser() {
         if (!long_f) return 16;
     }
 
-    // ---- flag 泛型绑定：数值/string 带值解析 ----
+    // flag 泛型绑定：数值/string 带值解析
     {
         int port = 0;
         std::string host;
@@ -154,7 +154,7 @@ int test_args_parser() {
         if (port != 8080 || host != "alice.example" || ratio != 0.5) return 17;
     }
 
-    // ---- 绑定版与旧回调共存不冲突 ----
+    // 绑定版与旧回调共存不冲突
     {
         bool flag = false;
         bool cb_seen = false;
@@ -166,7 +166,7 @@ int test_args_parser() {
         if (!flag || !cb_seen) return 18;
     }
 
-    // ---- bool 带值解析：--flag=true/false ----
+    // bool 带值解析：--flag=true/false
     {
         bool verbose = true;   // 初值 true
         modforge::ArgsParser p;
@@ -176,7 +176,7 @@ int test_args_parser() {
         if (verbose) return 19;   // --verbose=false 应置 false
     }
 
-    // ---- flag 未出现保持初值（不误置）----
+    // flag 未出现保持初值（不误置）
     {
         bool verbose = true;   // 初值 true
         bool other = false;    // 初值 false

@@ -6,6 +6,8 @@ module;
 #include <cerrno>
 #include <cstring>
 #ifdef _WIN32
+// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
+#include <cstddef>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #ifndef _WIN32_WINNT
@@ -23,69 +25,87 @@ export module modforge.socket;
 import std;
 import modforge.address;
 
-// socket 类型：构造时传入，类内不写死 SOCK_STREAM / SOCK_DGRAM
+/** @brief socket 类型：构造时传入，不写死 SOCK_STREAM / SOCK_DGRAM */
 export enum class SocketType {
-    stream,    // SOCK_STREAM，面向连接（TCP）
-    datagram,  // SOCK_DGRAM，无连接（UDP）
+    stream,    // 面向连接（TCP）
+    datagram,  // 无连接（UDP）
 };
 
-// socket 底座：fd 生命周期 + TCP/UDP 通用系统调用的薄映射。
-// 由 TCP / UDP 组合持有（不继承，各自的接口由各自类声明）：
-//   - 协议特有的调用不在这里：listen/accept 在 TCP，sendto/recvfrom 在 UDP
-//     （谁调用系统调用，谁 include 它的头）
-//   - "策略"也不在这里：循环补齐的 send_all/recv_all 是字节流假设，只在 tcp.cppm
-// 收发一律为阻塞语义。
-//
-// 平台说明（2026-09-04）：
-//   - POSIX（Linux/macOS）：真实系统调用。
-//   - Windows：当前为空实现（仅保证编译/链接通过，避免跨平台报错）。
-//     构造不抛异常（fd_ = -1），所有系统调用类方法返回失败值
-//     （bind/connect/recv/send = -1，set_timeout = false，local_address = 默认 Address）。
-//     待后续接入 Winsock（WSAStartup + SOCKET 句柄 + closesocket + WSAGetLastError）后替换。
+#ifdef _WIN32
+// winsock 惰性初始化：首次调用即完成，之后线程安全（C++ magic static）
+void ensure_winsock_started() {
+    static const bool ok = [] {
+        WSADATA data;
+        return ::WSAStartup(MAKEWORD(2, 2), &data) == 0;
+    }();
+    if (!ok)
+        throw std::runtime_error("WSAStartup failed");
+}
+#endif
+
+/** @brief 平台化错误消息（POSIX: strerror；Windows: WSAGetLastError）
+ *  @param what 失败的操作名
+ *  @return 拼接了平台错误描述的消息
+ */
+std::string socket_error_message(const char* what) {
+#ifdef _WIN32
+    return std::string(what) + " failed: error " + std::to_string(::WSAGetLastError());
+#else
+    return std::string(what) + " failed: " + std::strerror(errno);
+#endif
+}
+
+/** @brief socket 底座：句柄生命周期 + TCP/UDP 通用系统调用的薄映射，由 TCP/UDP 组合持有
+ *  @note  句柄内部统一存 std::intptr_t、无效值恒 -1（Windows INVALID_SOCKET 位模式即 -1），
+ *         平台差异只在系统调用点分支；fd() 返回平台原生句柄类型（POSIX int / Windows SOCKET）。
+ *         协议特有调用（listen/accept、sendto/recvfrom）在各协议模块，不在此类。
+ */
 export class Socket {
     Address addr_{};
-    int fd_ = -1;
+    std::intptr_t fd_ = -1;  // 无效值恒 -1（Windows INVALID_SOCKET 位模式即 -1）
 
     static int to_native(SocketType type) {
-        // SOCK_STREAM / SOCK_DGRAM 在 winsock2.h 中数值与 POSIX 一致（1 / 2）
-        return type == SocketType::stream ? SOCK_STREAM : SOCK_DGRAM;
+        return type == SocketType::stream ? SOCK_STREAM : SOCK_DGRAM;  // winsock 与 POSIX 数值一致
     }
 
 public:
+    /** @brief 创建 socket
+     *  @param type socket 类型（stream=TCP / datagram=UDP）
+     */
     explicit Socket(SocketType type) {
 #ifdef _WIN32
-        // Windows 空实现：不创建真实 socket
-        fd_ = -1;
+        ensure_winsock_started();
+        const SOCKET s = ::socket(AF_INET, to_native(type), 0);
+        fd_ = (s == INVALID_SOCKET) ? -1 : static_cast<std::intptr_t>(s);
 #else
         fd_ = ::socket(AF_INET, to_native(type), 0);
-        if (fd_ < 0) {
-            throw std::runtime_error(std::string("socket failed: ") + std::strerror(errno));
-        }
 #endif
+        if (fd_ < 0)
+            throw std::runtime_error(socket_error_message("socket"));
     }
 
+    /** @brief 创建 socket 并指定端点
+     *  @param type socket 类型（stream=TCP / datagram=UDP）
+     *  @param addr 关联的端点地址
+     */
     Socket(SocketType type, const Address& addr) : addr_(addr) {
 #ifdef _WIN32
-        // Windows 空实现：不创建真实 socket
-        fd_ = -1;
+        ensure_winsock_started();
+        const SOCKET s = ::socket(AF_INET, to_native(type), 0);
+        fd_ = (s == INVALID_SOCKET) ? -1 : static_cast<std::intptr_t>(s);
 #else
         fd_ = ::socket(AF_INET, to_native(type), 0);
-        if (fd_ < 0) {
-            throw std::runtime_error(std::string("socket failed: ") + std::strerror(errno));
-        }
 #endif
+        if (fd_ < 0)
+            throw std::runtime_error(socket_error_message("socket"));
     }
 
-    // 接管已有的 fd（accept() 返回的新连接用）
-    explicit Socket(const int fd) : fd_(fd) {
-#ifdef _WIN32
-        // Windows 空实现：无 int fd 概念（Winsock 用 SOCKET 句柄），一律视为无效
-        fd_ = -1;
-#else
-        if (fd_ < 0) {
-            throw std::invalid_argument("invalid socket fd");
-        }
-#endif
+    /** @brief 接管已有句柄（accept() 返回的新连接用）
+     *  @param fd 平台原生句柄，intptr_t 兼容 int fd / SOCKET
+     */
+    explicit Socket(const std::intptr_t fd) : fd_(fd) {
+        if (fd_ < 0)
+            throw std::invalid_argument("invalid socket handle");
     }
 
     Socket(const Socket&) = delete;
@@ -103,64 +123,95 @@ public:
         return *this;
     }
 
-    [[nodiscard]] int fd() const { return fd_; }
+    /** @brief 平台原生句柄：POSIX int / Windows SOCKET（命名 SOCKET 需自行 include 平台头） */
+#ifdef _WIN32
+    [[nodiscard]] SOCKET fd() const { return static_cast<SOCKET>(fd_); }
+#else
+    [[nodiscard]] int fd() const { return static_cast<int>(fd_); }
+#endif
     [[nodiscard]] const Address& address() const { return addr_; }
 
-    // 绑定到本地地址（服务端）
+    /** @brief 绑定到本地地址（服务端） */
     int bind() {
 #ifdef _WIN32
-        return -1; // Windows 空实现
+        return ::bind(fd(), addr_.socket_address(), static_cast<int>(addr_.size()));
 #else
-        return ::bind(fd_, addr_.socket_address(), addr_.size());
+        return ::bind(fd(), addr_.socket_address(), addr_.size());
 #endif
     }
 
-    // 连接到对端（TCP 三次握手；UDP 只是记下默认对端，不发任何包）
+    /** @brief 连接到对端（TCP 三次握手；UDP 仅记下默认对端，不发包） */
     int connect() {
 #ifdef _WIN32
-        return -1; // Windows 空实现
+        return ::connect(fd(), addr_.socket_address(), static_cast<int>(addr_.size()));
 #else
-        return ::connect(fd_, addr_.socket_address(), addr_.size());
+        return ::connect(fd(), addr_.socket_address(), addr_.size());
 #endif
     }
 
-    // 单次收发：TCP 由上层循环补齐；UDP 一次调用就是一个数据报。
-    // 返回 std::ptrdiff_t 而非 ssize_t，避免把 POSIX 名字漏进导入方（与 tcp.cppm 的 read_some 一致）
+    /** @brief 单次接收数据
+     *  @param buf 接收缓冲区；单次调用最多填一个数据报（UDP）或一段字节流（TCP）
+     *  @return >0 字节数；0 = 对端关闭（TCP）/ 空数据报（UDP）；-1 = 出错
+     *  @note  返回 std::ptrdiff_t 而非 ssize_t，避免把 POSIX 名字漏进导入方
+     */
     std::ptrdiff_t recv(std::span<char> buf) {
 #ifdef _WIN32
-        return -1; // Windows 空实现
+        // winsock 的长度参数是 int，超长 buffer 需 clamp（实际 >2GB 单次读不现实，防御而已）
+        const int len = static_cast<int>(
+            std::min(buf.size(), static_cast<size_t>(std::numeric_limits<int>::max())));
+        const int n = ::recv(fd(), buf.data(), len, 0);
+        return n == SOCKET_ERROR ? -1 : static_cast<std::ptrdiff_t>(n);
 #else
-        return static_cast<std::ptrdiff_t>(::recv(fd_, buf.data(), buf.size(), 0));
+        return static_cast<std::ptrdiff_t>(::recv(fd(), buf.data(), buf.size(), 0));
 #endif
     }
+    /** @brief 单次发送数据
+     *  @param buf 待发送数据；UDP 下整体作为一个数据报
+     *  @return >0 已发送字节数；-1 = 出错
+     */
     std::ptrdiff_t send(std::span<const char> buf) {
 #ifdef _WIN32
-        return -1; // Windows 空实现
+        const int len = static_cast<int>(
+            std::min(buf.size(), static_cast<size_t>(std::numeric_limits<int>::max())));
+        const int n = ::send(fd(), buf.data(), len, 0);
+        return n == SOCKET_ERROR ? -1 : static_cast<std::ptrdiff_t>(n);
 #else
-        return static_cast<std::ptrdiff_t>(::send(fd_, buf.data(), buf.size(), 0));
+        return static_cast<std::ptrdiff_t>(::send(fd(), buf.data(), buf.size(), 0));
 #endif
     }
 
-    // 查询本机绑定的地址（bind 到端口 0 时用它取内核分配的实际端口）
+    /** @brief 查询本机绑定地址（bind 到端口 0 时取内核分配的实际端口） */
     [[nodiscard]] Address local_address() const {
 #ifdef _WIN32
-        return Address{}; // Windows 空实现
+        sockaddr_in sa{};
+        int len = sizeof(sa);
+        if (::getsockname(fd(), reinterpret_cast<sockaddr*>(&sa), &len) != 0)
+            return Address{};
+        return Address(sa);
 #else
         sockaddr_in sa{};
         socklen_t len = sizeof(sa);
-        if (::getsockname(fd_, reinterpret_cast<sockaddr*>(&sa), &len) != 0)
+        if (::getsockname(fd(), reinterpret_cast<sockaddr*>(&sa), &len) != 0)
             return Address{};
         return Address(sa);
 #endif
     }
 
-    // 读写超时，由内核在阻塞读写上生效
+    /** @brief 设置阻塞读写的内核超时
+     *  @param recv_timeout 接收超时（毫秒）
+     *  @param send_timeout 发送超时（毫秒）
+     *  @return 两个方向均设置成功时为 true
+     *  @note  POSIX 用 timeval、winsock 用 DWORD，语义一致
+     */
     bool set_timeout(std::chrono::milliseconds recv_timeout,
                      std::chrono::milliseconds send_timeout) {
 #ifdef _WIN32
-        (void)recv_timeout;
-        (void)send_timeout;
-        return false; // Windows 空实现
+        const DWORD rt = static_cast<DWORD>(recv_timeout.count());
+        const DWORD st = static_cast<DWORD>(send_timeout.count());
+        return ::setsockopt(fd(), SOL_SOCKET, SO_RCVTIMEO,
+                            reinterpret_cast<const char*>(&rt), sizeof(rt)) == 0
+            && ::setsockopt(fd(), SOL_SOCKET, SO_SNDTIMEO,
+                            reinterpret_cast<const char*>(&st), sizeof(st)) == 0;
 #else
         auto to_timeval = [](std::chrono::milliseconds ms) {
             auto secs = std::chrono::duration_cast<std::chrono::seconds>(ms);
@@ -173,15 +224,17 @@ public:
         timeval rt = to_timeval(recv_timeout);
         timeval st = to_timeval(send_timeout);
 
-        return ::setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &rt, sizeof(rt)) == 0
-            && ::setsockopt(fd_, SOL_SOCKET, SO_SNDTIMEO, &st, sizeof(st)) == 0;
+        return ::setsockopt(fd(), SOL_SOCKET, SO_RCVTIMEO, &rt, sizeof(rt)) == 0
+            && ::setsockopt(fd(), SOL_SOCKET, SO_SNDTIMEO, &st, sizeof(st)) == 0;
 #endif
     }
 
     void close() noexcept {
         if (fd_ >= 0) {
-#ifndef _WIN32
-            ::close(fd_);
+#ifdef _WIN32
+            ::closesocket(fd());
+#else
+            ::close(fd());
 #endif
             fd_ = -1;
         }

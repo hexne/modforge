@@ -32,12 +32,17 @@ export class Directory {
 
 public:
 
-    Directory(const std::filesystem::path &root, int deep = -1) : root_(root), deep_(deep) {  }
+    /** @brief 构造目录遍历器
+     *  @param root 根目录路径
+     *  @param deep 递归深度上限，-1 表示不限
+     */
+    explicit Directory(const std::filesystem::path &root, int deep = -1) : root_(root), deep_(deep) {  }
 
-    // 查找所有后缀文件
-    // extent表示后缀集合
-    // only name 表示没有路径和后缀
-    // only file 表示没有文件夹
+    /** @brief 查找根目录下所有匹配后缀的文件
+     *  @param extent 后缀集合，';' 分隔，如 ".cpp;.h"
+     *  @param only_name 仅返回文件名（无路径无后缀）
+     *  @param only_file 仅返回文件（跳过文件夹）
+     */
     std::vector<std::string> files(std::string extent, bool only_name = false, bool only_file = false) {
         auto extents = StringUtils::split(extent, ';');
         std::erase_if(extents, [](const std::string& e) { return e.empty(); });
@@ -50,18 +55,21 @@ public:
         };
 
         traverser_directory([&](std::filesystem::path path) {
-            // 如果要有文件夹就会自动处理，不要的时候外层已经过滤过了
-            if (!check_extent(path))
+            if (!check_extent(path_string(path)))
                 return;
 
             if (only_name)
-                ret.push_back(path.filename());
+                ret.push_back(path_string(path.filename()));
             else if (!only_name)
-                ret.push_back(path.lexically_normal());
+                ret.push_back(path_string(path.lexically_normal()));
         }, only_file);
         return ret;
     }
 
+    /** @brief 递归遍历目录树，对每个条目调用 callback
+     *  @param callback 每个条目的回调，接收归一化后的路径
+     *  @param only_file true 时跳过文件夹
+     */
     void traverser_directory(const std::function<void(std::filesystem::path)> callback, bool only_file = false) const {
         for (const auto& cur_file : std::filesystem::recursive_directory_iterator(root_)) {
             if (cur_file.is_directory() && only_file)

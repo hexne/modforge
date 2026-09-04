@@ -124,8 +124,6 @@ struct Archive {
     }
 
 
-    // 在外层调用查找id
-    //      => 如果找到就
     template <typename T> requires is_base_type<T>
     void serialize(std::size_t id, const T &obj) {
         write_id(id);
@@ -373,18 +371,10 @@ concept can_serialize = requires(T& obj, Archive &ar) {
 };
 
 
-// 立即序列化
-
-
-// std迭代序列化
-
-
-
-
-// 反射一个类
+// 反射遍历：递归处理成员（含基类/静态成员），内置类型立即回调
 template <std::meta::info info, typename Callback>
 void active_member(auto &obj, Callback &&callback) {
-    // 忽略掉标记为 ignore 的字段
+    // 忽略标记为 ignore 的字段
     if constexpr (constexpr auto anns = has_annotation(info, ^^struct serialize_flag::ignore); anns)
         return;
     using T = std::remove_cvref_t<decltype(obj)>;

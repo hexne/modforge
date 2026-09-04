@@ -7,6 +7,8 @@ module;
 #include <pthread.h>
 #include <sched.h>
 #elif defined(_WIN32)
+// mingw-gcc modules bug workaround：见 terminal.cppm 注释（cstddef 预热 c++config.h guard）
+#include <cstddef>
 #include <windows.h>
 #endif
 export module modforge.thread_pool;

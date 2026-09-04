@@ -14,14 +14,13 @@ export class Timer {
     using Time = UTCTime<Interval>;
     using CallbackFunc = std::function<void()>;
 
-    // 任务
     struct Task {
         int id;
         CallbackFunc callback{};
         Interval interval{};
         Time end;
-        bool is_repeat_task{}; // 无限循环
-        int repeat_count{}; // 多次循环或者单次
+        bool is_repeat_task{}; // true=无限循环
+        int repeat_count{};    // 剩余循环次数（单次任务为 0）
 
         bool operator < (const Task& task) const {
             return end > task.end;

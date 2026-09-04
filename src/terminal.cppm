@@ -5,6 +5,9 @@
 
 module;
 #if defined(_WIN32)
+// mingw modules bug workaround：windows.h 内部链在 extern "C" 上下文拉入 c++config.h 与
+// import std 冲突，先 include <cstddef> 置位其 guard 可避开（7 个 WIN 头模块同法）
+#include <cstddef>
 #include <windows.h>
 #elif defined(__linux__) || defined(__unix__)
 #include <sys/ioctl.h>
@@ -38,8 +41,7 @@ export namespace terminal {
 
 #if defined(_WIN32)
 
-// Windows 空实现：仅保证编译/链接通过，避免跨平台报错。
-// 尺寸查询返回 0、光标查询返回 {0,0}、操作类为空转，功能待后续接入 WinAPI/ANSI 后补齐。
+// Windows 空实现：仅保证编译/链接；尺寸与光标查询返回 0，操作空转，待接 WinAPI/ANSI
 int terminal::width() { return 0; }
 
 int terminal::height() { return 0; }

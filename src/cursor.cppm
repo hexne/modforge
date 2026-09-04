@@ -5,7 +5,9 @@
 
 module;
 #ifdef _WIN32
-#include <Windows.h>
+// mingw-gcc modules bug workaround：见 terminal.cppm 注释（cstddef 预热 c++config.h guard）
+#include <cstddef>
+#include <windows.h>
 #elif __linux__
 #endif
 export module modforge.cursor;

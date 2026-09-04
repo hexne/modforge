@@ -6,7 +6,16 @@
 module;
 #include <cerrno>
 #include <cstring>
-#ifndef _WIN32
+#ifdef _WIN32
+// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
+#include <cstddef>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #endif
 export module modforge.tcp;
@@ -14,79 +23,84 @@ import std;
 import modforge.address;
 import modforge.socket;
 
-// 阻塞式 TCP 连接：组合持有 socket 底座，对外只声明 TCP 该有的接口。
-//   - listen / accept（UDP 没有）
-//   - send_all / recv_all 循环补齐（TCP 是字节流，一次调用不保证收发完整）
-// 提供两层接口：
-//   1) 原始字节流  read_some / write_all   —— HTTP、WebSocket 等协议解析用这层
-//   2) 4 字节长度前缀的分帧 send_message / recv_message —— 自定义消息协议用这层
-// 配合线程池每连接一线程使用；不做事件循环，读写超时交给内核（set_timeout）。
-//
-// 平台说明（2026-09-04）：
-//   - POSIX：真实实现，listen/accept 直接调用系统调用。
-//   - Windows：当前为空实现（仅保证编译/链接通过）。listen 返回 -1；
-//     accept 抛"未实现"异常；send_all/recv_all 返回 false（底层 socket 空实现）。
+/** @brief 阻塞式 TCP 连接：组合持有 socket 底座
+ *  @note  listen/accept 在此（UDP 无）；TCP 是字节流，send_all/recv_all 循环补齐
+ *         两层接口：原始字节流 read_some/write_all，与 4 字节长度前缀分帧
+ *         send_message/recv_message；超时由内核生效（set_timeout），不做事件循环
+ */
 export class TCP {
 public:
-    // 单条消息上限，防止损坏/恶意的长度前缀导致巨量分配
+    /** @brief 分帧单条消息上限，防损坏长度前缀导致巨量分配 */
     inline static constexpr int k_max_message_size = 64 * 1024 * 1024;
 
     TCP() : socket_(SocketType::stream) {}
+
+    /** @brief 指定端点构造
+     *  @param addr 关联的本地或对端地址
+     */
     explicit TCP(const Address& addr) : socket_(SocketType::stream, addr) {}
 
     TCP(TCP&&) noexcept = default;
     TCP& operator=(TCP&&) noexcept = default;
 
-    [[nodiscard]] int fd() const { return socket_.fd(); }
+    [[nodiscard]] auto fd() const { return socket_.fd(); }
 
     [[nodiscard]] bool is_listener() const { return is_listener_; }
 
     int connect() { return socket_.connect(); }
     int bind()    { return socket_.bind(); }
 
+    /** @brief 开始监听（服务端）
+     *  @param backlog 已完成连接队列长度
+     *  @return 0 成功；-1 出错
+     */
     int listen(int backlog = 128) {
-#ifdef _WIN32
-        (void)backlog;
-        return -1; // Windows 空实现
-#else
         is_listener_ = true;
-        return ::listen(socket_.fd(), backlog);
-#endif
+        return ::listen(fd(), backlog);  // POSIX/winsock 同名同参
     }
 
-    // 阻塞 accept；失败抛异常
+    /** @brief 阻塞接受一个连接；失败抛异常
+     *  @return 代表新连接的 TCP 对象
+     */
     TCP accept() const {
 #ifdef _WIN32
-        throw std::runtime_error("TCP::accept not implemented on Windows");
+        const SOCKET s = ::accept(fd(), nullptr, nullptr);
+        if (s == INVALID_SOCKET) {
+            throw std::runtime_error(std::string("accept failed: error ")
+                + std::to_string(::WSAGetLastError()));
+        }
+        return TCP(static_cast<std::intptr_t>(s));
 #else
-        int fd = ::accept(socket_.fd(), nullptr, nullptr);
-        if (fd < 0) {
+        const int s = ::accept(fd(), nullptr, nullptr);
+        if (s < 0) {
             throw std::runtime_error(std::string("accept failed: ") + std::strerror(errno));
         }
-        return TCP(fd);
+        return TCP(static_cast<std::intptr_t>(s));
 #endif
     }
 
-    // 查询本机绑定的地址。bind 到端口 0 时用它拿到内核分配的实际端口。
+    /** @brief 本机绑定地址（bind 端口 0 后取内核分配的实际端口） */
     [[nodiscard]] Address local_address() const { return socket_.local_address(); }
 
-    // -------------------------
-    // 原始字节流
-    // -------------------------
-
-    // 读一次：>0 为读到的字节数；0 表示对端关闭；-1 表示出错（errno 有效）
-    // 用 std::ptrdiff_t 而非 ssize_t，避免把 POSIX 名字漏进导入方的全局命名空间
+    /** @brief 读一次原始字节
+     *  @param buf 接收缓冲区
+     *  @return >0 字节数；0 对端关闭；-1 出错
+     *  @note  返回 ptrdiff_t，避免把 POSIX ssize_t 漏进导入方
+     */
     std::ptrdiff_t read_some(std::span<char> buf) {
         return static_cast<std::ptrdiff_t>(socket_.recv(buf));
     }
 
-    // 阻塞直到全部写完；false 表示连接已断或出错
+    /** @brief 阻塞写完整个缓冲区
+     *  @param data 待发送数据
+     *  @return false 表示连接已断或出错
+     */
     bool write_all(std::span<const char> data) { return send_all(data); }
 
-    // -------------------------
-    // 4 字节长度前缀分帧
-    // -------------------------
-
+    /** @brief 按 4 字节长度前缀发送一整条消息
+     *  @param msg 消息内容
+     *  @return 超上限或发送失败时为 false
+     */
     bool send_message(std::span<const char> msg) {
         using length_type = int;
         if (msg.size() > static_cast<size_t>(k_max_message_size))
@@ -99,7 +113,9 @@ public:
         return send_all(msg);
     }
 
-    // 阻塞直到收齐一整条消息；nullopt 表示连接关闭、出错或长度非法
+    /** @brief 阻塞收齐一整条分帧消息
+     *  @return 消息内容；连接关闭、出错或长度非法时返回 nullopt
+     */
     std::optional<std::vector<char>> recv_message() {
         using length_type = int;
 
@@ -117,13 +133,17 @@ public:
         return msg;
     }
 
-    // 读写超时，由内核在阻塞读写上生效
+    /** @brief 设置阻塞读写的内核超时
+     *  @param recv_timeout 接收超时（毫秒）
+     *  @param send_timeout 发送超时（毫秒）
+     *  @return 两个方向均设置成功时为 true
+     */
     bool set_timeout(std::chrono::milliseconds recv_timeout,
                      std::chrono::milliseconds send_timeout) {
         return socket_.set_timeout(recv_timeout, send_timeout);
     }
 
-    // 关闭并复位监听状态
+    /** @brief 关闭并复位监听状态 */
     void close() {
         socket_.close();
         is_listener_ = false;
@@ -132,16 +152,15 @@ public:
     ~TCP() { close(); }
 
 private:
-    explicit TCP(const int fd) : socket_(fd) {}
+    explicit TCP(const std::intptr_t fd) : socket_(fd) {}  // accept 新连接用
 
     bool is_listener_ = false;
 
-    // 阻塞写：直到全部写完或出错
+    /** @brief 阻塞写完整缓冲区
+     *  @param data 待发送数据
+     *  @return 全部写完为 true；连接断开或出错为 false
+     */
     bool send_all(std::span<const char> data) {
-#ifdef _WIN32
-        (void)data;
-        return false; // Windows 空实现
-#else
         size_t sent = 0;
         while (sent < data.size()) {
             std::ptrdiff_t n = socket_.send(data.subspan(sent));
@@ -149,20 +168,22 @@ private:
                 sent += static_cast<size_t>(n);
                 continue;
             }
+#ifdef _WIN32
+            return false;                  // winsock 无 EINTR 语义，失败即退出
+#else
             if (n < 0 && errno == EINTR)   // 被信号打断，重试
                 continue;
             return false;                  // n == 0 或真实错误
+#endif
         }
         return true;
-#endif
     }
 
-    // 阻塞读：直到读满或出错/对端关闭
+    /** @brief 阻塞读满缓冲区
+     *  @param data 接收缓冲区
+     *  @return 读满为 true；对端关闭或出错为 false
+     */
     bool recv_all(std::span<char> data) {
-#ifdef _WIN32
-        (void)data;
-        return false; // Windows 空实现
-#else
         size_t got = 0;
         while (got < data.size()) {
             std::ptrdiff_t n = socket_.recv(data.subspan(got));
@@ -170,14 +191,17 @@ private:
                 got += static_cast<size_t>(n);
                 continue;
             }
-            if (n == 0)                    // 对端关闭
+            if (n == 0)  // 对端关闭
                 return false;
-            if (n < 0 && errno == EINTR)
+#ifdef _WIN32
+            return false;  // winsock 无 EINTR，失败即退出
+#else
+            if (n < 0 && errno == EINTR)  // 被信号打断则重试
                 continue;
             return false;
+#endif
         }
         return true;
-#endif
     }
 
     Socket socket_;

@@ -33,12 +33,10 @@ consteval std::meta::info line_to_spec(std::string_view line) {
     return std::meta::data_member_spec(type, {.name = std::string(name)});
 }
 
-// 编译期：从配置文本生成目标类型的聚合定义。
-// 用户侧：static constexpr char cfg[] = { #embed "config.ini" };
-//         consteval { modforge::config_generator<^^Config>(cfg); }
+// 用法：static constexpr char cfg[] = { #embed "config.ini" };
+//       consteval { modforge::config_generator<^^Config>(cfg); }
 export template <std::meta::info dest_class, std::size_t N>
 constexpr void config_generator(const char (&config_str)[N]) {
-    // 纯 for 循环：逐行切分 + line_to_spec（不需要行数模板参数，自动处理任意行数）
     std::vector<std::meta::info> specs;
     std::size_t line_start = 0;
     for (std::size_t i = 0; i <= N - 1; ++i) {
@@ -52,7 +50,7 @@ constexpr void config_generator(const char (&config_str)[N]) {
     std::meta::define_aggregate(dest_class, specs);
 }
 
-// 解析配置文件 → map<string, string>（运行时，普通字符串处理）
+/** @brief 解析配置文件为键值表（运行时） */
 std::map<std::string, std::string> parse_config(std::string_view path) {
     std::ifstream file{std::string(path)};
     if (!file.is_open())

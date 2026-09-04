@@ -28,7 +28,9 @@ public:
     explicit InputArgs(std::initializer_list<std::string> args) : args(args) {  }
 
 
-    // 比较只涉及参数
+    /** @brief 比较仅涉及参数列表，不含 value
+     *  @param other 另一个输入参数对象
+     */
     bool operator < (const InputArgs &other) const {
         if (args.size() != other.args.size())
             return args.size() < other.args.size();
@@ -53,8 +55,7 @@ public:
     }
 };
 
-// -s j k
-// --short --join --kill
+/** @brief 命令行解析：add_args 注册纯参数回调，add_flag 绑定成员，analysis 分发 argv */
 class ArgsParser {
     using Callback = std::function<void(std::optional<InputArgs>)>;
     std::vector<std::tuple<InputArgs, Callback>> support_args_;
@@ -66,7 +67,9 @@ class ArgsParser {
 
         return arg.substr(pos + 1);
     }
-    // 这里的arg已经移除了-、--
+    /** @brief 按已去除 -/-- 前缀的参数名查找注册项
+     *  @param cur_arg 已去掉前缀的参数名
+     */
     std::tuple<InputArgs&, Callback&> find_args(const std::string& cur_arg) {
 
         auto it = std::ranges::find_if(support_args_, [&cur_arg](const auto &arg) {
@@ -96,7 +99,6 @@ class ArgsParser {
         using MemberType = std::remove_reference_t<decltype(obj)>;
         (add_args(std::get<index>(tuple), [&obj](std::optional<InputArgs> value) {
             if (value) {
-                // --flag=value：解析并赋给成员
                 std::string_view s = value->get_value();
                 if constexpr (std::is_same_v<MemberType, std::string>)
                     obj = std::string(s);
@@ -108,12 +110,15 @@ class ArgsParser {
                     obj = std::stod(std::string(s));
                 else static_assert(sizeof(MemberType) == 0, "unsupported member type");
             } else if constexpr (std::is_same_v<MemberType, bool>) {
-                obj = true;   // -la / --long 无值：bool 置 true，其他类型忽略
+                obj = true;   // 无值 flag 仅对 bool 生效
             }
         }), ...);
     }
 
 public:
+    /** @brief 注册纯参数回调
+     *  @param args 参数名（可多个别名，如 "-s", "--short"），末位为回调函数
+     */
     template <typename ...Args>
         requires (is_support_type_v<Args> && ...)
     void add_args(Args &&...args) {
@@ -122,6 +127,9 @@ public:
         add_args_impl(std::move(tuple), std::make_index_sequence<args_size - 1>{});
     }
 
+    /** @brief 注册 flag 并绑定到成员
+     *  @param args 参数名（可多个别名），末位为待绑定的成员引用（bool/int/double/string）
+     */
     template <typename ...Args>
         requires ((std::is_same_v<std::remove_reference_t<Args>, int>
                 || std::is_same_v<std::remove_reference_t<Args>, double>
@@ -133,13 +141,14 @@ public:
         add_flag_impl(std::move(tuple), std::make_index_sequence<args_size - 1>{});
     }
 
-    // -sjk
-    // -s=value
-    // --short=value
+    /** @brief 解析 argv 并触发回调
+     *  支持三种形态：-sjk / -s=value / --short=value
+     *  @param argc argv 元素个数（含程序名）
+     *  @param argv 命令行参数数组
+     */
     void analysis(int argc, char *argv[]) {
         std::vector<std::string> input_args(argv + 1, argv + argc);
         for (const auto &arg : input_args) {
-            // 赋值
             if (arg.find('=') != std::string::npos) {
                 auto removed_front_arg = remove_front_char(arg);
                 auto tuple = StringUtils::split(removed_front_arg, '=');
@@ -154,7 +163,6 @@ public:
 
                 callback(input_arg);
             }
-            // 长指令
             else if (arg.find("--") != std::string::npos) {
                 auto cur_arg = remove_front_char(arg);
                 auto find_res = find_args(cur_arg);
@@ -163,7 +171,6 @@ public:
 
                 callback(std::nullopt);
             }
-            // 短指令
             else if (arg.find('-') != std::string::npos) {
                 auto args = remove_front_char(arg);
                 for (auto ch : args) {

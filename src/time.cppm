@@ -34,13 +34,12 @@ constexpr std::array time_zone_map {
     "UTC", "Asia/Shanghai"
 };
 
-/**
- * @brief 根据参数创建ymd
- * @param y: 指定年份，公元前为负数
- * @param m: 指定月份
- * @param d: 指定日期
- * @return 返回构造的ymd
-**/
+/** @brief 根据参数创建ymd
+ *  @param y: 指定年份，公元前为负数
+ *  @param m: 指定月份
+ *  @param d: 指定日期
+ *  @return 返回构造的ymd
+ */
 auto get_ymd(int y, int m, int d) {
     return std::chrono::year_month_day {
         std::chrono::year(y),
@@ -49,13 +48,12 @@ auto get_ymd(int y, int m, int d) {
     };
 }
 
-/**
- * @brief 根据参数创建指定hms
- * @param h: 指定hour
- * @param m: 指定minute
- * @param s: 指定second
- * @return 返回构造出的hms
-**/
+/** @brief 根据参数创建指定hms
+ *  @param h: 指定hour
+ *  @param m: 指定minute
+ *  @param s: 指定second
+ *  @return 返回构造出的hms
+ */
 template <typename TimePrecision>
 auto get_hms(int h, int m, int s) {
     return std::chrono::hh_mm_ss<TimePrecision> {
@@ -65,9 +63,8 @@ auto get_hms(int h, int m, int s) {
     };
 }
 
-/**
- * @brief 获取指定时区
-**/
+/** @brief 获取指定时区
+ */
 template <TimeZone time_zone>
 constexpr auto zone() {
     if constexpr (time_zone == TimeZone::local) {
@@ -78,22 +75,20 @@ constexpr auto zone() {
     }
 }
 
-/**
- * @brief 将时间点转为特定时区的时间
- * @param time_point: 指定时间点
- * @return 转换后的时间点
-**/
+/** @brief 将时间点转为特定时区的时间
+ *  @param time_point: 指定时间点
+ *  @return 转换后的时间点
+ */
 export
 template <TimeZone time_zone, typename TimePrecision, typename ToPrecision = TimePrecision>
 auto get_zoned_time_by_utc_time_point(const std::chrono::time_point<std::chrono::system_clock, TimePrecision> &time_point) {
     return std::chrono::zoned_time { zone<time_zone>(), std::chrono::time_point_cast<ToPrecision>(time_point) };
 }
 
-/**
- * @brief 带时区的时间点转为utc时间点
- * @param zone_time: 时区时间
- * @return 转换后的UTC时间点
-**/
+/** @brief 带时区的时间点转为utc时间点
+ *  @param zone_time: 时区时间
+ *  @return 转换后的UTC时间点
+ */
 template <typename TimePrecision>
 auto get_utc_time_point_by_zone_time(const std::chrono::zoned_time<TimePrecision> &zone_time) {
     return zone_time.get_sys_time();
@@ -177,7 +172,6 @@ public:
         throw std::runtime_error(std::format("time format is error => {}", str));
     }
 
-    // 构造函数
     TimeImpl(const TimeImpl& time) noexcept = default;
     TimeImpl(TimeImpl &&time) noexcept = default;
 
@@ -186,7 +180,7 @@ public:
 
     ~TimeImpl() noexcept = default;
 
-    // 空的就是1/1/1 0:0:0
+    /** @brief 默认构造：公元 1/1/1 0:0:0 */
     TimeImpl() {
         time_ = create_zone_time<time_zone, TimePrecision>(1, 1, 1, 0, 0, 0);
     }
@@ -230,10 +224,9 @@ public:
     }
 
 
-    /**
-     * @brief 获取std::chrono::year_month_day
-     * @return 返回当前时间对应的ymd
-    **/
+    /** @brief 获取std::chrono::year_month_day
+     *  @return 返回当前时间对应的ymd
+     */
     ymd_t get_ymd() const {
         return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(time_.get_local_time()));
     }
@@ -256,10 +249,9 @@ public:
     }
 
 
-    /**
-     * @brief 获取当前时间点在该日期中的各个部分，比如小时部分，分钟部分等
-     * @return 获取部分的数值
-    **/
+    /** @brief 获取当前时间点在该日期中的各个部分，比如小时部分，分钟部分等
+     *  @return 获取部分的数值
+     */
     template <typename T>
     int get() const requires ( std::is_same_v<T, std::chrono::year>
                             || std::is_same_v<T, std::chrono::month>
@@ -288,12 +280,11 @@ public:
         throw std::invalid_argument("error type");
     }
 
-    /**
-     * @brief 统计和基准时间相比过去了多久
-    **/
+    /** @brief 统计和基准时间相比过去了多久
+     */
     template <TimeType T>
     long long count() const {
-        auto fixup = std::chrono::time_point_cast<T>(std::chrono::system_clock::time_point()).time_since_epoch() - get_begin_zone_time<time_zone, TimePrecision>().get_sys_time().time_since_epoch(); // 时间修正
+        auto fixup = std::chrono::time_point_cast<T>(std::chrono::system_clock::time_point()).time_since_epoch() - get_begin_zone_time<time_zone, TimePrecision>().get_sys_time().time_since_epoch();
         auto same_fixup = std::chrono::duration_cast<TimePrecision>(fixup);
         return std::chrono::duration_cast<T>(time_.get_sys_time().time_since_epoch() + same_fixup).count();
     }
@@ -400,13 +391,13 @@ export template <typename TimePrecision = std::chrono::microseconds>
 using CSTTime = TimeImpl<TimeZone::cst, TimePrecision>;
 NAMESPACE_END
 
-/**
- * @param 't' 完整的time
- * @param 'd' date 时间
- * @param 'c' clock 时间
- * @param '' 为空时保持默认time输出
- * @param 格式化输出样例: ':*^30d'
-**/
+/** @brief TimeImpl 的 std::format 格式化器，支持 't'/'d'/'c' 指定整时间/日期/时钟输出
+ *  @param 't' 完整的time
+ *  @param 'd' date 时间
+ *  @param 'c' clock 时间
+ *  @param '' 为空时保持默认time输出
+ *  @param 格式化输出样例: ':*^30d'
+ */
 export template <typename  T>
 struct FormatterIMPL {
     constexpr auto parse(auto& context) {
