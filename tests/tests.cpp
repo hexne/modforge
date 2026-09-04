@@ -17,10 +17,12 @@ int test_config_generator();
 int test_signal();
 int test_event();
 int test_table();
+#ifndef _WIN32
 int test_terminal();
 int test_socket();
 int test_tcp();
 int test_udp();
+#endif
 int test_id_generator();
 
 int main(int argc, char** argv) {
@@ -46,10 +48,12 @@ int main(int argc, char** argv) {
         {"test_signal", test_signal},
         {"test_event", test_event},
         {"test_table", test_table},
+#ifndef _WIN32
         {"test_terminal", test_terminal},
         {"test_socket", test_socket},
         {"test_tcp", test_tcp},
         {"test_udp", test_udp},
+#endif
         {"test_id_generator", test_id_generator},
     };
 

@@ -37,6 +37,28 @@ export namespace terminal {
 }
 
 #if defined(_WIN32)
+
+// Windows 空实现：仅保证编译/链接通过，避免跨平台报错。
+// 尺寸查询返回 0、光标查询返回 {0,0}、操作类为空转，功能待后续接入 WinAPI/ANSI 后补齐。
+int terminal::width() { return 0; }
+
+int terminal::height() { return 0; }
+
+void terminal::clear() { }
+
+int terminal::cursor_x() { return 0; }
+
+int terminal::cursor_y() { return 0; }
+
+void terminal::cursor_x(int) { }
+void terminal::cursor_y(int) { }
+
+std::tuple<int, int> terminal::cursor() { return {0, 0}; }
+void terminal::cursor(int, int) { }
+
+void terminal::hide_cursor() { }
+void terminal::show_cursor() { }
+
 #elif defined(__linux__) || defined(__unix__)
 
 int terminal::width() {

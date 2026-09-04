@@ -14,12 +14,17 @@ add_executable(tests
     test_signal.cpp
     test_event.cpp
     test_table.cpp
-    test_terminal.cpp
-    test_socket.cpp
-    test_tcp.cpp
-    test_udp.cpp
     test_id_generator.cpp
 )
+# Windows 侧 terminal / socket / tcp / udp 为空实现（仅编译/链接通过），行为测试无意义，剔除。
+if(NOT WIN32)
+    target_sources(tests PRIVATE
+        test_terminal.cpp
+        test_socket.cpp
+        test_tcp.cpp
+        test_udp.cpp
+    )
+endif()
 target_link_libraries(tests PRIVATE modforge)
 target_compile_features(tests PUBLIC cxx_std_26)
 
@@ -37,11 +42,14 @@ add_test(NAME test_utils COMMAND tests "test_utils")
 add_test(NAME test_signal COMMAND tests "test_signal")
 add_test(NAME test_event COMMAND tests "test_event")
 add_test(NAME test_table COMMAND tests "test_table")
-add_test(NAME test_terminal COMMAND tests "test_terminal")
-add_test(NAME test_socket COMMAND tests "test_socket")
-add_test(NAME test_tcp COMMAND tests "test_tcp")
-add_test(NAME test_udp COMMAND tests "test_udp")
 add_test(NAME test_id_generator COMMAND tests "test_id_generator")
+
+if(NOT WIN32)
+    add_test(NAME test_terminal COMMAND tests "test_terminal")
+    add_test(NAME test_socket COMMAND tests "test_socket")
+    add_test(NAME test_tcp COMMAND tests "test_tcp")
+    add_test(NAME test_udp COMMAND tests "test_udp")
+endif()
 
 if(MODFORGE_ENABLE_REFLECTION)
     target_sources(tests PRIVATE test_static_serialize.cpp test_config_generator.cpp)

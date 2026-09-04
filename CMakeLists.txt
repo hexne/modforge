@@ -12,6 +12,13 @@ add_subdirectory(tests)
 
 target_compile_features(modforge PUBLIC cxx_std_26)
 
+# Windows：address 模块换用 winsock2.h 实现（inet_pton/inet_ntop/htons 等），需链接 ws2_32。
+# socket/tcp/udp 在 Windows 侧目前是空实现（仅编译/链接通过），不调用 winsock 函数，
+# 但统一在此链接，待后续接入 Winsock 时无需再改。
+if(WIN32)
+    target_link_libraries(modforge PUBLIC ws2_32)
+endif()
+
 if(MODFORGE_ENABLE_REFLECTION)
     target_compile_options(modforge PUBLIC -freflection)
     target_compile_definitions(modforge PUBLIC MODFORGE_ENABLE_REFLECTION)

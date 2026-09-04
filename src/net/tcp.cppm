@@ -6,7 +6,9 @@
 module;
 #include <cerrno>
 #include <cstring>
+#ifndef _WIN32
 #include <sys/socket.h>
+#endif
 export module modforge.tcp;
 import std;
 import modforge.address;
@@ -19,6 +21,11 @@ import modforge.socket;
 //   1) 原始字节流  read_some / write_all   —— HTTP、WebSocket 等协议解析用这层
 //   2) 4 字节长度前缀的分帧 send_message / recv_message —— 自定义消息协议用这层
 // 配合线程池每连接一线程使用；不做事件循环，读写超时交给内核（set_timeout）。
+//
+// 平台说明（2026-09-04）：
+//   - POSIX：真实实现，listen/accept 直接调用系统调用。
+//   - Windows：当前为空实现（仅保证编译/链接通过）。listen 返回 -1；
+//     accept 抛"未实现"异常；send_all/recv_all 返回 false（底层 socket 空实现）。
 export class TCP {
 public:
     // 单条消息上限，防止损坏/恶意的长度前缀导致巨量分配
@@ -38,17 +45,26 @@ public:
     int bind()    { return socket_.bind(); }
 
     int listen(int backlog = 128) {
+#ifdef _WIN32
+        (void)backlog;
+        return -1; // Windows 空实现
+#else
         is_listener_ = true;
         return ::listen(socket_.fd(), backlog);
+#endif
     }
 
     // 阻塞 accept；失败抛异常
     TCP accept() const {
+#ifdef _WIN32
+        throw std::runtime_error("TCP::accept not implemented on Windows");
+#else
         int fd = ::accept(socket_.fd(), nullptr, nullptr);
         if (fd < 0) {
             throw std::runtime_error(std::string("accept failed: ") + std::strerror(errno));
         }
         return TCP(fd);
+#endif
     }
 
     // 查询本机绑定的地址。bind 到端口 0 时用它拿到内核分配的实际端口。
@@ -122,9 +138,13 @@ private:
 
     // 阻塞写：直到全部写完或出错
     bool send_all(std::span<const char> data) {
+#ifdef _WIN32
+        (void)data;
+        return false; // Windows 空实现
+#else
         size_t sent = 0;
         while (sent < data.size()) {
-            ssize_t n = socket_.send(data.subspan(sent));
+            std::ptrdiff_t n = socket_.send(data.subspan(sent));
             if (n > 0) {
                 sent += static_cast<size_t>(n);
                 continue;
@@ -134,13 +154,18 @@ private:
             return false;                  // n == 0 或真实错误
         }
         return true;
+#endif
     }
 
     // 阻塞读：直到读满或出错/对端关闭
     bool recv_all(std::span<char> data) {
+#ifdef _WIN32
+        (void)data;
+        return false; // Windows 空实现
+#else
         size_t got = 0;
         while (got < data.size()) {
-            ssize_t n = socket_.recv(data.subspan(got));
+            std::ptrdiff_t n = socket_.recv(data.subspan(got));
             if (n > 0) {
                 got += static_cast<size_t>(n);
                 continue;
@@ -152,6 +177,7 @@ private:
             return false;
         }
         return true;
+#endif
     }
 
     Socket socket_;
