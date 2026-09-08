@@ -45,7 +45,8 @@ export class ThreadPool {
     using Task = std::function<void()>;
 
     size_t thread_count_;
-    size_t idx_{};
+    // 多线程并发 submit 会同时递增，必须是原子量（普通 size_t 自增是数据竞争）
+    std::atomic<size_t> idx_{};
     std::vector<std::thread> workers_;
     std::vector<std::unique_ptr<SPMCQueue<Task>>> local_queues_;
     std::atomic_bool stop_{false};

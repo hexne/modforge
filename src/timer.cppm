@@ -20,7 +20,7 @@ export class Timer {
         Interval interval{};
         Time end;
         bool is_repeat_task{}; // true=无限循环
-        int repeat_count{};    // 剩余循环次数（单次任务为 0）
+        int repeat_count{};    // 总执行次数；0 与 1 等价，都只执行一次（is_repeat_task 为 true 时忽略）
 
         bool operator < (const Task& task) const {
             return end > task.end;
@@ -44,34 +44,36 @@ export class Timer {
 
     void run() {
         while (!is_finish()) {
-            if (tasks_.empty()) {
-                std::unique_lock lock(mutex_);
-                cv_.wait(lock, [this] { return is_finish() || !tasks_.empty(); });
-            }
-            else {
-                Task task;
-                {
-                    std::unique_lock lock(mutex_);
-                    task = tasks_.top();
+            std::unique_lock lock(mutex_);
 
-                    cv_.wait_until(lock, task.end.time_point(), [this] {
-                        return is_finish() || tasks_.empty() || tasks_.top().end <= Time::now();
-                    });
-                }
-                if (is_finish())
-                    break;
-                if (tasks_.empty())
-                    continue;
-                task = tasks_.top();
-                task.callback();
-                {
-                    std::lock_guard lock(mutex_);
-                    tasks_.pop();
-                    if (task.is_repeat_task || --task.repeat_count > 0) {
-                        task.end += task.interval;
-                        tasks_.push(task);
-                    }
-                }
+            // tasks_ 的所有访问都必须持锁，否则与 add_task / remove 构成数据竞争
+            cv_.wait(lock, [this] { return is_finish() || !tasks_.empty(); });
+            if (is_finish())
+                break;
+
+            Task task = tasks_.top();
+
+            cv_.wait_until(lock, task.end.time_point(), [this] {
+                return is_finish() || tasks_.empty() || tasks_.top().end <= Time::now();
+            });
+            if (is_finish())
+                break;
+            if (tasks_.empty())
+                continue;
+            // 被 add_task 唤醒但最早任务尚未到期（插进了更早的新任务）：重新取 top 再等
+            if (tasks_.top().end > Time::now())
+                continue;
+
+            task = tasks_.top();
+            tasks_.pop();
+
+            lock.unlock();
+            task.callback();
+            lock.lock();
+
+            if (task.is_repeat_task || --task.repeat_count > 0) {
+                task.end += task.interval;
+                tasks_.push(task);
             }
         }
     }
@@ -132,8 +134,10 @@ public:
     }
 
     ~Timer() {
-        cv_.notify_all();
+        // 必须先 request_stop 再 notify：反序会让工作线程被唤醒后因谓词仍为假
+        // 重新入睡，而此后不再有人 notify，join() 永久挂死。
         thread_.request_stop();
+        cv_.notify_all();
         thread_.join();
     }
 

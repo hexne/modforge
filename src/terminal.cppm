@@ -37,6 +37,9 @@ export namespace terminal {
     void hide_cursor();
     void show_cursor();
 
+    void cursor_up(int num = 1);
+    void cursor_down(int num = 1);
+
 }
 
 #if defined(_WIN32)
@@ -60,6 +63,9 @@ void terminal::cursor(int, int) { }
 
 void terminal::hide_cursor() { }
 void terminal::show_cursor() { }
+
+void terminal::cursor_up(int) { }
+void terminal::cursor_down(int) { }
 
 #elif defined(__linux__) || defined(__unix__)
 
@@ -145,6 +151,16 @@ void terminal::hide_cursor() {
 
 void terminal::show_cursor() {
     std::print("\033[?25h");
+    std::cout.flush();
+}
+
+void terminal::cursor_up(const int num) {
+    std::print("\033[{}A", num);
+    std::cout.flush();
+}
+
+void terminal::cursor_down(const int num) {
+    std::print("\033[{}B", num);
     std::cout.flush();
 }
 

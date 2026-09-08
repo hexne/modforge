@@ -15,6 +15,7 @@ add_executable(tests
     test_event.cpp
     test_table.cpp
     test_id_generator.cpp
+    test_deep_learning.cpp
 )
 # Windows 侧 terminal / socket / tcp / udp 为空实现（仅编译/链接通过），行为测试无意义，剔除。
 if(NOT WIN32)
@@ -43,6 +44,7 @@ add_test(NAME test_signal COMMAND tests "test_signal")
 add_test(NAME test_event COMMAND tests "test_event")
 add_test(NAME test_table COMMAND tests "test_table")
 add_test(NAME test_id_generator COMMAND tests "test_id_generator")
+add_test(NAME test_deep_learning COMMAND tests "test_deep_learning")
 
 if(NOT WIN32)
     add_test(NAME test_terminal COMMAND tests "test_terminal")

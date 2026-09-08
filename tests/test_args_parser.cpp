@@ -188,5 +188,22 @@ int test_args_parser() {
         if (!verbose || !other) return 20;   // verbose 保持 true，other 被置 true
     }
 
+    // 值中带 '-'：负数与含连字符的主机名（前缀剥离不得吃掉值里的 '-'）
+    {
+        int delta = 0;
+        std::string host;
+        modforge::ArgsParser p;
+        p.add_flag("--delta", delta);
+        p.add_flag("--host", host);
+        const char* av[] = {"app", "--delta=-5", "--host=a-b.example"};
+        try {
+            p.analysis(3, const_cast<char**>(av));
+        } catch (const std::runtime_error&) {
+            return 21;   // 不应抛异常
+        }
+        if (delta != -5) return 22;
+        if (host != "a-b.example") return 23;
+    }
+
     return 0;
 }

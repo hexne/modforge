@@ -15,5 +15,11 @@ int test_terminal() {
     modforge::terminal::cursor_y(0);
     modforge::terminal::cursor(0, 0);
 
+    // 相对上/下移动（默认 1 行与显式行数）
+    modforge::terminal::cursor_up();
+    modforge::terminal::cursor_down();
+    modforge::terminal::cursor_up(2);
+    modforge::terminal::cursor_down(2);
+
     return 0;
 }

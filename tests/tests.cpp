@@ -24,6 +24,7 @@ int test_tcp();
 int test_udp();
 #endif
 int test_id_generator();
+int test_deep_learning();
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -55,6 +56,7 @@ int main(int argc, char** argv) {
         {"test_udp", test_udp},
 #endif
         {"test_id_generator", test_id_generator},
+        {"test_deep_learning", test_deep_learning},
     };
 
     const std::string name = argv[1];

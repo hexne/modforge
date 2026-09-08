@@ -161,7 +161,22 @@ void Cursor::listen_event() {
 }
 
 
-
 #elif __linux__
+
+// Linux 侧空实现：鼠标注入依赖 X11/Wayland 平台能力，方案未落地。
+// 这里只保证接口可链接——模块经总入口导出，若无任何定义，消费方一实例化就会链接失败。
+Cursor::Cursor() = default;
+Cursor::Cursor(const CursorPos cursor_pos) : cursor_pos(cursor_pos) { }
+Cursor::~Cursor() = default;
+
+CursorPos Cursor::get_cursor_pos() { return cursor_pos; }
+
+void Cursor::move_to(const CursorPos &pos) { cursor_pos = pos; }
+
+void Cursor::click_left(std::size_t) { }
+void Cursor::click_right(std::size_t) { }
+
+void Cursor::wheel(int) { }
+
 #endif
 

@@ -15,6 +15,10 @@ endif()
 file(GLOB net_files "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cppm")
 list(APPEND modforge_files ${net_files})
 
+# 深度学习子模块（src/deep_learning/）：tools / bp / cnn，经 modforge.deep_learning 入口导出。
+file(GLOB deep_learning_files "${CMAKE_CURRENT_SOURCE_DIR}/deep_learning/*.cppm")
+list(APPEND modforge_files ${deep_learning_files})
+
 set(LibMod STATIC)
 add_library(modforge ${LibMod})
 target_sources(modforge

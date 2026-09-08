@@ -60,12 +60,17 @@ class ArgsParser {
     using Callback = std::function<void(std::optional<InputArgs>)>;
     std::vector<std::tuple<InputArgs, Callback>> support_args_;
 
+    /** @brief 剥掉开头的 -/-- 前缀
+     *  必须用 find_first_not_of 而非 find_last_of：值内部可能含 '-'
+     *  （如 --delta=-5、--host=a-b），find_last_of 会把值里的 '-' 当成前缀吃掉。
+     *  @param arg 原始命令行参数（须以 1~2 个 '-' 开头）
+     */
     std::string remove_front_char(const std::string &arg) {
-        auto pos = arg.find_last_of('-');
-        if (pos == std::string::npos)
+        const auto pos = arg.find_first_not_of('-');
+        if (pos == std::string::npos || pos == 0 || pos > 2)
             throw format_runtime_error("No support args format {}", arg);
 
-        return arg.substr(pos + 1);
+        return arg.substr(pos);
     }
     /** @brief 按已去除 -/-- 前缀的参数名查找注册项
      *  @param cur_arg 已去掉前缀的参数名
@@ -99,15 +104,17 @@ class ArgsParser {
         using MemberType = std::remove_reference_t<decltype(obj)>;
         (add_args(std::get<index>(tuple), [&obj](std::optional<InputArgs> value) {
             if (value) {
-                std::string_view s = value->get_value();
+                // get_value() 返回临时 string，必须拷贝为具名对象，
+                // 不能用 string_view 绑定（悬垂 UB）
+                const std::string s = value->get_value();
                 if constexpr (std::is_same_v<MemberType, std::string>)
-                    obj = std::string(s);
+                    obj = s;
                 else if constexpr (std::is_same_v<MemberType, bool>)
                     obj = (s == "true" || s == "1");
                 else if constexpr (std::is_same_v<MemberType, int>)
-                    obj = std::stoi(std::string(s));
+                    obj = std::stoi(s);
                 else if constexpr (std::is_same_v<MemberType, double>)
-                    obj = std::stod(std::string(s));
+                    obj = std::stod(s);
                 else static_assert(sizeof(MemberType) == 0, "unsupported member type");
             } else if constexpr (std::is_same_v<MemberType, bool>) {
                 obj = true;   // 无值 flag 仅对 bool 生效

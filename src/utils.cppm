@@ -15,7 +15,7 @@ export NAMESPACE_BEGIN
  */
 template<typename ...Ts>
 std::runtime_error
-    format_runtime_error(std::format_string<Ts...>&& fmt, Ts&&... vs) noexcept {
+    format_runtime_error(std::format_string<Ts...>&& fmt, Ts&&... vs) {
     return std::runtime_error{std::format<Ts...>(fmt, std::forward<Ts>(vs)...)};
 }
 

@@ -11,7 +11,9 @@
 - 🧵 并发与无锁数据结构（SPSC / MPSC / SPMC / MPMC）
 - 🔍 C++26 静态反射（可选模块，默认关闭）：反射序列化 + 配置驱动生成类型化 Config
 - 🧪 以单文件单测试函数方式维护模块测试
-- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器、配置生成与终端辅助模块
+- 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器、配置生成、
+  终端/鼠标辅助、张量与深度学习模块
+- 🌐 阻塞式网络（IPv4 端点、TCP 字节流与长度前缀分帧、UDP 数据报）
 
 ## 📦 Modules
 
@@ -26,7 +28,8 @@
 | `time`             | 时间工具（UTC / 本地时间、解析与格式化） |  ✅   |
 | `timer`            | 定时器、协程定时器                 |  ✅   |
 | `signal`           | 信号/回调机制                      |  ✅   |
-| `terminal`         | 终端尺寸与光标控制                 |  ✅   |
+| `terminal`         | 终端尺寸、光标显隐/定位/上下移动   |  ✅   |
+| `cursor`           | 鼠标光标控制与点击监听             |  🟡   |
 | `table`            | 终端表格渲染                       |  ✅   |
 | `string_utils`     | 字符串工具                         |  ✅   |
 | `tree`             | 通用 N 叉树与索引树                |  ✅   |
@@ -40,11 +43,21 @@
 | `net/udp`          | 阻塞式 UDP（数据报收发）           |  ✅   |
 | `net/http`         | HTTP（当前为空壳）                 |  🚧   |
 | `net/websocket`    | WebSocket（当前为空壳）            |  🚧   |
+| `tensor`           | 任意秩张量（基于 `std::mdspan`：批量矩阵乘、零拷贝转置、序列化） |  ✅   |
+| `deep_learning.tools` | 激活函数 / 损失函数 / 优化器 / OneHot / 随机工具 |  ✅   |
+| `deep_learning.bp` | 全连接 BP 网络（前向 / 反向 / 余弦退火） |  ✅   |
+| `deep_learning.cnn` | 卷积神经网络（Conv / Pool / FC + MNIST 加载与模型序列化） |  ✅   |
 
-图例：✅ 默认构建 · 🔌 可选，需显式开启 · 🚧 占位未实现
+图例：✅ 默认构建 · 🔌 可选，需显式开启 · 🟡 平台受限 · 🚧 占位未实现
 
 > `net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` **已接入总入口**——`import modforge;`
 > 即可直接使用；`http` / `websocket` 仍是空壳，未导出。
+>
+> `cursor` 目前只有 Windows 实现（WinAPI），Linux 侧为空实现——接口可链接、调用为空操作，
+> 注入能力依赖 X11 / Wayland，方案未落地。
+>
+> `deep_learning/` 的 `tools / bp / cnn` 通过 `modforge.deep_learning` 已接入总入口，
+> `tensor` 也经总入口导出（原 `console` 模块已合并进 `terminal`）。
 >
 > 🔌 反射可选模块中，`static_serialize` 与 `config_generator` 在开启 `MODFORGE_ENABLE_REFLECTION` 时
 > 也经总入口导出（`import modforge;` 即得）；`event` 仍未接入总入口，需单独 `import`。
@@ -66,10 +79,16 @@ graph LR
     modforge --> string_utils
     modforge --> signal
     modforge --> terminal
+    modforge --> cursor
     modforge --> table
     modforge -.-> static_serialize
     modforge -.-> config_generator
     modforge --> net
+    modforge --> tensor
+    modforge --> deep_learning
+
+    deep_learning --> tensor
+    deep_learning --> terminal
 
     args_parser --> string_utils
     args_parser --> utils
@@ -103,8 +122,9 @@ graph LR
 
 ## 🔨 Build
 
-关闭反射时 GCC 16.2.1 与 GCC trunk（17.0.0 experimental）都可构建，测试全部通过；
-需要反射模块时**必须**用 GCC trunk —— `std::meta` 等 C++26 反射设施在 16.2.1 的标准库中并不完整。
+关闭反射时 GCC 16.2.1、GCC trunk（17.0.0 experimental）与 Clang 22 都可构建，测试全部通过；
+需要反射模块时**必须**用 GCC trunk —— `std::meta` 等 C++26 反射设施在 16.2.1 的标准库中并不完整
+（Clang 不支持 `-freflection`，反射开启时不在验证范围内）。
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER="/path/to/g++"
@@ -225,7 +245,7 @@ modforge::deserialize(s2, ar2);
 
 ## 🧪 测试
 
-项目使用 CTest，关闭反射为 18 个用例，开启反射后为 20 个。
+项目使用 CTest，关闭反射为 19 个用例，开启反射后为 21 个。
 
 ```bash
 ctest --test-dir build-check --output-on-failure
@@ -251,6 +271,7 @@ ctest --test-dir build-check --output-on-failure
 | `test_tcp` | `net/tcp` |
 | `test_udp` | `net/udp` |
 | `test_id_generator` | `id_generator` |
+| `test_deep_learning` | `tensor`、`deep_learning`（BP 收敛 + 张量/工具函数） |
 | `test_static_serialize` | `static_serialize`（🔌 可选） |
 | `test_config_generator` | `config_generator`（🔌 可选） |
 
