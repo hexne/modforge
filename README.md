@@ -33,6 +33,7 @@
 | `table`            | 终端表格渲染                       |  ✅   |
 | `string_utils`     | 字符串工具                         |  ✅   |
 | `tree`             | 通用 N 叉树与索引树                |  ✅   |
+| `range`            | 区间封装（整数/指针/数组/容器/迭代器对/正则匹配 统一可迭代） |  ✅   |
 | `utils`            | 通用工具                           |  ✅   |
 | `static_serialize` | C++26 静态反射序列化               |  🔌   |
 | `config_generator` | 配置→类型化 Config（编译期生成 + 运行时加载） |  🔌   |
@@ -75,6 +76,7 @@ graph LR
     modforge --> time
     modforge --> timer
     modforge --> tree
+    modforge --> range
     modforge --> utils
     modforge --> string_utils
     modforge --> signal
@@ -245,7 +247,7 @@ modforge::deserialize(s2, ar2);
 
 ## 🧪 测试
 
-项目使用 CTest，关闭反射为 19 个用例，开启反射后为 21 个。
+项目使用 CTest，关闭反射为 20 个用例，开启反射后为 22 个。
 
 ```bash
 ctest --test-dir build-check --output-on-failure
@@ -262,6 +264,7 @@ ctest --test-dir build-check --output-on-failure
 | `test_timer` | `timer` |
 | `test_thread_pool` | `thread_pool` |
 | `test_tree` | `tree` |
+| `test_range` | `range` |
 | `test_utils` | `utils` |
 | `test_signal` | `signal` |
 | `test_event` | `event`（空测试） |

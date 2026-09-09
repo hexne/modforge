@@ -11,6 +11,7 @@ add_executable(tests
     test_timer.cpp
     test_tree.cpp
     test_utils.cpp
+    test_range.cpp
     test_signal.cpp
     test_event.cpp
     test_table.cpp
@@ -39,6 +40,7 @@ add_test(NAME test_time COMMAND tests "test_time")
 add_test(NAME test_timer COMMAND tests "test_timer")
 add_test(NAME test_thread_pool COMMAND tests "test_thread_pool")
 add_test(NAME test_tree COMMAND tests "test_tree")
+add_test(NAME test_range COMMAND tests "test_range")
 add_test(NAME test_utils COMMAND tests "test_utils")
 add_test(NAME test_signal COMMAND tests "test_signal")
 add_test(NAME test_event COMMAND tests "test_event")
