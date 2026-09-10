@@ -18,10 +18,10 @@ module;
 #else
 #include <sys/socket.h>
 #endif
-export module modforge.tcp;
+export module modforge.net.tcp;
 import std;
-import modforge.address;
-import modforge.socket;
+import modforge.net.address;
+import modforge.net.socket;
 
 /** @brief 阻塞式 TCP 连接：组合持有 socket 底座
  *  @note  listen/accept 在此（UDP 无）；TCP 是字节流，send_all/recv_all 循环补齐

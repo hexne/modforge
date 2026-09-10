@@ -19,10 +19,10 @@ module;
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif
-export module modforge.udp;
+export module modforge.net.udp;
 import std;
-import modforge.address;
-import modforge.socket;
+import modforge.net.address;
+import modforge.net.socket;
 
 /** @brief 阻塞式 UDP：组合持有 socket 底座
  *  @note  一次调用 = 一个数据报（不循环补齐）；缓冲区小于数据报时多余部分被内核丢弃；

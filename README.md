@@ -12,8 +12,9 @@
 - 🔍 C++26 静态反射（可选模块，默认关闭）：反射序列化 + 配置驱动生成类型化 Config
 - 🧪 以单文件单测试函数方式维护模块测试
 - 🛠️ 覆盖参数解析、文件系统、时间、线程池、定时器、树结构、信号、原子 id 生成器、配置生成、
-  终端/鼠标辅助、张量与深度学习模块
+  终端/鼠标辅助模块
 - 🌐 阻塞式网络（IPv4 端点、TCP 字节流与长度前缀分帧、UDP 数据报）
+- 🧠 张量与深度学习（任意秩张量、激活 / 损失 / 优化器、BP 全连接网络、CNN）
 
 ## 📦 Modules
 
@@ -38,12 +39,12 @@
 | `static_serialize` | C++26 静态反射序列化               |  🔌   |
 | `config_generator` | 配置→类型化 Config（编译期生成 + 运行时加载） |  🔌   |
 | `event`            | 事件模块（当前为空壳，未接入总入口） |  🚧   |
-| `net/address`      | 网络端点（IPv4 + 端口）            |  ✅   |
-| `net/socket`       | socket 底座：fd 生命周期与通用调用  |  ✅   |
-| `net/tcp`          | 阻塞式 TCP（字节流 + 长度前缀分帧） |  ✅   |
-| `net/udp`          | 阻塞式 UDP（数据报收发）           |  ✅   |
-| `net/http`         | HTTP（当前为空壳）                 |  🚧   |
-| `net/websocket`    | WebSocket（当前为空壳）            |  🚧   |
+| `net.address`      | 网络端点（IPv4 + 端口）            |  ✅   |
+| `net.socket`       | socket 底座：fd 生命周期与通用调用  |  ✅   |
+| `net.tcp`          | 阻塞式 TCP（字节流 + 长度前缀分帧） |  ✅   |
+| `net.udp`          | 阻塞式 UDP（数据报收发）           |  ✅   |
+| `net.http`         | HTTP（当前为空壳）                 |  🚧   |
+| `net.websocket`    | WebSocket（当前为空壳）            |  🚧   |
 | `tensor`           | 任意秩张量（基于 `std::mdspan`：批量矩阵乘、零拷贝转置、序列化） |  ✅   |
 | `deep_learning.tools` | 激活函数 / 损失函数 / 优化器 / OneHot / 随机工具 |  ✅   |
 | `deep_learning.bp` | 全连接 BP 网络（前向 / 反向 / 余弦退火） |  ✅   |
@@ -51,14 +52,17 @@
 
 图例：✅ 默认构建 · 🔌 可选，需显式开启 · 🟡 平台受限 · 🚧 占位未实现
 
-> `net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` **已接入总入口**——`import modforge;`
+> `net.address` / `net.socket` / `net.tcp` / `net.udp` 通过 `modforge.net` **已接入总入口**——`import modforge;`
 > 即可直接使用；`http` / `websocket` 仍是空壳，未导出。
 >
 > `cursor` 目前只有 Windows 实现（WinAPI），Linux 侧为空实现——接口可链接、调用为空操作，
 > 注入能力依赖 X11 / Wayland，方案未落地。
 >
-> `deep_learning/` 的 `tools / bp / cnn` 通过 `modforge.deep_learning` 已接入总入口，
-> `tensor` 也经总入口导出（原 `console` 模块已合并进 `terminal`）。
+> `deep_learning.tools` / `.bp` / `.cn` 通过 `modforge.deep_learning` **已接入总入口**——
+> `import modforge;` 即可直接使用；`tensor` 也经总入口导出。
+> 三者都跨模块依赖 `tensor`，`bp` 另依赖 `terminal`（训练时隐藏光标）——
+> `tensor` / `terminal` 是独立模块，不属于 `deep_learning`。
+> 注：`cnn` 目前还没有测试覆盖。
 >
 > 🔌 反射可选模块中，`static_serialize` 与 `config_generator` 在开启 `MODFORGE_ENABLE_REFLECTION` 时
 > 也经总入口导出（`import modforge;` 即得）；`event` 仍未接入总入口，需单独 `import`。
@@ -89,9 +93,6 @@ graph LR
     modforge --> tensor
     modforge --> deep_learning
 
-    deep_learning --> tensor
-    deep_learning --> terminal
-
     args_parser --> string_utils
     args_parser --> utils
     config_generator --> string_utils
@@ -105,20 +106,34 @@ graph LR
     table --> terminal
 
     subgraph "net module"
-        net --> tcp
-        net --> udp
-        net --> socket
-        net --> address
-        tcp --> socket
-        tcp --> address
-        udp --> socket
-        udp --> address
-        socket --> address
+        net --> net.tcp
+        net --> net.udp
+        net --> net.socket
+        net --> net.address
+        net.tcp --> net.socket
+        net.tcp --> net.address
+        net.udp --> net.socket
+        net.udp --> net.address
+        net.socket --> net.address
     end
+
+    subgraph "deep_learning module"
+        deep_learning --> deep_learning.tools
+        deep_learning --> deep_learning.bp
+        deep_learning --> deep_learning.cnn
+        deep_learning.bp --> deep_learning.tools
+        deep_learning.cnn --> deep_learning.tools
+    end
+
+    deep_learning.tools --> tensor
+    deep_learning.bp --> tensor
+    deep_learning.cnn --> tensor
+    deep_learning.bp --> terminal
 ```
 
 虚线表示 `static_serialize` 与 `config_generator` 仅在开启 `MODFORGE_ENABLE_REFLECTION` 时存在。
-`net/` 的 `address / socket / tcp / udp` 通过 `modforge.net` 接入总入口（`import modforge;` 即得）；
+`net.address` / `net.socket` / `net.tcp` / `net.udp` 通过 `modforge.net` 接入总入口（`import modforge;` 即得），
+`deep_learning.tools` / `.bp` / `.cn` 通过 `modforge.deep_learning` 同理；
 `event` 仍未接入总入口，`http / websocket` 仍是空壳且未导出——用它们需单独 `import`。
 `id_generator` 被 `signal` 与 `timer` 依赖，且经总入口对外导出。
 
@@ -270,11 +285,11 @@ ctest --test-dir build-check --output-on-failure
 | `test_event` | `event`（空测试） |
 | `test_table` | `table` |
 | `test_terminal` | `terminal` |
-| `test_socket` | `net/socket` |
-| `test_tcp` | `net/tcp` |
-| `test_udp` | `net/udp` |
+| `test_socket` | `net.socket` |
+| `test_tcp` | `net.tcp` |
+| `test_udp` | `net.udp` |
 | `test_id_generator` | `id_generator` |
-| `test_deep_learning` | `tensor`、`deep_learning`（BP 收敛 + 张量/工具函数） |
+| `test_deep_learning` | `tensor`、`deep_learning.tools`、`deep_learning.bp`（张量 / 工具函数 / BP 收敛） |
 | `test_static_serialize` | `static_serialize`（🔌 可选） |
 | `test_config_generator` | `config_generator`（🔌 可选） |
 

@@ -18,7 +18,7 @@ module;
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif
-export module modforge.address;
+export module modforge.net.address;
 import std;
 
 /** @brief 端点抽象：IPv4 地址 + 端口，TCP/UDP 共用 */

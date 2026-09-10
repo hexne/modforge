@@ -4,6 +4,6 @@
 ********************************************************************************/
 
 module;
-export module modforge.websocket;
+export module modforge.net.websocket;
 
 export void websocket() {  }

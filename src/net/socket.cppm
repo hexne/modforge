@@ -21,9 +21,9 @@ module;
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-export module modforge.socket;
+export module modforge.net.socket;
 import std;
-import modforge.address;
+import modforge.net.address;
 
 /** @brief socket 类型：构造时传入，不写死 SOCK_STREAM / SOCK_DGRAM */
 export enum class SocketType {

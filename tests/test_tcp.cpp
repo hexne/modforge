@@ -1,6 +1,6 @@
 import std;
-import modforge.address;
-import modforge.tcp;
+import modforge.net.address;
+import modforge.net.tcp;
 
 // TCP 测试：阻塞字节流语义 + 4 字节长度前缀分帧。
 // 只用环回地址 + 临时端口；所有阻塞读写都先设超时，避免测试挂死。

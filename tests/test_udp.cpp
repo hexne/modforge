@@ -1,6 +1,6 @@
 import std;
-import modforge.address;
-import modforge.udp;
+import modforge.net.address;
+import modforge.net.udp;
 
 // UDP 测试：数据报语义。与 TCP 的根本差异都在这里被固定下来。
 // 只用环回地址 + 临时端口；所有阻塞读写都先设超时，避免测试挂死。

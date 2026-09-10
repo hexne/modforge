@@ -1,6 +1,6 @@
 import std;
-import modforge.address;
-import modforge.socket;
+import modforge.net.address;
+import modforge.net.socket;
 
 // socket 底座测试：fd 生命周期与协议无关的通用调用。
 // 只用环回地址 + 临时端口，不依赖外网；不测协议语义（那是 tcp / udp 两个测试的事）。
