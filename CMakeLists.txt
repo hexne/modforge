@@ -4,6 +4,13 @@ set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "")
 
 include(cmake/modforge-init.cmake)
 
+# `import std;` 是实验特性：UUID 与 CMAKE_CXX_MODULE_STD 必须在 project() 之前生效，
+# 否则 std 模块不会被接线（编译 `import std;` 时报 no such module）。
+enable_import_std()
+
+# 反射默认关闭：反射模块需要 GCC trunk（16.2.1 的标准库 std::meta 不完整），
+# 而且 -freflection 会经 PUBLIC 传给下游。命令行 -DMODFORGE_ENABLE_REFLECTION=ON 开启；
+# 想写死在 CMakeLists 里，就把下一行换成 enable_reflection()（位置必须在 add_subdirectory(src) 之前）。
 option(MODFORGE_ENABLE_REFLECTION "启用 C++26 静态反射序列化模块（需要编译器支持 -freflection）" OFF)
 
 project(modforge VERSION 0.1.0)

@@ -173,6 +173,10 @@ set(MODFORGE_ENABLE_REFLECTION ON CACHE BOOL "" FORCE)
 add_subdirectory(modforge)
 ```
 
+include 过 `cmake/modforge-init.cmake` 的话，`enable_reflection()` 就是上面这行 `set()` 的函数写法。
+注意这两招都只对 `add_subdirectory`（源码内嵌）有效：`find_package` 拿到的已安装包里，
+反射能力在安装那一刻就固化了。
+
 关闭时 `static_serialize`、`config_generator` 不参与编译，对应的两个测试也不会注册到 CTest。
 开启后 `-freflection` 会随 `modforge` 目标传递给下游，**下游整体将切入反射方言**——
 不用反射的项目保持默认 OFF 即可，不受影响。
@@ -182,13 +186,15 @@ add_subdirectory(modforge)
 
 ## 📖 在项目中引入
 
-`import std` 目前仍是实验特性，两项开关**必须在 `project()` 之前**设置，否则 configure 阶段就会报
-`Experimental import std support not enabled`。推荐 include 库自带的 init 脚本
-（自动按 CMake 版本选 UUID，源码树与安装包中都带）：
+`import std` 目前仍是实验特性，两项开关**必须在 `project()` 之前**生效：调用太晚时 generate 阶段会报
+`Experimental import std support not enabled when detecting toolchain; it must be set before CXX is enabled`，
+而完全不调用则 std 模块根本不会被接线，编译 `import std;` 时报 `no such module`。推荐 include 库自带的
+init 脚本后调用 `enable_import_std()`（自动按 CMake 版本选 UUID，源码树与安装包中都带）：
 
 ```cmake
 cmake_minimum_required(VERSION 3.30.0)
-include("/path/to/modforge/cmake/modforge-init.cmake")  # 必须在 project() 之前
+include("/path/to/modforge/cmake/modforge-init.cmake")
+enable_import_std()                                     # 必须在 project() 之前
 project(my_app LANGUAGES CXX)
 ```
 
