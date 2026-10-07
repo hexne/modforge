@@ -8,6 +8,7 @@ export module modforge.file;
 import std;
 import modforge.utils;
 
+#ifdef ENABLE
 NAMESPACE_BEGIN
 
 export struct File {
@@ -36,3 +37,4 @@ export struct File {
 
 };
 NAMESPACE_END
+#endif

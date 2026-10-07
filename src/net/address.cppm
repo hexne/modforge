@@ -3,24 +3,12 @@
 * @Date   : 2026/08/29 20:05:49
 ********************************************************************************/
 module;
-#ifdef _WIN32
-// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
-#include <cstddef>
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00
-#endif
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#endif
 export module modforge.net.address;
 import std;
+import modforge.os;
 
+
+#ifdef __linux__
 /** @brief 端点抽象：IPv4 地址 + 端口，TCP/UDP 共用 */
 export class Address {
     sockaddr_in addr_{};
@@ -76,3 +64,5 @@ public:
     /** @brief sockaddr 结构长度 */
     socklen_t size() const { return sizeof(sockaddr_in); }
 };
+
+#endif

@@ -6,12 +6,12 @@
 export module modforge.tensor;
 import std;
 
+#ifdef ENABLE
 NAMESPACE_BEGIN
 
 export
 template <typename T, std::size_t Extents>
 class Tensor;
-
 
 
 /** @brief 一维向量：数据由 shared_ptr 持有，拷贝为浅拷贝（共享存储）
@@ -612,3 +612,5 @@ template <typename T, typename ...Args>
 Tensor(const std::initializer_list<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
 
 NAMESPACE_END
+
+#endif

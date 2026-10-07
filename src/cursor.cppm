@@ -4,19 +4,15 @@
 *******************************************************************************/
 
 module;
-#ifdef _WIN32
-// mingw-gcc modules bug workaround：见 terminal.cppm 注释（cstddef 预热 c++config.h guard）
-#include <cstddef>
-#include <windows.h>
-#elif __linux__
-#endif
 export module modforge.cursor;
 import std;
+import modforge.os;
+
 
 export
 struct CursorPos {
-	int x = 0;
-	int y = 0;
+	std::size_t x = 0;
+	std::size_t y = 0;
 	bool operator==(const CursorPos& right) const {
 		return x == right.x && y == right.y;
 	}
@@ -110,7 +106,7 @@ Cursor::~Cursor() {
 CursorPos Cursor::get_cursor_pos() {
 	POINT p;
 	GetCursorPos(&p);
-	return { p.x, p.y };
+	return { static_cast<std::size_t>(p.x), static_cast<std::size_t>(p.y) };
 }
 void Cursor::move_to(const CursorPos &pos) {
 	cursor_pos = pos;

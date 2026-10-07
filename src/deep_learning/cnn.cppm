@@ -8,6 +8,7 @@ import std;
 import modforge.tensor;
 import modforge.deep_learning.tools;
 
+#ifdef ENABLE
 NAMESPACE_BEGIN
 /** @brief 类型别名：标签 / 卷积核 / 全连接权重 / 特征图 / 池化窗口 */
 using Label      = Vector<float>;
@@ -768,3 +769,5 @@ export std::vector<Data> load_mnist_dataset(const std::string& image_path, const
 }
 
 NAMESPACE_END
+
+#endif

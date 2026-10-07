@@ -4,18 +4,9 @@
 ********************************************************************************/
 
 module;
-#if defined(_WIN32)
-// mingw modules bug workaround：windows.h 内部链在 extern "C" 上下文拉入 c++config.h 与
-// import std 冲突，先 include <cstddef> 置位其 guard 可避开（7 个 WIN 头模块同法）
-#include <cstddef>
-#include <windows.h>
-#elif defined(__linux__) || defined(__unix__)
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
-#endif
 export module modforge.terminal;
 import std;
+import modforge.os;
 
 NAMESPACE_BEGIN
 export namespace terminal {

@@ -3,19 +3,13 @@
 * @Date   : 2026/03/10 20:09:52
 ********************************************************************************/
 module;
-#if defined(__linux__)
-#include <pthread.h>
-#include <sched.h>
-#elif defined(_WIN32)
-// mingw-gcc modules bug workaround：见 terminal.cppm 注释（cstddef 预热 c++config.h guard）
-#include <cstddef>
-#include <windows.h>
-#endif
 export module modforge.thread_pool;
 import modforge.lock_free_queue;
 import std;
 import std.compat;
+import modforge.os;
 
+#ifdef ENABLE
 
 void bind_thread_to_core(std::thread &t, int core_id) {
 #if defined(__linux__)
@@ -112,3 +106,4 @@ public:
     }
 };
 NAMESPACE_END
+#endif

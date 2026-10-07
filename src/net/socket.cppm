@@ -3,27 +3,13 @@
 * @Date   : 2026/08/29 20:50:50
 ********************************************************************************/
 module;
-#include <cerrno>
-#include <cstring>
-#ifdef _WIN32
-// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
-#include <cstddef>
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00
-#endif
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
 export module modforge.net.socket;
 import std;
 import modforge.net.address;
+import modforge.os;
+
+
+#ifdef ENABLE
 
 /** @brief socket 类型：构造时传入，不写死 SOCK_STREAM / SOCK_DGRAM */
 export enum class SocketType {
@@ -51,7 +37,7 @@ std::string socket_error_message(const char* what) {
 #ifdef _WIN32
     return std::string(what) + " failed: error " + std::to_string(::WSAGetLastError());
 #else
-    return std::string(what) + " failed: " + std::strerror(errno);
+    return std::string(what) + " failed: " + std::strerror(errno_value());
 #endif
 }
 
@@ -242,3 +228,5 @@ public:
 
     ~Socket() { close(); }
 };
+
+#endif

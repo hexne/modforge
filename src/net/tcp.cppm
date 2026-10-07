@@ -4,25 +4,13 @@
 ********************************************************************************/
 
 module;
-#include <cerrno>
-#include <cstring>
-#ifdef _WIN32
-// mingw-gcc modules bug workaround：见 src/terminal.cppm 注释（cstddef 预热 c++config.h guard）
-#include <cstddef>
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00
-#endif
-#include <winsock2.h>
-#else
-#include <sys/socket.h>
-#endif
 export module modforge.net.tcp;
 import std;
 import modforge.net.address;
 import modforge.net.socket;
+import modforge.os;
 
+#ifdef ENABLE
 /** @brief 阻塞式 TCP 连接：组合持有 socket 底座
  *  @note  listen/accept 在此（UDP 无）；TCP 是字节流，send_all/recv_all 循环补齐
  *         两层接口：原始字节流 read_some/write_all，与 4 字节长度前缀分帧
@@ -73,7 +61,7 @@ public:
 #else
         const int s = ::accept(fd(), nullptr, nullptr);
         if (s < 0) {
-            throw std::runtime_error(std::string("accept failed: ") + std::strerror(errno));
+            throw std::runtime_error(std::string("accept failed: ") + std::strerror(errno_value()));
         }
         return TCP(static_cast<std::intptr_t>(s));
 #endif
@@ -103,7 +91,7 @@ public:
      */
     bool send_message(std::span<const char> msg) {
         using length_type = int;
-        if (msg.size() > static_cast<size_t>(k_max_message_size))
+        if (msg.size() > static_cast<std::size_t>(k_max_message_size))
             return false;
 
         length_type len = static_cast<length_type>(msg.size());
@@ -126,7 +114,7 @@ public:
         if (len < 0 || len > k_max_message_size)
             return std::nullopt;
 
-        std::vector<char> msg(static_cast<size_t>(len));
+        std::vector<char> msg(static_cast<std::size_t>(len));
         if (len > 0 && !recv_all(std::span<char>(msg.data(), msg.size())))
             return std::nullopt;
 
@@ -161,17 +149,17 @@ private:
      *  @return 全部写完为 true；连接断开或出错为 false
      */
     bool send_all(std::span<const char> data) {
-        size_t sent = 0;
+        std::size_t sent = 0;
         while (sent < data.size()) {
             std::ptrdiff_t n = socket_.send(data.subspan(sent));
             if (n > 0) {
-                sent += static_cast<size_t>(n);
+                sent += static_cast<std::size_t>(n);
                 continue;
             }
 #ifdef _WIN32
             return false;                  // winsock 无 EINTR 语义，失败即退出
 #else
-            if (n < 0 && errno == EINTR)   // 被信号打断，重试
+            if (n < 0 && errno_value() == EINTR)   // 被信号打断，重试
                 continue;
             return false;                  // n == 0 或真实错误
 #endif
@@ -184,11 +172,11 @@ private:
      *  @return 读满为 true；对端关闭或出错为 false
      */
     bool recv_all(std::span<char> data) {
-        size_t got = 0;
+        std::size_t got = 0;
         while (got < data.size()) {
             std::ptrdiff_t n = socket_.recv(data.subspan(got));
             if (n > 0) {
-                got += static_cast<size_t>(n);
+                got += static_cast<std::size_t>(n);
                 continue;
             }
             if (n == 0)  // 对端关闭
@@ -196,7 +184,7 @@ private:
 #ifdef _WIN32
             return false;  // winsock 无 EINTR，失败即退出
 #else
-            if (n < 0 && errno == EINTR)  // 被信号打断则重试
+            if (n < 0 && errno_value() == EINTR)  // 被信号打断则重试
                 continue;
             return false;
 #endif
@@ -206,3 +194,5 @@ private:
 
     Socket socket_;
 };
+
+#endif
