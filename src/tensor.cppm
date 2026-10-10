@@ -6,7 +6,6 @@
 export module modforge.tensor;
 import std;
 
-#ifdef ENABLE
 NAMESPACE_BEGIN
 
 export
@@ -612,5 +611,3 @@ template <typename T, typename ...Args>
 Tensor(const std::initializer_list<T> &vec, Args ...) -> Tensor<T, sizeof...(Args)>;
 
 NAMESPACE_END
-
-#endif

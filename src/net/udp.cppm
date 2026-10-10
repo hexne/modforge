@@ -10,7 +10,6 @@ import modforge.net.address;
 import modforge.net.socket;
 import modforge.os;
 
-#ifdef ENABLE
 /** @brief 阻塞式 UDP：组合持有 socket 底座
  *  @note  一次调用 = 一个数据报（不循环补齐）；缓冲区小于数据报时多余部分被内核丢弃；
  *         recv_from 返回 0 是合法空数据报（UDP 无"对端关闭"）；每个数据报可来自不同对端，
@@ -111,5 +110,3 @@ public:
 private:
     Socket socket_;
 };
-
-#endif

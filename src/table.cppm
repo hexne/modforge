@@ -7,7 +7,6 @@ export module modforge.table;
 import modforge.terminal;
 import std;
 
-#ifdef ENABLE
 NAMESPACE_BEGIN
 
 export enum class TextPos {
@@ -166,4 +165,3 @@ public:
 };
 
 NAMESPACE_END
-#endif

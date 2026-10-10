@@ -9,7 +9,6 @@ import modforge.net.address;
 import modforge.os;
 
 
-#ifdef ENABLE
 
 /** @brief socket 类型：构造时传入，不写死 SOCK_STREAM / SOCK_DGRAM */
 export enum class SocketType {
@@ -228,5 +227,3 @@ public:
 
     ~Socket() { close(); }
 };
-
-#endif

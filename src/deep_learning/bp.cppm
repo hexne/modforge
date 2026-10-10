@@ -13,7 +13,6 @@ import modforge.tensor;
 import modforge.deep_learning.tools;
 import modforge.terminal;
 
-#ifdef ENABLE
 NAMESPACE_BEGIN
 
 /** @brief 全连接层：持有输入 / 输出 / 梯度，以及到下一层的权重 */
@@ -279,5 +278,3 @@ int main() {
     return 0;
 }
 *******************************************************************************/
-
-#endif

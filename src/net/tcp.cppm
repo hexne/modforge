@@ -10,7 +10,6 @@ import modforge.net.address;
 import modforge.net.socket;
 import modforge.os;
 
-#ifdef ENABLE
 /** @brief 阻塞式 TCP 连接：组合持有 socket 底座
  *  @note  listen/accept 在此（UDP 无）；TCP 是字节流，send_all/recv_all 循环补齐
  *         两层接口：原始字节流 read_some/write_all，与 4 字节长度前缀分帧
@@ -194,5 +193,3 @@ private:
 
     Socket socket_;
 };
-
-#endif

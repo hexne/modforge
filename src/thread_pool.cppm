@@ -9,7 +9,6 @@ import std;
 import std.compat;
 import modforge.os;
 
-#ifdef ENABLE
 
 void bind_thread_to_core(std::thread &t, int core_id) {
 #if defined(__linux__)
@@ -106,4 +105,3 @@ public:
     }
 };
 NAMESPACE_END
-#endif

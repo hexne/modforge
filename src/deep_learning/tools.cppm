@@ -8,7 +8,6 @@ export module modforge.deep_learning.tools;
 
 import modforge.tensor;
 import std;
-#ifdef ENABLE
 
 export NAMESPACE_BEGIN
 
@@ -317,4 +316,3 @@ namespace deep_learning {
     }
 }
 NAMESPACE_END
-#endif

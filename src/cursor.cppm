@@ -157,7 +157,7 @@ void Cursor::listen_event() {
 }
 
 
-#elif __linux__
+#elifdef __linux__
 
 // Linux 侧空实现：鼠标注入依赖 X11/Wayland 平台能力，方案未落地。
 // 这里只保证接口可链接——模块经总入口导出，若无任何定义，消费方一实例化就会链接失败。
