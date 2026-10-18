@@ -68,6 +68,14 @@ install(FILES
         cmake/modforge-init.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/modforge)
 
+# 让下游 find_package 直接指向本仓库的 build 目录
+# 这样下游编译的是仓库里的 .cppm 本体，而不是 install 出去的副本——
+# 注意：install(EXPORT) 只在 install 时才把 modforgeTargets.cmake 写到安装前缀，
+# 所以要让 build 目录本身可作为包使用，必须额外 export(EXPORT) 一份到 build 目录。
+export(EXPORT modforgeTargets
+       FILE "${CMAKE_CURRENT_BINARY_DIR}/modforgeTargets.cmake"
+       NAMESPACE modforge::)
+
 # ---- uninstall ----
 if(NOT TARGET uninstall)
     configure_file(

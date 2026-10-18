@@ -380,9 +380,9 @@ public:
 
 
 NAMESPACE_BEGIN
-export using Time = TimeImpl<TimeZone::utc, std::chrono::seconds>;
+export using Time = TimeImpl<TimeZone::utc, std::chrono::milliseconds>;
 
-export using LocalTime = TimeImpl<TimeZone::local, std::chrono::seconds>;
+export using LocalTime = TimeImpl<TimeZone::local, std::chrono::milliseconds>;
 
 export template <typename TimePrecision = std::chrono::microseconds>
 using UTCTime = TimeImpl<TimeZone::utc, TimePrecision>;

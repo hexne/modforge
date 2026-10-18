@@ -24,6 +24,7 @@ export import modforge.utils;
 export import modforge.range;
 export import modforge.tensor;
 export import modforge.deep_learning;
+export import modforge.progress;
 export import modforge.net;
 
 #ifdef MODFORGE_ENABLE_REFLECTION
